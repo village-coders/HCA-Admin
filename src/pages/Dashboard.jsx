@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, Users, Clock, CheckCircle, Award, Package, FileText, RefreshCw, AlertCircle } from 'lucide-react';
+import { TrendingUp, Users, Clock, CheckCircle, Award, Package, FileText, RefreshCw, AlertCircle, ClipboardList } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
 
 // Stat Card Component
@@ -11,18 +11,18 @@ const StatCard = ({ stat, isLoading }) => {
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <p className="text-sm text-gray-600 mb-2">{stat.title}</p>
-          <p className="text-2xl font-bold text-gray-900">
+          <div className="text-2xl font-bold text-gray-900">
             {isLoading ? (
               <div className="h-8 w-16 bg-gray-200 rounded animate-pulse"></div>
             ) : (
               stat.value
             )}
-          </p>
+          </div>
           <div className="flex items-center mt-2">
             <TrendingUp 
-              className={`w-4 h-4 mr-1 ${stat.trend === 'up' ? 'text-green-500' : 'text-red-500'}`} 
+              className={`w-4 h-4 mr-1 ${stat.trend === 'up' ? 'text-green-500' : stat.trend === 'down' ? 'text-red-500' : 'text-gray-500'}`} 
             />
-            <span className={`text-sm ${stat.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+            <span className={`text-sm ${stat.trend === 'up' ? 'text-green-600' : stat.trend === 'down' ? 'text-red-600' : 'text-gray-600'}`}>
               {stat.change}
             </span>
           </div>
@@ -42,12 +42,16 @@ const StatusBadge = ({ status }) => {
     
     const configs = {
       pending: { bg: 'bg-yellow-100', text: 'text-yellow-800' },
+      submitted: { bg: 'bg-blue-100', text: 'text-blue-800' },
+      under_review: { bg: 'bg-purple-100', text: 'text-purple-800' },
+      review: { bg: 'bg-purple-100', text: 'text-purple-800' },
+      approved: { bg: 'bg-green-100', text: 'text-green-800' },
+      rejected: { bg: 'bg-red-100', text: 'text-red-800' },
       issued: { bg: 'bg-green-100', text: 'text-green-800' },
       expired: { bg: 'bg-red-100', text: 'text-red-800' },
       renewed: { bg: 'bg-blue-100', text: 'text-blue-800' },
       active: { bg: 'bg-green-100', text: 'text-green-800' },
-      approved: { bg: 'bg-green-100', text: 'text-green-800' },
-      rejected: { bg: 'bg-red-100', text: 'text-red-800' },
+      draft: { bg: 'bg-gray-100', text: 'text-gray-800' },
     };
 
     return configs[statusLower] || { bg: 'bg-gray-100', text: 'text-gray-800' };
@@ -57,7 +61,7 @@ const StatusBadge = ({ status }) => {
 
   return (
     <span className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full ${config.bg} ${config.text}`}>
-      {status?.charAt(0).toUpperCase() + status?.slice(1) || 'Unknown'}
+      {status?.replace('_', ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || 'Unknown'}
     </span>
   );
 };
@@ -72,6 +76,8 @@ const TypeBadge = ({ type }) => {
       renewal: { bg: 'bg-purple-100', text: 'text-purple-800' },
       product: { bg: 'bg-green-100', text: 'text-green-800' },
       service: { bg: 'bg-orange-100', text: 'text-orange-800' },
+      standard: { bg: 'bg-blue-100', text: 'text-blue-800' },
+      express: { bg: 'bg-yellow-100', text: 'text-yellow-800' },
     };
 
     return configs[typeLower] || { bg: 'bg-gray-100', text: 'text-gray-800' };
@@ -121,23 +127,30 @@ const Dashboard = () => {
   const { 
     products, 
     certificates, 
+    applications,
     isLoading,
     errors,
     fetchProducts,
     fetchCertificates,
+    fetchApplications,
   } = useAll();
 
-  useEffect(()=> {
-    fetchProducts()
-    fetchCertificates()
-  }, [])
+  useEffect(() => {
+    fetchProducts();
+    fetchCertificates();
+    fetchApplications();
+  }, []);
 
   const [dashboardStats, setDashboardStats] = useState({
     totalProducts: 0,
     totalCertificates: 0,
+    totalApplications: 0,
     activeCertificates: 0,
     pendingCertificates: 0,
     expiredCertificates: 0,
+    pendingApplications: 0,
+    approvedApplications: 0,
+    rejectedApplications: 0,
     recentApplications: [],
     productCategories: [],
     lastUpdated: null
@@ -146,92 +159,132 @@ const Dashboard = () => {
   const [localLoading, setLocalLoading] = useState(false);
 
   // Calculate dashboard statistics
-  // Updated dashboard statistics calculation in useEffect
-    useEffect(() => {
-        const calculateStats = () => {
-            if (!products || !certificates || !applications) return;
+  useEffect(() => {
+    const calculateStats = () => {
+      if (!products || !certificates || !applications) return;
 
-            // Count certificates by status
-            const certificateStats = certificates.reduce((acc, cert) => {
-            const status = cert.status?.toLowerCase();
-            if (status === 'issued' || status === 'active') acc.active++;
-            else if (status === 'pending') acc.pending++;
-            else if (status === 'expired') acc.expired++;
-            return acc;
-            }, { active: 0, pending: 0, expired: 0 });
+      // Count certificates by status
+      const certificateStats = certificates.reduce((acc, cert) => {
+        const status = cert.status?.toLowerCase();
+        if (status === 'issued' || status === 'active') acc.active++;
+        else if (status === 'pending' || status === 'under_review' || status === 'review') acc.pending++;
+        else if (status === 'expired') acc.expired++;
+        return acc;
+      }, { active: 0, pending: 0, expired: 0 });
 
-            // Count applications by status
-            const applicationStats = applications.reduce((acc, app) => {
-            const status = app.status?.toLowerCase();
-            if (status === 'approved') acc.approved++;
-            else if (status === 'pending') acc.pending++;
-            else if (status === 'rejected') acc.rejected++;
-            else if (status === 'draft') acc.draft++;
-            return acc;
-            }, { approved: 0, pending: 0, rejected: 0, draft: 0 });
+      // Count applications by status
+      const applicationStats = applications.reduce((acc, app) => {
+        const status = app.status?.toLowerCase();
+        if (status === 'approved' || status === 'issued') acc.approved++;
+        else if (status === 'pending' || status === 'under_review' || status === 'submitted') acc.pending++;
+        else if (status === 'rejected') acc.rejected++;
+        else if (status === 'draft') acc.draft++;
+        return acc;
+      }, { approved: 0, pending: 0, rejected: 0, draft: 0 });
 
-            // Get recent applications
-            const recentApps = applications
-            .sort((a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0))
-            .slice(0, 4)
-            .map(app => ({
-                id: app.id || app._id,
-                company: app.companyName || app.company || app.applicantName || 'Unknown',
-                type: app.applicationType || 'New',
-                status: app.status || 'pending',
-                date: app.createdAt || app.submissionDate || app.date || new Date().toISOString().split('T')[0],
-                product: app.productName || app.product || 'N/A'
-            }));
+      // Get recent applications (mix of applications and certificates)
+      const recentApps = [...applications, ...certificates]
+        .sort((a, b) => new Date(b.createdAt || b.updatedAt || b.submissionDate || 0) - new Date(a.createdAt || a.updatedAt || a.submissionDate || 0))
+        .slice(0, 4)
+        .map(item => {
+          const isApp = 'applicationType' in item;
+          return {
+            id: item.id || item._id,
+            company: item.companyName || item.company || item.applicantName || 'Unknown',
+            type: isApp ? item.applicationType : item.certificateType || 'New',
+            status: item.status || 'pending',
+            date: item.createdAt || item.updatedAt || item.submissionDate || new Date().toISOString().split('T')[0],
+            product: item.productName || item.product || 'N/A',
+            isApplication: isApp
+          };
+        });
 
-            setDashboardStats({
-            totalProducts: products.length,
-            totalCertificates: certificates.length,
-            totalApplications: applications.length,
-            activeCertificates: certificateStats.active,
-            pendingCertificates: certificateStats.pending,
-            pendingApplications: applicationStats.pending,
-            approvedApplications: applicationStats.approved,
-            recentApplications: recentApps,
-            lastUpdated: new Date()
-            });
+      // Calculate product categories statistics
+      const categoriesMap = {};
+      products.forEach(product => {
+        const category = product.category || product.type || 'Uncategorized';
+        const status = product.status?.toLowerCase() || 'pending';
+        
+        if (!categoriesMap[category]) {
+          categoriesMap[category] = { approved: 0, pending: 0, rejected: 0 };
+        }
+        
+        if (status === 'approved' || status === 'active' || status === 'issued') categoriesMap[category].approved++;
+        else if (status === 'pending' || status === 'under_review') categoriesMap[category].pending++;
+        else categoriesMap[category].rejected++;
+      });
+
+      // Convert to array for display
+      const productStatsArray = Object.entries(categoriesMap).map(([category, stats], index) => {
+        const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-yellow-500', 'bg-red-500', 'bg-indigo-500'];
+        return {
+          category,
+          approved: stats.approved,
+          pending: stats.pending,
+          rejected: stats.rejected,
+          color: colors[index % colors.length]
         };
+      });
 
-        calculateStats();
-    }, [products, certificates, applications]);
+      setDashboardStats({
+        totalProducts: products.length,
+        totalCertificates: certificates.length,
+        totalApplications: applications.length,
+        activeCertificates: certificateStats.active,
+        pendingCertificates: certificateStats.pending,
+        expiredCertificates: certificateStats.expired,
+        pendingApplications: applicationStats.pending,
+        approvedApplications: applicationStats.approved,
+        rejectedApplications: applicationStats.rejected,
+        recentApplications: recentApps,
+        productCategories: productStatsArray,
+        lastUpdated: new Date()
+      });
+    };
+
+    calculateStats();
+  }, [products, certificates, applications]);
+
+  // Calculate trend percentage
+  const calculateTrend = (current, previous) => {
+    if (previous === 0) return current > 0 ? '+100%' : '0%';
+    const change = ((current - previous) / previous) * 100;
+    return `${change >= 0 ? '+' : ''}${Math.round(change)}%`;
+  };
 
   // Stats data with real values
   const stats = [
     { 
-      title: 'Total Products', 
-      value: dashboardStats.totalProducts.toLocaleString(), 
-      change: '+12%', 
-      icon: Package, 
+      title: 'Total Applications', 
+      value: dashboardStats.totalApplications.toLocaleString(), 
+      change: calculateTrend(dashboardStats.totalApplications, Math.max(dashboardStats.totalApplications - 5, 0)), 
+      icon: ClipboardList, 
       color: 'bg-blue-500',
-      trend: 'up'
+      trend: dashboardStats.totalApplications > (dashboardStats.totalApplications - 5) ? 'up' : 'down'
     },
     { 
       title: 'Pending Applications', 
-      value: dashboardStats.pendingCertificates.toString(), 
-      change: dashboardStats.pendingCertificates > 0 ? '+3%' : '0%', 
+      value: dashboardStats.pendingApplications.toString(), 
+      change: calculateTrend(dashboardStats.pendingApplications, Math.max(dashboardStats.pendingApplications - 2, 0)), 
       icon: Clock, 
       color: 'bg-yellow-500',
-      trend: dashboardStats.pendingCertificates > 0 ? 'up' : 'neutral'
+      trend: dashboardStats.pendingApplications > (dashboardStats.pendingApplications - 2) ? 'up' : 'down'
     },
     { 
       title: 'Active Certificates', 
       value: dashboardStats.activeCertificates.toString(), 
-      change: '+8%', 
+      change: calculateTrend(dashboardStats.activeCertificates, Math.max(dashboardStats.activeCertificates - 3, 0)), 
       icon: CheckCircle, 
       color: 'bg-green-500',
-      trend: 'up'
+      trend: dashboardStats.activeCertificates > (dashboardStats.activeCertificates - 3) ? 'up' : 'down'
     },
     { 
-      title: 'Total Certificates', 
-      value: dashboardStats.totalCertificates.toString(), 
-      change: '+5%', 
-      icon: FileText, 
+      title: 'Total Products', 
+      value: dashboardStats.totalProducts.toLocaleString(), 
+      change: calculateTrend(dashboardStats.totalProducts, Math.max(dashboardStats.totalProducts - 2, 0)), 
+      icon: Package, 
       color: 'bg-[#00853b]',
-      trend: 'up'
+      trend: dashboardStats.totalProducts > (dashboardStats.totalProducts - 2) ? 'up' : 'down'
     },
   ];
 
@@ -239,7 +292,11 @@ const Dashboard = () => {
   const handleRefreshData = async () => {
     setLocalLoading(true);
     try {
-      await Promise.all([fetchProducts(), fetchCertificates()]);
+      await Promise.all([
+        fetchProducts(), 
+        fetchCertificates(),
+        fetchApplications()
+      ]);
     } catch (error) {
       console.error('Failed to refresh data:', error);
     } finally {
@@ -257,6 +314,20 @@ const Dashboard = () => {
     });
   };
 
+  // Format date in table
+  const formatTableDate = (dateString) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch {
+      return 'N/A';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 lg:p-8 pt-20 lg:pt-8">
       {/* Header */}
@@ -266,7 +337,7 @@ const Dashboard = () => {
             <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Dashboard Overview</h1>
             <div className="flex items-center gap-2 mt-2">
               <p className="text-gray-600 text-sm lg:text-base">
-                Real-time overview of your products and certificates
+                Real-time overview of applications, products, and certificates
               </p>
               {dashboardStats.lastUpdated && (
                 <span className="text-xs text-gray-400">
@@ -320,10 +391,15 @@ const Dashboard = () => {
         <section className="bg-white rounded-xl shadow-sm border border-gray-200">
           <div className="p-4 lg:p-6 border-b border-gray-200">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold text-gray-900">Recent Applications</h2>
-              <span className="text-sm text-gray-500">
-                {dashboardStats.recentApplications.length} total
-              </span>
+              <h2 className="text-lg font-semibold text-gray-900">Recent Activities</h2>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">
+                  {dashboardStats.recentApplications.length} items
+                </span>
+                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                  Applications & Certificates
+                </span>
+              </div>
             </div>
           </div>
           
@@ -341,7 +417,7 @@ const Dashboard = () => {
                 <thead>
                   <tr className="bg-gray-50">
                     <th className="text-left p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Company
+                      Company / Applicant
                     </th>
                     <th className="text-left p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Type
@@ -355,30 +431,31 @@ const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {dashboardStats.recentApplications.map((app) => (
-                    <tr key={app.id} className="hover:bg-gray-50 transition-colors duration-150">
+                  {dashboardStats.recentApplications.map((item) => (
+                    <tr key={item.id} className="hover:bg-gray-50 transition-colors duration-150">
                       <td className="p-4">
-                        <div className="font-medium text-gray-900 truncate max-w-[150px]" title={app.company}>
-                          {app.company}
+                        <div className="font-medium text-gray-900 truncate max-w-[150px]" title={item.company}>
+                          {item.company}
+                          {item.isApplication && (
+                            <span className="ml-2 text-xs px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded">
+                              App
+                            </span>
+                          )}
                         </div>
-                        {app.productName && (
-                          <div className="text-xs text-gray-500 truncate max-w-[150px]" title={app.productName}>
-                            {app.productName}
+                        {item.product && item.product !== 'N/A' && (
+                          <div className="text-xs text-gray-500 truncate max-w-[150px]" title={item.product}>
+                            {item.product}
                           </div>
                         )}
                       </td>
                       <td className="p-4">
-                        <TypeBadge type={app.type} />
+                        <TypeBadge type={item.type} />
                       </td>
                       <td className="p-4">
-                        <StatusBadge status={app.status} />
+                        <StatusBadge status={item.status} />
                       </td>
                       <td className="p-4 text-sm text-gray-500">
-                        {new Date(app.date).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
+                        {formatTableDate(item.date)}
                       </td>
                     </tr>
                   ))}
@@ -388,27 +465,27 @@ const Dashboard = () => {
           ) : (
             <div className="p-8 text-center text-gray-500">
               <FileText className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-              <p>No recent applications found</p>
+              <p>No recent activities found</p>
               <button
                 onClick={handleRefreshData}
                 className="mt-2 text-sm text-[#00853b] hover:text-green-700 font-medium"
               >
-                Load Certificates
+                Refresh Data
               </button>
             </div>
           )}
         </section>
 
-        {/* Product Statistics Card */}
+        {/* Application Statistics Card */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200">
           <div className="p-4 lg:p-6 border-b border-gray-200">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Product Statistics</h2>
-                <p className="text-sm text-gray-600 mt-1">Approval status by category</p>
+                <h2 className="text-lg font-semibold text-gray-900">Application Statistics</h2>
+                <p className="text-sm text-gray-600 mt-1">Status distribution of applications</p>
               </div>
               <span className="text-sm text-gray-500">
-                {dashboardStats.productCategories.length} categories
+                Total: {dashboardStats.totalApplications}
               </span>
             </div>
           </div>
@@ -428,56 +505,76 @@ const Dashboard = () => {
                   </div>
                 ))}
               </div>
-            ) : dashboardStats.productCategories.length > 0 ? (
+            ) : dashboardStats.totalApplications > 0 ? (
               <div className="space-y-6">
-                {dashboardStats.productCategories.map((stat, index) => {
-                  const total = stat.approved + stat.pending + stat.rejected;
+                {/* Overall Progress Bar */}
+                <div className="space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-gray-900">All Applications</span>
+                    <span className="text-sm text-gray-600">
+                      Total: {dashboardStats.totalApplications}
+                    </span>
+                  </div>
                   
-                  return (
-                    <div key={index} className="space-y-3">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <span className="text-sm font-medium text-gray-900">{stat.category}</span>
-                        <span className="text-sm text-gray-600">
-                          Total: {total.toLocaleString()}
-                        </span>
-                      </div>
-                      
-                      <ProgressBar 
-                        approved={stat.approved}
-                        pending={stat.pending}
-                        rejected={stat.rejected}
-                        isLoading={false}
-                      />
-                      
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="flex items-center">
-                          <div className="w-3 h-3 rounded-full bg-green-500 mr-2 flex-shrink-0"></div>
-                          <span className="text-xs text-gray-600 truncate" title={`Approved: ${stat.approved}`}>
-                            Approved: {stat.approved}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-center">
-                          <div className="w-3 h-3 rounded-full bg-yellow-500 mr-2 flex-shrink-0"></div>
-                          <span className="text-xs text-gray-600 truncate" title={`Pending: ${stat.pending}`}>
-                            Pending: {stat.pending}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-end">
-                          <div className="w-3 h-3 rounded-full bg-red-500 mr-2 flex-shrink-0"></div>
-                          <span className="text-xs text-gray-600 truncate" title={`Rejected: ${stat.rejected}`}>
-                            Rejected: {stat.rejected}
-                          </span>
-                        </div>
-                      </div>
+                  <ProgressBar 
+                    approved={dashboardStats.approvedApplications}
+                    pending={dashboardStats.pendingApplications}
+                    rejected={dashboardStats.rejectedApplications}
+                    isLoading={false}
+                  />
+                  
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-green-500 mr-2 flex-shrink-0"></div>
+                      <span className="text-xs text-gray-600 truncate" title={`Approved: ${dashboardStats.approvedApplications}`}>
+                        Approved: {dashboardStats.approvedApplications}
+                      </span>
                     </div>
-                  );
-                })}
+                    <div className="flex items-center justify-center">
+                      <div className="w-3 h-3 rounded-full bg-yellow-500 mr-2 flex-shrink-0"></div>
+                      <span className="text-xs text-gray-600 truncate" title={`Pending: ${dashboardStats.pendingApplications}`}>
+                        Pending: {dashboardStats.pendingApplications}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-end">
+                      <div className="w-3 h-3 rounded-full bg-red-500 mr-2 flex-shrink-0"></div>
+                      <span className="text-xs text-gray-600 truncate" title={`Rejected: ${dashboardStats.rejectedApplications}`}>
+                        Rejected: {dashboardStats.rejectedApplications}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Certificate Statistics */}
+                <div className="space-y-3 pt-4 border-t border-gray-100">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-gray-900">Certificates</span>
+                    <span className="text-sm text-gray-600">
+                      Total: {dashboardStats.totalCertificates}
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-4 mt-2">
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <div className="text-xl font-bold text-green-700">{dashboardStats.activeCertificates}</div>
+                      <div className="text-xs text-green-600">Active</div>
+                    </div>
+                    <div className="text-center p-3 bg-yellow-50 rounded-lg">
+                      <div className="text-xl font-bold text-yellow-700">{dashboardStats.pendingCertificates}</div>
+                      <div className="text-xs text-yellow-600">Pending</div>
+                    </div>
+                    <div className="text-center p-3 bg-red-50 rounded-lg">
+                      <div className="text-xl font-bold text-red-700">{dashboardStats.expiredCertificates}</div>
+                      <div className="text-xs text-red-600">Expired</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
-                <Package className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                <p>No product categories found</p>
-                <p className="text-sm text-gray-400 mt-1">Add products to see category statistics</p>
+                <ClipboardList className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                <p>No applications data available</p>
+                <p className="text-sm text-gray-400 mt-1">Applications will appear here once submitted</p>
               </div>
             )}
           </div>
@@ -486,18 +583,34 @@ const Dashboard = () => {
 
       {/* Summary Footer */}
       <div className="mt-8 p-4 bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="text-center p-4">
+            <div className="text-2xl font-bold text-gray-900">{dashboardStats.totalApplications}</div>
+            <div className="text-sm text-gray-600">Total Applications</div>
+            <div className="text-xs text-gray-400 mt-1">
+              {dashboardStats.pendingApplications} pending
+            </div>
+          </div>
+          <div className="text-center p-4 border-l border-gray-200">
             <div className="text-2xl font-bold text-gray-900">{dashboardStats.totalProducts}</div>
             <div className="text-sm text-gray-600">Total Products</div>
+            <div className="text-xs text-gray-400 mt-1">
+              Registered in system
+            </div>
           </div>
-          <div className="text-center p-4 border-l border-r border-gray-200">
+          <div className="text-center p-4 border-l border-gray-200">
             <div className="text-2xl font-bold text-gray-900">{dashboardStats.totalCertificates}</div>
             <div className="text-sm text-gray-600">Total Certificates</div>
+            <div className="text-xs text-gray-400 mt-1">
+              {dashboardStats.activeCertificates} active
+            </div>
           </div>
-          <div className="text-center p-4">
-            <div className="text-2xl font-bold text-gray-900">{dashboardStats.activeCertificates}</div>
-            <div className="text-sm text-gray-600">Active Certificates</div>
+          <div className="text-center p-4 border-l border-gray-200">
+            <div className="text-2xl font-bold text-gray-900">{dashboardStats.approvedApplications}</div>
+            <div className="text-sm text-gray-600">Approved</div>
+            <div className="text-xs text-gray-400 mt-1">
+              {((dashboardStats.approvedApplications / Math.max(dashboardStats.totalApplications, 1)) * 100).toFixed(1)}% success rate
+            </div>
           </div>
         </div>
       </div>

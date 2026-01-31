@@ -10,6 +10,7 @@ const AllProvider = ({ children }) => {
   const [products, setProducts] = useState([]);
   const [certificates, setCertificates] = useState([]);
   const [applications, setApplications] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState("");
 
@@ -49,6 +50,7 @@ const AllProvider = ({ children }) => {
     fetchProducts();
     fetchCertificates();
     fetchApplications();
+    fetchCompanies();
   }, []);
 
   // 📦 Fetch products
@@ -83,7 +85,7 @@ const AllProvider = ({ children }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
       
-      setCertificates(res.data.certificates || []);
+      setCertificates(res.data || []);
       setErrors("");
     } catch (error) {
       console.error("Failed to fetch certificates:", error);
@@ -103,12 +105,37 @@ const AllProvider = ({ children }) => {
       const res = await axios.get(`${baseUrl}/applications`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
+      // console.log(res.data)
       
-      setApplications(res.data.applications || []);
+      setApplications(res.data || []);
       setErrors("");
     } catch (error) {
       console.error("Failed to fetch applications:", error);
       setErrors("Failed to load applications");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 📋 Fetch companies
+  const fetchCompanies = async () => {
+    const token = getToken();
+    if (!token) return;
+
+    setIsLoading(true);
+    try {
+      const res = await axios.get(`${baseUrl}/users?role=company`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // console.log(res.data)
+      
+      setCompanies(res.data.users || []);
+      setErrors("");
+    } catch (error) {
+      console.error("Failed to fetch companies:", error);
+      setErrors("Failed to load companies");
     } finally {
       setIsLoading(false);
     }
@@ -146,7 +173,7 @@ const AllProvider = ({ children }) => {
         },
       });
 
-      setApplications(prev => [res.data.application, ...prev]);
+      setApplications(prev => [res.data, ...prev]);
       toast.success("Application submitted successfully!");
       return { success: true, data: res.data };
     } catch (error) {
@@ -168,7 +195,7 @@ const AllProvider = ({ children }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
       
-      return res.data.application;
+      return res.data;
     } catch (error) {
       console.error("Failed to fetch application:", error);
       return null;
@@ -206,7 +233,7 @@ const AllProvider = ({ children }) => {
       });
 
       setApplications(prev => prev.map(app => 
-        app.id === id ? res.data.application : app
+        app.id === id ? res.data : app
       ));
       toast.success("Application updated successfully!");
       return { success: true, data: res.data };
@@ -239,32 +266,6 @@ const AllProvider = ({ children }) => {
     }
   };
 
-  // ✅ Approve application
-  const approveApplication = async (id) => {
-    const token = getToken();
-    if (!token) return { success: false };
-
-    setIsLoading(true);
-    try {
-      const res = await axios.post(
-        `${baseUrl}/applications/${id}/approve`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      setApplications(prev => prev.map(app => 
-        app.id === id ? { ...app, status: 'approved' } : app
-      ));
-      toast.success(res.data.message);
-      return { success: true, data: res.data };
-    } catch (error) {
-      console.error("Failed to approve application:", error);
-      toast.error(error.response?.data?.message || "Failed to approve application");
-      return { success: false, error };
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // ❌ Reject application
   const rejectApplication = async (id, reason = "") => {
@@ -273,7 +274,7 @@ const AllProvider = ({ children }) => {
 
     setIsLoading(true);
     try {
-      const res = await axios.post(
+      const res = await axios.put(
         `${baseUrl}/applications/${id}/reject`,
         { reason },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -292,26 +293,34 @@ const AllProvider = ({ children }) => {
       setIsLoading(false);
     }
   };
-
-  // 🔍 Search applications
-  const searchApplications = async (searchTerm) => {
+  
+  
+  const approveApplication = async (id, reason = "") => {
     const token = getToken();
-    if (!token) return [];
+    if (!token) return { success: false };
 
     setIsLoading(true);
     try {
-      const res = await axios.get(`${baseUrl}/applications/search?q=${searchTerm}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      
-      return res.data.applications || [];
+      const res = await axios.put(
+        `${baseUrl}/applications/${id}/approve`,
+        { reason },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setApplications(prev => prev.map(app => 
+        app.id === id ? { ...app, status: 'rejected', rejectionReason: reason } : app
+      ));
+      toast.success(res.data.message);
+      return { success: true, data: res.data };
     } catch (error) {
-      console.error("Failed to search applications:", error);
-      return [];
+      console.error("Failed to reject application:", error);
+      toast.error(error.response?.data?.message || "Failed to reject application");
+      return { success: false, error };
     } finally {
       setIsLoading(false);
     }
   };
+
 
   // 📊 Get application statistics
   const getApplicationStats = async () => {
@@ -402,29 +411,27 @@ const AllProvider = ({ children }) => {
   };
 
   // 📄 Add certificate
-  const addCertificate = async (certificateData) => {
+  const addCertificate = async (id) => {
     const token = getToken();
     if (!token) return { success: false };
 
-    const formData = new FormData();
-    Object.entries(certificateData).forEach(([key, value]) => {
-      if (value !== undefined) formData.append(key, value);
-    });
+    // const formData = new FormData();
+    // Object.entries(certificateData).forEach(([key, value]) => {
+    //   if (value !== undefined) formData.append(key, value);
+    // });
 
     setIsLoading(true);
     try {
       const res = await axios.post(
-        `${baseUrl}/certificates/generate`,
-        formData,
+      `${baseUrl}/certificates/generate/${id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
           },
         }
       );
 
-      setCertificates((prev) => [...prev, res.data.certificate]);
+      setCertificates((prev) => [...prev, res.data]);
       toast.success("Certificate added successfully!");
       return { success: true };
     } catch {
@@ -544,45 +551,7 @@ const AllProvider = ({ children }) => {
     }
   };
 
-  // 🔍 Search products
-  const searchProducts = async (searchTerm) => {
-    const token = getToken();
-    if (!token) return [];
 
-    setIsLoading(true);
-    try {
-      const res = await axios.get(`${baseUrl}/products/search?q=${searchTerm}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      
-      return res.data.products || [];
-    } catch (error) {
-      console.error("Failed to search products:", error);
-      return [];
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // 🔍 Search certificates
-  const searchCertificates = async (searchTerm) => {
-    const token = getToken();
-    if (!token) return [];
-
-    setIsLoading(true);
-    try {
-      const res = await axios.get(`${baseUrl}/certificates/search?q=${searchTerm}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      
-      return res.data.certificates || [];
-    } catch (error) {
-      console.error("Failed to search certificates:", error);
-      return [];
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const value = {
     // Products
@@ -592,7 +561,12 @@ const AllProvider = ({ children }) => {
     deleteProduct,
     updateProduct,
     getProductById,
-    searchProducts,
+
+
+    // Companies
+
+    fetchCompanies,
+    companies,
     
     // Certificates
     certificates,
@@ -602,7 +576,6 @@ const AllProvider = ({ children }) => {
     updateCertificate,
     getCertificateById,
     renewCertificate,
-    searchCertificates,
     
     // Applications
     applications,
@@ -613,7 +586,6 @@ const AllProvider = ({ children }) => {
     deleteApplication,
     approveApplication,
     rejectApplication,
-    searchApplications,
     getApplicationStats,
     
     // Common
