@@ -1,13 +1,25 @@
 import { useState } from "react";
 import { FiEye, FiEyeOff } from "react-icons/fi";
+import { useAuth } from "../hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const {signin, signingIn} = useAuth()
+  const navigate = useNavigate()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async(e) => {
     e.preventDefault();
+
+    const formData = {email, password}
+
+    try {
+      await signin(formData, navigate)
+    } catch (error) {
+      console.log(error);      
+    }
   };
 
   return (
@@ -62,7 +74,7 @@ export default function Login() {
             type="submit"
             className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold shadow-md transition"
           >
-            Login
+            {signingIn ? "Loading..." : "Login"}
           </button>
         </form>
 

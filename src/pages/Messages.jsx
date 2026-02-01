@@ -34,7 +34,7 @@ import {
   UserPlus,
   AlertCircle
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 
 function AdminMessages() {
   const [conversations, setConversations] = useState([]);
@@ -131,7 +131,7 @@ function AdminMessages() {
   const markAsRead = async () => {
     try {
       const token = JSON.parse(localStorage.getItem("accessToken"));
-      await axios.put(`${baseUrl}/messages/admin/mark-read/${selectedConversation.userId}`, {}, {
+      await axios.put(`${baseUrl}/messages/admin/mark-read/${selectedConversation._id}`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -164,7 +164,7 @@ function AdminMessages() {
       const formData = new FormData();
       
       formData.append("content", newMessage);
-      formData.append("receiver", selectedConversation.userId);
+      formData.append("receiver", selectedConversation.user._id);
       
       attachments.forEach((file) => {
         formData.append("attachments", file);
@@ -221,27 +221,37 @@ function AdminMessages() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const formatTime = (date) => {
-    return format(new Date(date), 'hh:mm a');
-  };
+ const formatTime = (date) => {
+    if (!date) return "—";
 
-  const formatDate = (date) => {
-    const today = new Date();
-    const messageDate = new Date(date);
-    
-    if (today.toDateString() === messageDate.toDateString()) {
-      return "Today";
-    }
-    
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    if (yesterday.toDateString() === messageDate.toDateString()) {
-      return "Yesterday";
-    }
-    
-    return format(messageDate, 'MMM dd, yyyy');
-  };
+    const parsedDate = new Date(date);
+    if (!isValid(parsedDate)) return "—";
+
+    return format(parsedDate, "hh:mm a");
+};
+
+
+const formatDate = (date) => {
+  if (!date) return "";
+
+  const messageDate = new Date(date);
+  if (!isValid(messageDate)) return "";
+
+  const today = new Date();
+
+  if (today.toDateString() === messageDate.toDateString()) {
+    return "Today";
+  }
+
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (yesterday.toDateString() === messageDate.toDateString()) {
+    return "Yesterday";
+  }
+
+  return format(messageDate, "MMM dd, yyyy");
+};
 
   const selectConversation = (conversation) => {
     setSelectedConversation(conversation);
@@ -329,8 +339,8 @@ function AdminMessages() {
   };
 
   useEffect(() => {
-    if (selectedConversation && selectedConversation.userId) {
-      getUserInfo(selectedConversation.userId);
+    if (selectedConversation && selectedConversation.user._id) {
+      getUserInfo(selectedConversation.user_id);
     }
   }, [selectedConversation]);
 
@@ -518,7 +528,7 @@ function AdminMessages() {
                                   {conversation.user?.fullName || conversation.companyName || 'Unknown User'}
                                 </h4>
                                 <span className="text-xs text-gray-500">
-                                  {formatTime(conversation?.lastMessage.createdAt)}
+                                  {formatTime(conversation?.lastMessage?.createdAt)}
                                 </span>
                               </div>
                               <p className="text-sm text-gray-600 truncate mt-1">
@@ -587,7 +597,7 @@ function AdminMessages() {
                               </span>
                               <span className="flex items-center text-sm text-gray-600">
                                 <Building className="w-4 h-4 mr-1" />
-                                {selectedUser?.companyName || selectedConversation.user?.referenceNo || 'No company'}
+                                {selectedUser?.companyName || selectedConversation.user?._id.slice(0, 6) || 'No company'}
                               </span>
                               <span className="flex items-center text-sm text-gray-600">
                                 <Calendar className="w-4 h-4 mr-1" />

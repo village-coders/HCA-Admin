@@ -83,14 +83,14 @@ const AuthProvider = ({ children }) => {
       console.log(res.data);
       
       if (status === "success") {
-        toast.success(message);
-        localStorage.setItem("accessToken", JSON.stringify(accessToken));
-        localStorage.setItem("user", JSON.stringify(user));
-        if (user.role === "company") {
-          navigate("/dashboard");
+        if (user.role !== "admin") {
+          toast.error("You're not an admin");
+          navigate("/");
         } else {
-          toast.error("No account found");
-          // navigate("/");
+          // localStorage.setItem("user", JSON.stringify(user));
+          localStorage.setItem("accessToken", JSON.stringify(accessToken));
+          toast.success(message);
+          navigate("/dashboard");
         }
       }
     } catch (error) {

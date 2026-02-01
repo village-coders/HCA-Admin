@@ -12,6 +12,7 @@ import ManageAdmins from "./pages/ManageAdmins";
 import AuthProvider from "./contexts/AuthProvider";
 import AllProvider from "./contexts/AllProvider";
 import { Toaster } from "sonner";
+import AdminMessages from "./pages/Messages";
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
               <Route path="/products" element={<Products />} />
               <Route path="/companies" element={<Companies />} />
               <Route path="/manage-admins" element={<ManageAdmins />} />
+              <Route path="/message" element={<AdminMessages />} />
             </Route>
           </Routes>
 
