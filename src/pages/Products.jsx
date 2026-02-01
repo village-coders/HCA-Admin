@@ -871,7 +871,7 @@ const Products = () => {
                           </span>
                         </td>
                         <td className="p-4 text-sm text-gray-500">
-                          {formatDate(product.createdAt || product.submissionDate)}
+                          {formatDate(product?.createdAt || product?.submissionDate)}
                         </td>
                         <td className="p-4">
                           <div className="flex items-center space-x-2">

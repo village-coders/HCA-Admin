@@ -24,6 +24,8 @@ export default function Login() {
     }
   };
 
+  const year = new Date().getFullYear();
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-200 via-gray-200 to-green-500 px-4">
       <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 space-y-6">
@@ -81,7 +83,7 @@ export default function Login() {
         </form>
 
         <div className="text-center text-gray-500 text-sm mt-4">
-          &copy; 2026 HCA Admin. All rights reserved.
+          &copy; {year} HCA Admin. All rights reserved.
         </div>
       </div>
     </div>
