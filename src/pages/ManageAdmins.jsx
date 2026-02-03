@@ -71,7 +71,7 @@ const ManageAdmins = () => {
   // 🔹 ADD ADMIN (API)
   const handleAddAdmin = async () => {
     if (!newAdmin.name || !newAdmin.email || !newAdmin.password) {
-      alert("All fields are required");
+      toast.warning("All fields are required");
       return;
     }
 
@@ -108,7 +108,7 @@ console.log("TOKEN:", localStorage.getItem("token"));
       fetchAdmins(); // 🔁 refresh list
     } catch (err) {
       console.error(err);
-      alert("Error creating admin");
+      toast.error("Error creating admin");
     } finally {
       setSubmitting(false);
     }
