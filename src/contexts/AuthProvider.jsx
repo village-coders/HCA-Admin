@@ -86,7 +86,7 @@ const AuthProvider = ({ children }) => {
       console.log(res.data);
       
       if (status === "success") {
-        if (user.role !== "admin") {
+        if (user.role !== "admin" || user.role !== "super admin") {
           toast.error("You're not an admin");
           navigate("/");
         } else {

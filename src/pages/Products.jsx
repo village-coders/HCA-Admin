@@ -23,6 +23,7 @@ import { useAll } from '../hooks/useAll';
 import { toast } from 'sonner';
 
 const Products = () => {
+  const controller = new AbortController()
   const [filter, setFilter] = useState({
     name: '',
     company: '',
@@ -54,6 +55,8 @@ const Products = () => {
   // Fetch products on component mount
   useEffect(() => {
     fetchProducts();
+    
+    return () => controller.abort()
   }, []);
 
   // Handle refresh

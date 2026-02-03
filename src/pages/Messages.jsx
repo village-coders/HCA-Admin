@@ -58,7 +58,7 @@ function AdminMessages() {
   useEffect(() => {
     fetchConversations();
     
-    const interval = setInterval(fetchConversations, 30000);
+    const interval = setInterval(fetchConversations, 6000);
     
     return () => clearInterval(interval);
   }, []);

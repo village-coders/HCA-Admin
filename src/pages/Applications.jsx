@@ -31,6 +31,7 @@ import { useAll } from '../hooks/useAll';
 import { toast } from 'sonner';
 
 const Applications = () => {
+  const controller = new AbortController()
   const [filter, setFilter] = useState({
     company: '',
     dateFrom: '',
@@ -62,6 +63,8 @@ const Applications = () => {
   // Fetch applications on component mount
   useEffect(() => {
     fetchApplications();
+
+    return () => controller.abort()
   }, []);
 
   // Handle refresh
