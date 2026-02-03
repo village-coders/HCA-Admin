@@ -23,6 +23,7 @@ import { useAll } from '../hooks/useAll';
 import { toast } from 'sonner';
 
 const Products = () => {
+  const controller = new AbortController()
   const [filter, setFilter] = useState({
     name: '',
     company: '',
@@ -54,6 +55,8 @@ const Products = () => {
   // Fetch products on component mount
   useEffect(() => {
     fetchProducts();
+    
+    return () => controller.abort()
   }, []);
 
   // Handle refresh
@@ -146,6 +149,7 @@ const Products = () => {
       fetchProducts();
     } catch (error) {
       toast.error("Failed to approve product");
+      console.log(error)
     }
   };
 
@@ -168,6 +172,7 @@ const Products = () => {
         fetchProducts();
       } catch (error) {
         toast.error("Failed to reject product");
+        console.log(error)
       }
     }
   };
@@ -187,6 +192,7 @@ const Products = () => {
         fetchProducts();
       } catch (error) {
         toast.error("Failed to delete product");
+        console.log(error)
       }
     }
   };
@@ -203,6 +209,7 @@ const Products = () => {
       }
     } catch (error) {
       toast.error("Failed to load product details");
+      console.log(error)
     } finally {
       setIsLoadingDetails(false);
     }
@@ -241,6 +248,7 @@ const Products = () => {
         fetchProducts();
       } catch (error) {
         toast.error("Failed to delete some products");
+        console.log(error)
       }
     }
   };

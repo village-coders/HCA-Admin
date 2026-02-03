@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AuthContext } from "./authContext";
 
 const AuthProvider = ({ children }) => {
+  const controller = new AbortController()
   const navigate = useNavigate();
   const [user, setUser] = useState([]);
   const [verifyingAccount, setVerifyingAccount] = useState(false);
@@ -13,6 +14,7 @@ const AuthProvider = ({ children }) => {
   const [signingIn, setSigningIn] = useState(false);
   const [signingUp, setSigningUp] = useState(false);
   const [userLoading, setUserLoading] = useState(false);
+
 
   const baseUrl = import.meta.env.VITE_BASE_URL;
 
@@ -44,6 +46,7 @@ const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     fetchUser();
+    return () => controller.abort()
   }, []);
 
   // 🧑‍🤝‍🧑 Fetch users
@@ -83,7 +86,7 @@ const AuthProvider = ({ children }) => {
       console.log(res.data);
       
       if (status === "success") {
-        if (user.role !== "admin") {
+        if (user.role !== "admin" && user.role !== "super admin") {
           toast.error("You're not an admin");
           navigate("/");
         } else {
@@ -127,6 +130,32 @@ const AuthProvider = ({ children }) => {
   };
 
 
+  const isAuthenticated = () => {
+    const storedToken = localStorage.getItem("accessToken");
+    if (!storedToken) return false;
+
+    try {
+      const token = JSON.parse(storedToken);
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      const currentTime = Math.floor(Date.now() / 1000);
+
+      if (payload.exp && payload.exp < currentTime) {
+        localStorage.removeItem("accessToken");
+        toast.error("Session expired. Please log in again.");
+        navigate("/");
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Invalid token", error);
+      localStorage.removeItem("accessToken");
+      navigate("/");
+      return false;
+    }
+  };
+
+
   // ✅ Verify account
   const verifyAccount = async (token) => {
     setVerifyingAccount(true);
@@ -160,6 +189,7 @@ const AuthProvider = ({ children }) => {
     signup,
     resetPassword,
     userLoading,
+    isAuthenticated
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

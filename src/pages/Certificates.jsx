@@ -26,6 +26,7 @@ import { useAll } from '../hooks/useAll';
 import { toast } from 'sonner';
 
 const Certificates = () => {
+  const controller = new AbortController()
   const [filter, setFilter] = useState({
     search: '',
     company: '',
@@ -60,6 +61,8 @@ const Certificates = () => {
   // Fetch certificates on component mount
   useEffect(() => {
     fetchCertificates();
+
+    return () => controller.abort()
   }, []);
 
   // Update company suggestions when companies or filter changes

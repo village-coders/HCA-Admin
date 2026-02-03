@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import DashboardLayout from "./layout/DashboardLayout";
 
+import ProtectedRoutes from "./components/ProtectedRoutes"
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/login";
 import Applications from "./pages/Applications";
@@ -21,14 +22,16 @@ function App() {
         <AllProvider>
           <Routes>
             <Route path="/" element={<Login />} />
-            <Route element={<DashboardLayout />}>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/applications" element={<Applications />} />
-              <Route path="/certificates" element={<Certificates />} />
-              <Route path="/products" element={<Products />} />
-              <Route path="/companies" element={<Companies />} />
-              <Route path="/manage-admins" element={<ManageAdmins />} />
-              <Route path="/message" element={<AdminMessages />} />
+            <Route element={<ProtectedRoutes/>}>
+              <Route element={<DashboardLayout />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/applications" element={<Applications />} />
+                <Route path="/certificates" element={<Certificates />} />
+                <Route path="/products" element={<Products />} />
+                <Route path="/companies" element={<Companies />} />
+                <Route path="/manage-admins" element={<ManageAdmins />} />
+                <Route path="/message" element={<AdminMessages />} />
+              </Route>
             </Route>
           </Routes>
 

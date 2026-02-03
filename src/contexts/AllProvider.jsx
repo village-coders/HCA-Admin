@@ -154,7 +154,7 @@ const AllProvider = ({ children }) => {
       Object.entries(applicationData).forEach(([key, value]) => {
         if (Array.isArray(value)) {
           // Handle array of files
-          value.forEach((file, index) => {
+          value.forEach((file) => {
             if (file instanceof File) {
               formData.append(key, file);
             }
@@ -213,7 +213,7 @@ const AllProvider = ({ children }) => {
       
       Object.entries(applicationData).forEach(([key, value]) => {
         if (Array.isArray(value)) {
-          value.forEach((file, index) => {
+          value.forEach((file) => {
             if (file instanceof File) {
               formData.append(key, file);
             }

@@ -20,7 +20,7 @@ const Sidebar = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const navItems = [
-    { path: '/', icon: Home, label: 'Dashboard' },
+    { path: '/dashboard', icon: Home, label: 'Dashboard' },
     { path: '/companies', icon: Building2, label: 'Companies' },
     { path: '/applications', icon: FileText, label: 'Applications' },
     { path: '/products', icon: Package, label: 'Products' },

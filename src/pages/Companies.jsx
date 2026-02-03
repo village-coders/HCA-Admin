@@ -3,6 +3,7 @@ import { Search, Building2, Package, Users, XCircle, CheckCircle, Filter, Refres
 import { useAll } from '../hooks/useAll';
 
 const Companies = () => {
+  const controller = new AbortController()
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -11,6 +12,8 @@ const Companies = () => {
 
   useEffect(() => {
     fetchCompanies();
+
+    return () => controller.abort()
   }, []);
 
   // Handle refresh

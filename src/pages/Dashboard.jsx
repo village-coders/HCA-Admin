@@ -124,6 +124,7 @@ const ProgressBar = ({ approved, pending, rejected, isLoading }) => {
 };
 
 const Dashboard = () => {
+  const controller = new AbortController()
   const { 
     products, 
     certificates, 
@@ -139,6 +140,7 @@ const Dashboard = () => {
     fetchProducts();
     fetchCertificates();
     fetchApplications();
+    return () => controller.abort()
   }, []);
 
   const [dashboardStats, setDashboardStats] = useState({
