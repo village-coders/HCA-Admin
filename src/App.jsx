@@ -33,8 +33,8 @@ function App() {
                 <Route path="/products" element={<Products />} />
                 <Route path="/companies" element={<Companies />} />
                 <Route path="/manage-admins" element={<ManageAdmins />} />
-                <Route path="/message" element={<Messages />} />
-                <Route path="/socket-message" element={<AdminMessages />} />
+                <Route path="/message" element={<AdminMessages />} />
+                <Route path="/socket-message" element={<Messages />} />
               </Route>
             </Route>
           </Routes>
