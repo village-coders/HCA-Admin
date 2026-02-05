@@ -185,18 +185,18 @@ const Dashboard = () => {
       }, { approved: 0, pending: 0, rejected: 0, draft: 0 });
 
       // Get recent applications (mix of applications and certificates)
-      const recentApps = [...applications, ...certificates]
+      const recentApps = [...applications, ...products, ...certificates]
         .sort((a, b) => new Date(b.createdAt || b.updatedAt || b.submissionDate || 0) - new Date(a.createdAt || a.updatedAt || a.submissionDate || 0))
         .slice(0, 4)
         .map(item => {
           const isApp = 'applicationType' in item;
           return {
             id: item.id || item._id,
-            company: item.companyName || item.company || item.applicantName || 'Unknown',
+            company: item.companyName || item.company || item.companyId || 'Unknown',
             type: isApp ? item.applicationType : item.certificateType || 'New',
             status: item.status || 'pending',
             date: item.createdAt || item.updatedAt || item.submissionDate || new Date().toISOString().split('T')[0],
-            product: item?.productName || item.product?.name || 'N/A',
+            product: item.productName || item.name || item?.product?.name || 'N/A',
             isApplication: isApp
           };
         });

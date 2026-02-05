@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import DashboardHeader from "../components/DashboardHeader";
 import axios from "axios";
@@ -35,6 +35,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { format, isValid } from "date-fns";
+import { useSocket } from "../contexts/SocketContext";
 
 function AdminMessages() {
   const [conversations, setConversations] = useState([]);
@@ -49,80 +50,224 @@ function AdminMessages() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showUserInfo, setShowUserInfo] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [typingUsers, setTypingUsers] = useState({});
   
+  const searchTimeout = useRef(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
   
   const baseUrl = import.meta.env.VITE_BASE_URL;
+  const { socket, isConnected } = useSocket();
+  const user = JSON.parse(localStorage.getItem('user'));
 
   useEffect(() => {
-    fetchConversations();
-    
-    const interval = setInterval(fetchConversations, 6000);
-    
-    return () => clearInterval(interval);
+    const controller = new AbortController();
+
+    fetchConversations(controller.signal);
+
+    const interval = setInterval(() => {
+      fetchConversations(controller.signal);
+    }, 6000);
+
+    return () => {
+      controller.abort();
+      clearInterval(interval);
+    };
   }, []);
 
+  // Socket.IO event listeners
   useEffect(() => {
-    if (selectedConversation) {
-      fetchMessages();
-      markAsRead();
+    if (!socket) return;
+
+    // Listen for new messages
+    const handleNewMessage = (message) => {
+      console.log('Admin received new message:', message);
+      
+      // If message is for admin
+      if (message.receiver === 'admin') {
+        // Add to messages if viewing this conversation
+        if (selectedConversation && message.sender._id === selectedConversation._id) {
+          setMessages(prev => {
+            const exists = prev.some(msg => msg._id === message._id);
+            if (exists) return prev;
+            return [...prev, { ...message, isMine: false }];
+          });
+          
+          // Show notification
+          toast.info(`New message from ${message.sender.fullName}`);
+        }
+        
+        // Update conversation list
+        updateConversationList(message);
+      }
+    };
+
+    // Listen for message read events
+    const handleMessageRead = ({ messageId }) => {
+      setMessages(prev => prev.map(msg => 
+        msg._id === messageId ? { ...msg, read: true } : msg
+      ));
+    };
+
+    // Listen for typing indicators
+    const handleUserTyping = ({ userId, isTyping }) => {
+      setTypingUsers(prev => ({
+        ...prev,
+        [userId]: isTyping
+      }));
+
+      // Clear typing indicator after 3 seconds
+      if (isTyping) {
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+        typingTimeoutRef.current = setTimeout(() => {
+          setTypingUsers(prev => ({
+            ...prev,
+            [userId]: false
+          }));
+        }, 3000);
+      }
+    };
+
+    // Listen for user joined (for real-time status)
+    const handleUserJoined = (data) => {
+      console.log('User joined conversation:', data);
+      // You can update user online status here
+    };
+
+    socket.on('new-message', handleNewMessage);
+    socket.on('message-read', handleMessageRead);
+    socket.on('user-typing', handleUserTyping);
+    socket.on('user-joined', handleUserJoined);
+
+    return () => {
+      socket.off('new-message', handleNewMessage);
+      socket.off('message-read', handleMessageRead);
+      socket.off('user-typing', handleUserTyping);
+      socket.off('user-joined', handleUserJoined);
+    };
+  }, [socket, selectedConversation]);
+
+  useEffect(() => {
+    clearTimeout(searchTimeout.current);
+
+    searchTimeout.current = setTimeout(() => {
+      fetchConversations();
+    }, 400);
+
+    return () => clearTimeout(searchTimeout.current);
+  }, [searchQuery, statusFilter]);
+
+  useEffect(() => {
+    if (!selectedConversation) return;
+
+    const controller = new AbortController();
+
+    fetchMessages(controller.signal);
+    markAsRead();
+    
+    // Join the conversation room for real-time updates
+    if (socket && isConnected) {
+      socket.emit('join-conversation', selectedConversation._id);
     }
-  }, [selectedConversation]);
+
+    return () => {
+      controller.abort();
+      // Leave conversation room
+      if (socket && isConnected) {
+        socket.emit('leave-conversation', selectedConversation._id);
+      }
+    };
+  }, [selectedConversation, socket, isConnected]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const fetchConversations = async () => {
+  const fetchConversations = async (signal) => {
     try {
       const token = JSON.parse(localStorage.getItem("accessToken"));
-      const response = await axios.get(`${baseUrl}/messages/admin/all`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { 
-          search: searchQuery,
-          status: statusFilter !== 'all' ? statusFilter : undefined
+
+      const response = await axios.get(
+        `${baseUrl}/messages/admin/all`,
+        {
+          signal,
+          headers: { Authorization: `Bearer ${token}` },
+          params: {
+            search: searchQuery,
+            status: statusFilter !== 'all' ? statusFilter : undefined
+          }
         }
-      });
-      console.log(response.data);
-      
+      );
+
       if (response.data.status === "success") {
-        setConversations(response.data?.data?.conversations || response?.data?.data?.messages || []);
+        setConversations(response.data.data.conversations || []);
       }
     } catch (error) {
-      toast.error("Failed to load conversations");
-      console.error(error);
+      if (!axios.isCancel(error)) {
+        toast.error("Failed to load conversations");
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const fetchMessages = async () => {
+  // Update conversation list when new message arrives
+  const updateConversationList = (message) => {
+    setConversations(prev => {
+      const index = prev.findIndex(conv => conv._id === message.sender._id);
+      
+      if (index !== -1) {
+        // Update existing conversation
+        const updatedConversations = [...prev];
+        updatedConversations[index] = {
+          ...updatedConversations[index],
+          lastMessage: message,
+          unreadCount: updatedConversations[index].unreadCount + 1,
+          updatedAt: new Date().toISOString()
+        };
+        
+        // Move to top
+        const [movedConversation] = updatedConversations.splice(index, 1);
+        return [movedConversation, ...updatedConversations];
+      } else {
+        // Add new conversation
+        const newConversation = {
+          _id: message.sender._id,
+          user: message.sender,
+          lastMessage: message,
+          unreadCount: 1,
+          updatedAt: new Date().toISOString(),
+          status: 'active'
+        };
+        
+        return [newConversation, ...prev];
+      }
+    });
+  };
+
+  const fetchMessages = async (signal) => {
     try {
       setIsLoadingMessages(true);
       const token = JSON.parse(localStorage.getItem("accessToken"));
-      console.log(selectedConversation);
-      
-      const response = await axios.get(`${baseUrl}/messages/admin/conversation/${selectedConversation._id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+
+      const response = await axios.get(
+        `${baseUrl}/messages/admin/conversation/${selectedConversation._id}`,
+        {
+          signal,
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
       if (response.data.status === "success") {
         setMessages(response.data.messages);
-        
-        setConversations(prev => prev.map(conv => 
-          conv._id === selectedConversation._id 
-            ? { 
-                ...conv, 
-                lastMessage: response?.data?.messages[response.data?.messages?.length - 1],
-                unreadCount: 0 
-              }
-            : conv
-        ));
       }
     } catch (error) {
-      toast.error("Failed to load messages");
-      console.error(error);
+      if (!axios.isCancel(error)) {
+        toast.error(error.message);
+      }
     } finally {
       setIsLoadingMessages(false);
     }
@@ -145,8 +290,34 @@ function AdminMessages() {
     }
   };
 
+  // Handle typing events
+  const handleTyping = (isTyping) => {
+    if (!socket || !isConnected || !selectedConversation) return;
+
+    socket.emit('typing', { 
+      conversationId: selectedConversation._id, 
+      isTyping 
+    });
+    
+    // Clear previous timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Set timeout to stop typing after 2 seconds
+    if (isTyping) {
+      typingTimeoutRef.current = setTimeout(() => {
+        socket.emit('typing', { 
+          conversationId: selectedConversation._id, 
+          isTyping: false 
+        });
+      }, 2000);
+    }
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
+    if (isSending) return;
     
     if (!newMessage.trim() && attachments.length === 0) {
       toast.error("Message cannot be empty");
@@ -167,7 +338,7 @@ function AdminMessages() {
       formData.append("receiver", selectedConversation.user._id);
       
       attachments.forEach((file) => {
-        formData.append("attachments", file);
+        formData.append("files", file);
       });
 
       const response = await axios.post(`${baseUrl}/messages/admin/send`, formData, {
@@ -184,10 +355,15 @@ function AdminMessages() {
           isMine: true
         };
         
+        // Add message to local state immediately
         setMessages(prev => [...prev, newMsg]);
         setNewMessage("");
         setAttachments([]);
         
+        // Stop typing indicator
+        handleTyping(false);
+        
+        // Refresh conversations
         fetchConversations();
         
         toast.success("Message sent!");
@@ -221,37 +397,36 @@ function AdminMessages() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
- const formatTime = (date) => {
+  const formatTime = (date) => {
     if (!date) return "—";
 
     const parsedDate = new Date(date);
     if (!isValid(parsedDate)) return "—";
 
     return format(parsedDate, "hh:mm a");
-};
+  };
 
+  const formatDate = (date) => {
+    if (!date) return "";
 
-const formatDate = (date) => {
-  if (!date) return "";
+    const messageDate = new Date(date);
+    if (!isValid(messageDate)) return "";
 
-  const messageDate = new Date(date);
-  if (!isValid(messageDate)) return "";
+    const today = new Date();
 
-  const today = new Date();
+    if (today.toDateString() === messageDate.toDateString()) {
+      return "Today";
+    }
 
-  if (today.toDateString() === messageDate.toDateString()) {
-    return "Today";
-  }
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
 
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
+    if (yesterday.toDateString() === messageDate.toDateString()) {
+      return "Yesterday";
+    }
 
-  if (yesterday.toDateString() === messageDate.toDateString()) {
-    return "Yesterday";
-  }
-
-  return format(messageDate, "MMM dd, yyyy");
-};
+    return format(messageDate, "MMM dd, yyyy");
+  };
 
   const selectConversation = (conversation) => {
     setSelectedConversation(conversation);
@@ -340,7 +515,7 @@ const formatDate = (date) => {
 
   useEffect(() => {
     if (selectedConversation && selectedConversation.user._id) {
-      getUserInfo(selectedConversation.user_id);
+      getUserInfo(selectedConversation.user._id);
     }
   }, [selectedConversation]);
 
@@ -403,6 +578,12 @@ const formatDate = (date) => {
               <div>
                 <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Admin Messages</h1>
                 <p className="text-gray-600 mt-1">Manage and respond to user messages</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <span className="text-sm text-gray-600">
+                    {isConnected ? 'Real-time connected' : 'Real-time disconnected'}
+                  </span>
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -412,7 +593,10 @@ const formatDate = (date) => {
                   <CheckCircle className="w-5 h-5 mr-2" />
                   Mark All Read
                 </button>
-                <button className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors duration-200 inline-flex items-center justify-center">
+                <button 
+                  onClick={() => fetchConversations()}
+                  className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors duration-200 inline-flex items-center justify-center"
+                >
                   <RefreshCw className="w-5 h-5 mr-2" />
                   Refresh
                 </button>
@@ -519,8 +703,12 @@ const formatDate = (date) => {
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex items-start space-x-3">
-                            <div className="w-10 h-10 rounded-full bg-[#00853b]/10 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-full bg-[#00853b]/10 flex items-center justify-center relative">
                               <UserCircle className="w-5 h-5 text-[#00853b]" />
+                              {/* Online indicator */}
+                              {typingUsers[conversation._id] && (
+                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full animate-pulse" />
+                              )}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between">
@@ -534,6 +722,11 @@ const formatDate = (date) => {
                               <p className="text-sm text-gray-600 truncate mt-1">
                                 {conversation.lastMessage?.content?.substring(0, 40) || "No messages yet"}...
                               </p>
+                              {typingUsers[conversation._id] && (
+                                <p className="text-xs text-blue-500 italic mt-1">
+                                  typing...
+                                </p>
+                              )}
                               <div className="flex items-center justify-between mt-2">
                                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(conversation.status)}`}>
                                   {conversation.status}
@@ -583,8 +776,11 @@ const formatDate = (date) => {
                     <div className="p-6 border-b border-gray-200">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 rounded-full bg-[#00853b]/10 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-full bg-[#00853b]/10 flex items-center justify-center relative">
                             <UserCircle className="w-6 h-6 text-[#00853b]" />
+                            {typingUsers[selectedConversation._id] && (
+                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full animate-pulse" />
+                            )}
                           </div>
                           <div>
                             <h3 className="text-lg font-bold text-gray-900">
@@ -604,6 +800,11 @@ const formatDate = (date) => {
                                 Joined {selectedUser?.createdAt ? format(new Date(selectedUser.createdAt), 'MMM dd, yyyy') : 'N/A'}
                               </span>
                             </div>
+                            {typingUsers[selectedConversation._id] && (
+                              <div className="mt-1 text-sm text-blue-500 italic">
+                                User is typing...
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -813,13 +1014,22 @@ const formatDate = (date) => {
                             className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b]"
                             placeholder={`Reply to ${selectedUser?.fullName || 'user'}...`}
                             value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
+                            onChange={(e) => {
+                              setNewMessage(e.target.value);
+                              // Send typing event
+                              if (e.target.value.trim()) {
+                                handleTyping(true);
+                              } else {
+                                handleTyping(false);
+                              }
+                            }}
                             onKeyPress={(e) => {
                               if (e.key === 'Enter' && !e.shiftKey) {
                                 e.preventDefault();
                                 handleSendMessage(e);
                               }
                             }}
+                            onBlur={() => handleTyping(false)}
                             disabled={isSending}
                           />
                           <div className="absolute right-2 bottom-2 text-xs text-gray-500">
@@ -855,6 +1065,12 @@ const formatDate = (date) => {
                     <MessageSquare className="w-16 h-16 text-gray-400 mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Conversation</h3>
                     <p className="text-gray-600">Choose a conversation from the list to start messaging</p>
+                    <div className="flex items-center gap-2 mt-4">
+                      <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                      <span className="text-sm text-gray-600">
+                        {isConnected ? 'Real-time messaging enabled' : 'Real-time messaging disabled'}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>

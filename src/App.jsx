@@ -14,10 +14,13 @@ import AuthProvider from "./contexts/AuthProvider";
 import AllProvider from "./contexts/AllProvider";
 import { Toaster } from "sonner";
 import AdminMessages from "./pages/Messages";
+import { SocketProvider } from "./contexts/SocketContext";
+import Messages from "./components/Messages";
 
 function App() {
   return (
     <Router>
+      <SocketProvider>
       <AuthProvider>
         <AllProvider>
           <Routes>
@@ -31,6 +34,7 @@ function App() {
                 <Route path="/companies" element={<Companies />} />
                 <Route path="/manage-admins" element={<ManageAdmins />} />
                 <Route path="/message" element={<AdminMessages />} />
+                <Route path="/socket-message" element={<Messages />} />
               </Route>
             </Route>
           </Routes>
@@ -43,6 +47,7 @@ function App() {
           />
         </AllProvider>
       </AuthProvider>
+      </SocketProvider>
     </Router>
   );
 }

@@ -18,32 +18,33 @@ const ManageAdmins = () => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
-
+  
   const [newAdmin, setNewAdmin] = useState({
     name: "",
     email: "",
     password: "",
-    phone: "",
+    contact: "",
     role: "Admin",
   });
-
+  
   // 🔹 FETCH ADMINS (SAFE)
-  const fetchAdmins = async () => {
+  const fetchAdmins = async (signal) => {
     try {
       setLoading(true);
       const token = JSON.parse(localStorage.getItem("accessToken"))
       const res = await fetch(
         `${import.meta.env.VITE_BASE_URL}/users/admin`,{
-        headers: {
-          Authorization: `Bearer ${token}`
+          headers: {
+            Authorization: `Bearer ${token}`
+          },
+          signal,
         }
-      }
       );
       const data = await res.json();
 
-      console.log(data);
+      // console.log(data);
       
-
+      
       const adminsArray = Array.isArray(data)
         ? data
         : Array.isArray(data?.data)
@@ -51,12 +52,12 @@ const ManageAdmins = () => {
         : Array.isArray(data?.users)
         ? data.users
         : [];
-
-      const formattedAdmins = adminsArray.map((admin) => ({
+        
+        const formattedAdmins = adminsArray.map((admin) => ({
         id: admin._id,
         name: admin.fullName || admin.name || "N/A",
         email: admin.email || "—",
-        phone: admin.phone || "—",
+        contact: admin.contact || "—",
         role: admin.role || "Admin",
         addedDate: admin.createdAt
           ? new Date(admin.createdAt).toISOString().split("T")[0]
@@ -72,14 +73,16 @@ const ManageAdmins = () => {
       setLoading(false);
     }
   };
-
+  
   useEffect(() => {
-    fetchAdmins();
+    const controller = new AbortController()
+    fetchAdmins(controller.signal);
+    return () => controller.abort()
   }, []);
 
   // 🔹 ADD ADMIN (API)
   const handleAddAdmin = async () => {
-    if (!newAdmin.name || !newAdmin.email || !newAdmin.password) {
+    if (!newAdmin.name || !newAdmin.email || !newAdmin.password || !newAdmin.contact) {
       toast.warning("All fields are required");
       return;
     }
@@ -101,7 +104,7 @@ const ManageAdmins = () => {
             fullName: newAdmin.name,
             email: newAdmin.email,
             password: newAdmin.password,
-            phone: newAdmin.phone,
+            contact: newAdmin.contact,
             role: newAdmin.role,
           }),
         }
@@ -118,7 +121,7 @@ const ManageAdmins = () => {
         name: "",
         email: "",
         password: "",
-        phone: "",
+        contact: "",
         role: "Admin",
       });
 
@@ -257,9 +260,9 @@ const ManageAdmins = () => {
                 <input
                   type="tel"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b]"
-                  value={newAdmin.phone}
+                  value={newAdmin.contact}
                   onChange={(e) =>
-                    setNewAdmin({ ...newAdmin, phone: e.target.value })
+                    setNewAdmin({ ...newAdmin, contact: e.target.value })
                   }
                   placeholder="Enter phone number"
                 />
@@ -275,9 +278,9 @@ const ManageAdmins = () => {
                     setNewAdmin({ ...newAdmin, role: e.target.value })
                   }
                 >
-                  <option value="Admin">Admin</option>
-                  <option value="Super Admin">Super Admin</option>
-                  <option value="Viewer">Viewer</option>
+                  <option value="admin">Admin</option>
+                  <option value="super admin">Super Admin</option>
+                  {/* <option value="Viewer">Viewer</option> */}
                 </select>
               </div>
             </div>
@@ -379,7 +382,7 @@ const ManageAdmins = () => {
                     </div>
                     <div className="flex items-center text-sm">
                       <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                      {admin.phone}
+                      {admin.contact}
                     </div>
                   </td>
 
@@ -405,7 +408,7 @@ const ManageAdmins = () => {
                           : "bg-gray-100 text-gray-800"
                       }`}
                     >
-                      {admin.status === "Active" ? (
+                      {admin?.status?.toLowerCase() === "active" ? (
                         <CheckCircle className="inline w-3 h-3 mr-1" />
                       ) : (
                         <XCircle className="inline w-3 h-3 mr-1" />

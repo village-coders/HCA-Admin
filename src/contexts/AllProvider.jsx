@@ -479,6 +479,7 @@ const AllProvider = ({ children }) => {
     try {
       const res = await axios.post(
       `${baseUrl}/certificates/generate/${id}`,
+        {},
         {
           headers: {
             Authorization: `Bearer ${token}`,

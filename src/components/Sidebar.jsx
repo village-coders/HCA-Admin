@@ -35,7 +35,7 @@ const Sidebar = () => {
     { path: '/applications', icon: FileText, label: 'Applications' },
     { path: '/products', icon: Package, label: 'Products' },
     { path: '/certificates', icon: Award, label: 'Certificates' },
-    { path: '/manage-admins', icon: Users, label: 'Manage Admin' },
+    { path: user?.role === "super admin" ? '/manage-admins' : "", icon:  Users, label: user?.role === "super admin" ? 'Manage Admin' : ""},
     { path: '/message', icon: MessageCircleIcon, label: 'Message' },
   ];
 
@@ -121,7 +121,7 @@ const Sidebar = () => {
           
           <button className={`
             flex items-center ${isCollapsed ? 'justify-center px-3' : 'px-4'} py-3 w-full rounded-lg
-            text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200 mt-8`}
+            text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200 mt-8 cursor-pointer`}
             onClick={logout}
             >
             <LogOut className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'}`} />

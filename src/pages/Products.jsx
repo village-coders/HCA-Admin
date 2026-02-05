@@ -365,14 +365,14 @@ const Products = () => {
                   {selectedProduct.name || 'Unnamed Product'}
                 </h2>
                 <p className="text-sm text-gray-600">
-                  Product ID: #{productId.slice(-8)}
+                  Product ID: #{productId?.slice(-8)}
                 </p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
               <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusConfig.bg} ${statusConfig.text}`}>
                 <StatusIcon className="w-4 h-4 mr-1" />
-                {selectedProduct.status?.charAt(0).toUpperCase() + selectedProduct.status?.slice(1) || 'Unknown'}
+                {selectedProduct?.status?.charAt(0).toUpperCase() + selectedProduct?.status?.slice(1) || 'Unknown'}
               </span>
               <button
                 onClick={closeModal}
@@ -416,7 +416,7 @@ const Products = () => {
                     <div>
                       <p className="text-sm text-gray-600">Product Code</p>
                       <p className="font-medium text-gray-900">
-                        {selectedProduct.productCode || 'N/A'}
+                        {selectedProduct?._id.slice(-8) || 'N/A'}
                       </p>
                     </div>
                   </div>
@@ -432,13 +432,13 @@ const Products = () => {
                     <div>
                       <p className="text-sm text-gray-600">Company Name</p>
                       <p className="font-medium text-gray-900">
-                        {getCompanyName(selectedProduct.companyId) || selectedProduct.companyName || 'N/A'}
+                        {getCompanyName(selectedProduct?.companyId) || selectedProduct?.companyName || 'N/A'}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Company Address</p>
                       <p className="font-medium text-gray-900">
-                        {selectedProduct.companyAddress || 'N/A'}
+                        {selectedProduct?.address || 'N/A'}
                       </p>
                     </div>
                     {selectedProduct.companyWebsite && (
@@ -850,7 +850,7 @@ const Products = () => {
                           <div>
                             <div className="font-medium text-gray-900">{product.name || 'Unnamed Product'}</div>
                             <div className="text-sm text-gray-600">
-                              {product.productCode || 'No product code'}
+                              {product?._id?.slice(-8) || 'No product code'}
                             </div>
                             {product.description && (
                               <div className="text-xs text-gray-500 truncate max-w-xs">
@@ -875,7 +875,7 @@ const Products = () => {
                         <td className="p-4">
                           <span className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full ${statusConfig.bg} ${statusConfig.text}`}>
                             <StatusIcon className="w-3 h-3 mr-1" />
-                            {product.status?.charAt(0).toUpperCase() + product.status?.slice(1) || 'Unknown'}
+                            {product?.status?.charAt(0).toUpperCase() + product?.status?.slice(1) || 'Unknown'}
                           </span>
                         </td>
                         <td className="p-4 text-sm text-gray-500">

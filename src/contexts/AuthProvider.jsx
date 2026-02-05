@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { AuthContext } from "./authContext";
 
 const AuthProvider = ({ children }) => {
-  const controller = new AbortController()
   const navigate = useNavigate();
   const [user, setUser] = useState([]);
   const [verifyingAccount, setVerifyingAccount] = useState(false);
@@ -23,12 +22,12 @@ const AuthProvider = ({ children }) => {
     const interval = setInterval(() => {
       const storedToken = localStorage.getItem("accessToken");
       if (!storedToken) return;
-
+      
       try {
         const token = JSON.parse(storedToken);
         const payload = JSON.parse(atob(token.split(".")[1]));
         const currentTime = Math.floor(Date.now() / 1000);
-
+        
         if (payload.exp && payload.exp < currentTime) {
           localStorage.removeItem("accessToken");
           toast.error("Session expired. Please log in again.");
@@ -45,12 +44,15 @@ const AuthProvider = ({ children }) => {
   }, [navigate]);
 
   useEffect(() => {
-    fetchUser();
+    const controller = new AbortController()
+
+    fetchUser(controller.signal);
+    
     return () => controller.abort()
   }, []);
 
   // 🧑‍🤝‍🧑 Fetch users
-  const fetchUser = async () => {
+  const fetchUser = async (signal) => {
     try {
       setUserLoading(true)
       const token = JSON.parse(localStorage.getItem("accessToken")); // assuming JWT auth
@@ -63,6 +65,7 @@ const AuthProvider = ({ children }) => {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        signal,
       });
       
 
