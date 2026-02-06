@@ -168,9 +168,9 @@ const ManageAdmins = () => {
 
   const getRoleColor = (role) => {
     switch (role) {
-      case "Super Admin":
+      case "super admin":
         return "bg-purple-100 text-purple-800";
-      case "Admin":
+      case "admin":
         return "bg-blue-100 text-blue-800";
       default:
         return "bg-gray-100 text-gray-800";
