@@ -22,7 +22,7 @@ export const SocketProvider = ({ children }) => {
         return;
       }
 
-      console.log('Initializing Socket.IO connection...');
+      // console.log('Initializing Socket.IO connection...');
 
       // Create socket connection
       const socketInstance = io("http://localhost:333", {
@@ -44,7 +44,7 @@ export const SocketProvider = ({ children }) => {
 
       // Connection events
       socketInstance.on('connect', () => {
-        console.log('✅ Socket.IO connected:', socketInstance.id);
+        // console.log('✅ Socket.IO connected:', socketInstance.id);
         setIsConnected(true);
         setConnectionStatus('connected');
         setReconnectionAttempts(0);
@@ -53,16 +53,16 @@ export const SocketProvider = ({ children }) => {
         socketInstance.emit('ping', { message: 'Hello from client' });
       });
 
-      socketInstance.on('connected', (data) => {
-        console.log('Server acknowledged connection:', data);
-      });
+      // socketInstance.on('connected', (data) => {
+      //   console.log('Server acknowledged connection:', data);
+      // });
 
-      socketInstance.on('pong', (data) => {
-        console.log('Pong received:', data);
-      });
+      // socketInstance.on('pong', (data) => {
+      //   console.log('Pong received:', data);
+      // });
 
       socketInstance.on('disconnect', (reason) => {
-        console.log('❌ Socket.IO disconnected:', reason);
+        // console.log('❌ Socket.IO disconnected:', reason);
         setIsConnected(false);
         setConnectionStatus('disconnected');
         
@@ -77,7 +77,7 @@ export const SocketProvider = ({ children }) => {
         setConnectionStatus('error');
         
         if (error.message.includes('Invalid namespace')) {
-          console.log('Namespace error detected, checking configuration...');
+          // console.log('Namespace error detected, checking configuration...');
           // Add delay before reconnection attempt
           setTimeout(() => {
             if (socketInstance.disconnected) {
@@ -90,28 +90,28 @@ export const SocketProvider = ({ children }) => {
       });
 
       socketInstance.on('reconnect', (attemptNumber) => {
-        console.log(`🔄 Reconnected on attempt ${attemptNumber}`);
+        // console.log(`🔄 Reconnected on attempt ${attemptNumber}`);
         setConnectionStatus('reconnected');
       });
 
       socketInstance.on('reconnect_attempt', (attemptNumber) => {
-        console.log(`🔄 Reconnection attempt ${attemptNumber}`);
+        // console.log(`🔄 Reconnection attempt ${attemptNumber}`);
         setConnectionStatus('reconnecting');
       });
 
       socketInstance.on('reconnect_error', (error) => {
-        console.error('Reconnection error:', error);
+        // console.error('Reconnection error:', error);
         setConnectionStatus('reconnection_failed');
       });
 
       socketInstance.on('reconnect_failed', () => {
-        console.error('Reconnection failed');
+        // console.error('Reconnection failed');
         setConnectionStatus('failed');
       });
 
       // Application-specific events
       socketInstance.on('new-message', (message) => {
-        console.log('📨 New message received via Socket.IO:', message);
+        // console.log('📨 New message received via Socket.IO:', message);
         
         // Check if message is for current user
         const isForCurrentUser = message.receiver === userData.id || 
@@ -130,12 +130,12 @@ export const SocketProvider = ({ children }) => {
       });
 
       socketInstance.on('message-read', ({ messageId }) => {
-        console.log('✅ Message read event:', messageId);
+        // console.log('✅ Message read event:', messageId);
         window.dispatchEvent(new CustomEvent('socket:message-read', { detail: { messageId } }));
       });
 
       socketInstance.on('user-typing', ({ userId, isTyping }) => {
-        console.log('⌨️ Typing event:', userId, isTyping);
+        // console.log('⌨️ Typing event:', userId, isTyping);
         window.dispatchEvent(new CustomEvent('socket:user-typing', { 
           detail: { userId, isTyping } 
         }));
@@ -151,7 +151,7 @@ export const SocketProvider = ({ children }) => {
     // Cleanup on unmount
     return () => {
       if (socket) {
-        console.log('Cleaning up Socket.IO connection');
+        // console.log('Cleaning up Socket.IO connection');
         socket.disconnect();
       }
     };
@@ -165,13 +165,13 @@ export const SocketProvider = ({ children }) => {
     reconnectionAttempts,
     joinConversation: (conversationId) => {
       if (socket && isConnected) {
-        console.log('Joining conversation:', conversationId);
+        // console.log('Joining conversation:', conversationId);
         socket.emit('join-conversation', conversationId);
       }
     },
     leaveConversation: (conversationId) => {
       if (socket && isConnected) {
-        console.log('Leaving conversation:', conversationId);
+        // console.log('Leaving conversation:', conversationId);
         socket.emit('leave-conversation', conversationId);
       }
     },

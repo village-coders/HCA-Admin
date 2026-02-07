@@ -35,7 +35,9 @@ const Sidebar = () => {
     { path: '/applications', icon: FileText, label: 'Applications' },
     { path: '/products', icon: Package, label: 'Products' },
     { path: '/certificates', icon: Award, label: 'Certificates' },
-    { path: user?.role === "super admin" ? '/manage-admins' : "", icon:  Users, label: user?.role === "super admin" ? 'Manage Admin' : ""},
+    ...(user?.role === "super admin"
+      ? [{ path: '/manage-admins', icon: Users, label: 'Manage Admin' }]
+      : []),
     { path: '/message', icon: MessageCircleIcon, label: 'Message' },
   ];
 
@@ -101,7 +103,9 @@ const Sidebar = () => {
 
         {/* Navigation */}
         <nav className="p-4 space-y-1">
-          {navItems.map((item) => (
+          {
+          navItems.map((item) => (          
+            
             <NavLink
               key={item.path}
               to={item.path}

@@ -26,7 +26,8 @@ function App() {
         <AllProvider>
           <Routes>
             <Route path="/" element={<Login />} />
-            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/verify/:token" element={<VerifyEmail />} />
+
             <Route element={<ProtectedRoutes/>}>
               <Route element={<DashboardLayout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
