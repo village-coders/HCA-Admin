@@ -9,6 +9,7 @@ import Certificates from "./pages/Certificates";
 import Products from "./pages/Products";
 import Companies from "./pages/Companies";
 import ManageAdmins from "./pages/ManageAdmins";
+import VerifyEmail from "./pages/verifyemail";
 
 import AuthProvider from "./contexts/AuthProvider";
 import AllProvider from "./contexts/AllProvider";
@@ -25,6 +26,7 @@ function App() {
         <AllProvider>
           <Routes>
             <Route path="/" element={<Login />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
             <Route element={<ProtectedRoutes/>}>
               <Route element={<DashboardLayout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
@@ -33,6 +35,7 @@ function App() {
                 <Route path="/products" element={<Products />} />
                 <Route path="/companies" element={<Companies />} />
                 <Route path="/manage-admins" element={<ManageAdmins />} />
+                
                 <Route path="/message" element={<AdminMessages />} />
                 <Route path="/socket-message" element={<Messages />} />
               </Route>
