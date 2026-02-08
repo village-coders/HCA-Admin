@@ -221,7 +221,7 @@ const Applications = () => {
     if (window.confirm("Are you sure you want to delete this application?")) {
       try {
         await deleteApplication(appId);
-        toast.success("Application deleted!");
+        // toast.success("Application deleted!");
         // Close modal if the deleted application is open
         if (selectedApplication && (selectedApplication.id === appId || selectedApplication._id === appId)) {
           setIsViewModalOpen(false);
@@ -1023,12 +1023,12 @@ const Applications = () => {
                               <>
                                 <button
                                   onClick={() => handleApproveApplication(appId)}
-                                  className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                                  className="px-3 py-1.5 bg-blue-600 cursor-pointer text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200"
                                   title="Approve Application"
                                 >
                                   Approve
                                 </button>
-                                <button
+                                {/* <button
                                   onClick={() => handleIssueCertificate(appId)}
                                   disabled={isIssuing}
                                   className="px-3 py-1.5 bg-[#00853b] text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors duration-200 disabled:opacity-50 flex items-center"
@@ -1036,10 +1036,10 @@ const Applications = () => {
                                 >
                                   <FileCheck className={`w-3 h-3 mr-1 ${isIssuing ? 'animate-spin' : ''}`} />
                                   Issue
-                                </button>
+                                </button> */}
                                 <button
                                   onClick={() => handleRejectApplication(appId)}
-                                  className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors duration-200"
+                                  className="px-3 py-1.5 bg-red-600 cursor-pointer text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors duration-200"
                                   title="Reject Application"
                                 >
                                   Reject
@@ -1050,7 +1050,7 @@ const Applications = () => {
                                 <button
                                   onClick={() => handleIssueCertificate(appId)}
                                   disabled={isIssuing}
-                                  className="px-3 py-1.5 bg-[#00853b] text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors duration-200 disabled:opacity-50 flex items-center"
+                                  className="px-3 py-1.5 bg-[#00853b] cursor-pointer text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors duration-200 disabled:opacity-50 flex items-center"
                                   title="Issue Certificate"
                                 >
                                   <FileCheck className={`w-3 h-3 mr-1 ${isIssuing ? 'animate-spin' : ''}`} />
@@ -1058,7 +1058,7 @@ const Applications = () => {
                                 </button>
                                 <button
                                   onClick={() => handleRejectApplication(appId)}
-                                  className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors duration-200"
+                                  className="px-3 py-1.5 bg-red-600 cursor-pointer text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors duration-200"
                                   title="Reject Application"
                                 >
                                   Reject
@@ -1068,12 +1068,12 @@ const Applications = () => {
                               <>
                                 <button
                                   onClick={() => handleDownloadCertificate(appId)}
-                                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                                  className="p-1.5 text-blue-600 cursor-pointer hover:bg-blue-50 rounded-lg transition-colors duration-200"
                                   title="Download Certificate"
                                 >
                                   <Download className="w-4 h-4" />
                                 </button>
-                                <button
+                                {/* <button
                                   onClick={() => handleIssueCertificate(appId)}
                                   disabled={isIssuing}
                                   className="px-3 py-1.5 bg-[#00853b] text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors duration-200 disabled:opacity-50 flex items-center"
@@ -1081,7 +1081,7 @@ const Applications = () => {
                                 >
                                   <FileCheck className={`w-3 h-3 mr-1 ${isIssuing ? 'animate-spin' : ''}`} />
                                   Re-issue
-                                </button>
+                                </button> */}
                               </>
                             ) : null}
                             

@@ -44,15 +44,12 @@ const AuthProvider = ({ children }) => {
   }, [navigate]);
 
   useEffect(() => {
-    const controller = new AbortController()
 
-    fetchUser(controller.signal);
-    
-    return () => controller.abort()
+    fetchUser();
   }, []);
 
-  // 🧑‍🤝‍🧑 Fetch users
-  const fetchUser = async (signal) => {
+  // 🧑‍🤝‍🧑 Fetch user
+  const fetchUser = async () => {
     try {
       setUserLoading(true)
       const token = JSON.parse(localStorage.getItem("accessToken")); // assuming JWT auth
@@ -65,7 +62,6 @@ const AuthProvider = ({ children }) => {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-        signal,
       });
       
 

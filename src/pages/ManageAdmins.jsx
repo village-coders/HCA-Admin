@@ -11,6 +11,8 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
+import { SyncLoader } from "react-spinners";
+import axios from "axios";
 
 const ManageAdmins = () => {
   const [admins, setAdmins] = useState([]);
@@ -156,10 +158,24 @@ const ManageAdmins = () => {
     );
   };
 
-  const handleDeleteAdmin = (id) => {
+  const handleDeleteAdmin = async(id) => {
     if (window.confirm("Are you sure you want to delete this admin?")) {
       try {
-        // const res = await 
+        const res = await axios.delete(
+          `${import.meta.env.VITE_BASE_URL}/users/admin/${id}`,{
+          headers: {
+            Authorization: `Bearer ${JSON.parse(localStorage.getItem("accessToken"))}`,
+          },
+        });
+
+        const data = res.data
+        if(data.status === "success"){
+          toast.success(data.message)
+          fetchAdmins();
+        }else{
+          toast.error(data.message)
+        }
+      
       } catch (error) {
         console.log(error)
       }
@@ -190,7 +206,7 @@ const ManageAdmins = () => {
 
         <button
           onClick={() => setShowAddForm(true)}
-          className="px-4 py-2.5 bg-[#00853b] text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 inline-flex items-center justify-center"
+          className="px-4 py-2.5 bg-[#00853b] text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 inline-flex items-center justify-center cursor-pointer"
         >
           <UserPlus className="w-5 h-5 mr-2" />
           Add New Admin
@@ -287,16 +303,16 @@ const ManageAdmins = () => {
             <div className="flex justify-end space-x-3 mt-8">
               <button
                 onClick={() => setShowAddForm(false)}
-                className="px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                className="px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 cursor-pointer"
               >
                 Cancel
               </button>
              <button
                 onClick={handleAddAdmin}
                 disabled={submitting}
-                className="px-4 py-2 bg-[#00853b] text-white rounded-lg hover:bg-green-700"
+                className="px-6 py-2 bg-[#00853b] text-white rounded-lg hover:bg-green-700 cursor-pointer"
               >
-                {submitting ? "Creating..." : "Add Admin"}
+                {submitting ? <SyncLoader size={10} color="white" /> : "Add Admin"}
               </button>
             </div>
           </div>
@@ -402,7 +418,7 @@ const ManageAdmins = () => {
                   <td className="p-4">
                     <button
                       onClick={() => handleToggleStatus(admin.id)}
-                      className={`px-3 py-1 text-xs rounded-full ${
+                      className={`px-3 py-1 text-xs rounded-full cursor-pointer ${
                         admin.status === "Active"
                           ? "bg-green-100 text-green-800"
                           : "bg-gray-100 text-gray-800"
@@ -418,13 +434,13 @@ const ManageAdmins = () => {
                   </td>
 
                   <td className="p-4 flex space-x-2">
-                    <button className="p-1.5 hover:bg-gray-100 rounded-lg">
+                    <button className="p-1.5 hover:bg-gray-100 rounded-lg cursor-pointer">
                       <Edit2 className="w-4 h-4" />
                     </button>
                     {admin.role !== "super admin" && (
                       <button
                         onClick={() => handleDeleteAdmin(admin.id)}
-                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
+                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg cursor-pointer"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

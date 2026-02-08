@@ -252,13 +252,18 @@ const AllProvider = ({ children }) => {
     if (!token) return { success: false };
 
     try {
-      await axios.delete(`${baseUrl}/applications/${id}`, {
+      const res = await axios.delete(`${baseUrl}/applications/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      setApplications(prev => prev.filter(app => app.id !== id));
-      toast.success("Application deleted successfully!");
-      return { success: true };
+      const data = res.data;
+      
+
+      if(res.ok){
+        setApplications(prev => prev.filter(app => app.id !== id));
+        toast.success(data.message);
+        return { success: true };
+      }      
     } catch (error) {
       console.error("Failed to delete application:", error);
       toast.error(error.response?.data?.message || "Failed to delete application");
@@ -607,6 +612,199 @@ const AllProvider = ({ children }) => {
     }
   };
 
+  
+  const downloadCertificate = async (certificateId) => {
+    const token = getToken();
+    if (!token) {
+      toast.error("Authentication required");
+      return null;
+    }
+
+    try {
+      const response = await axios.get(
+        `${baseUrl}/certificates/${certificateId}/download`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          responseType: 'blob', // Important for file downloads
+        }
+      );
+      
+      // The backend should return a proper PDF file
+      return response.data;
+      
+    } catch (error) {
+      console.error("Download error:", error);
+      
+      // Extract error message
+      let errorMessage = "Failed to download certificate";
+      if (error.response) {
+        if (error.response.status === 404) {
+          errorMessage = "Certificate not found";
+        } else if (error.response.status === 401) {
+          errorMessage = "Unauthorized - Please login again";
+        } else if (error.response.data) {
+          // Try to get error message from response
+          if (typeof error.response.data === 'string') {
+            errorMessage = error.response.data;
+          } else if (error.response.data.message) {
+            errorMessage = error.response.data.message;
+          }
+        }
+      }
+      
+      toast.error(errorMessage);
+      return null;
+    }
+  };
+
+
+  // 📋 Get expiring certificates with option to generate PDF report
+  const getExpiringCertificates = async (days = 30, generatePDF = false) => {
+    const token = getToken();
+    if (!token) {
+      toast.error("Authentication required");
+      return { success: false };
+    }
+
+    setIsLoading(true);
+    try {
+      const url = `${baseUrl}/certificates/expiring?days=${days}&generatePDF=${generatePDF}`;
+      const res = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setErrors("");
+      
+      if (generatePDF && res.data.reportId) {
+        // Return both data and report info
+        return {
+          success: true,
+          certificates: res.data.certificates || [],
+          reportInfo: {
+            reportId: res.data.reportId,
+            downloadUrl: res.data.downloadUrl,
+            message: res.data.message
+          }
+        };
+      }
+      
+      return {
+        success: true,
+        certificates: res.data || []
+      };
+    } catch (error) {
+      console.error("Failed to fetch expiring certificates:", error);
+      const errorMsg = error.response?.data?.message || "Failed to load expiring certificates";
+      setErrors(errorMsg);
+      toast.error(errorMsg);
+      return { success: false, error: errorMsg };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 📄 Download certificate report (PDF)
+  const downloadCertificateReport = async (reportId) => {
+    const token = getToken();
+    if (!token) {
+      toast.error("Authentication required");
+      return { success: false };
+    }
+
+    try {
+      toast.loading("Downloading report...", { id: "report-download" });
+      
+      const response = await axios.get(
+        `${baseUrl}/certificates/reports/download/${reportId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          responseType: 'blob',
+        }
+      );
+      
+      // Create download link
+      const url = window.URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `expiring-certificates-report-${new Date().toISOString().split('T')[0]}.pdf`;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.dismiss("report-download");
+      toast.success("Report downloaded successfully!");
+      
+      return { success: true };
+    } catch (error) {
+      console.error("Failed to download report:", error);
+      toast.dismiss("report-download");
+      
+      let errorMessage = "Failed to download report";
+      if (error.response?.status === 404) {
+        errorMessage = "Report not found or expired";
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
+  // 📊 Get expiring certificates report (new function for report generation)
+  const generateExpiringCertificatesReport = async (days = 30) => {
+    const token = getToken();
+    if (!token) {
+      toast.error("Authentication required");
+      return { success: false };
+    }
+
+    try {
+      toast.loading("Generating report...", { id: "report-generation" });
+      
+      const res = await axios.get(
+        `${baseUrl}/certificates/expiring?days=${days}&generatePDF=true`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      
+      toast.dismiss("report-generation");
+      
+      if (res.data.reportId) {
+        toast.success("Report generated successfully!");
+        return {
+          success: true,
+          certificates: res.data.certificates || [],
+          reportInfo: {
+            reportId: res.data.reportId,
+            downloadUrl: res.data.downloadUrl,
+            message: res.data.message
+          }
+        };
+      } else {
+        toast.warning("No report generated. Please try again.");
+        return { success: false, error: "No report generated" };
+      }
+    } catch (error) {
+      console.error("Failed to generate report:", error);
+      toast.dismiss("report-generation");
+      
+      const errorMsg = error.response?.data?.message || "Failed to generate report";
+      toast.error(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  };
+
 
 
   const value = {
@@ -635,6 +833,11 @@ const AllProvider = ({ children }) => {
     updateCertificate,
     getCertificateById,
     renewCertificate,
+    downloadCertificate,
+
+    getExpiringCertificates,
+    generateExpiringCertificatesReport,
+    downloadCertificateReport,
     
     // Applications
     applications,

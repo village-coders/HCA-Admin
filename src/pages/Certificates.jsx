@@ -53,6 +53,7 @@ const Certificates = () => {
     deleteCertificate,
     renewCertificate,
     getCertificateById,
+    downloadCertificate,
     companies,
     products,
     applications
@@ -257,8 +258,9 @@ const Certificates = () => {
   const handleDeleteCertificate = async (certId) => {
     if (window.confirm("Are you sure you want to delete this certificate?")) {
       try {
+    
         await deleteCertificate(certId);
-        toast.success("Certificate deleted!");
+        // toast.success("Certificate deleted!");
         // Close modal if the deleted certificate is open
         if (selectedCertificate && selectedCertificate.id === certId) {
           setIsViewModalOpen(false);
@@ -307,12 +309,44 @@ const Certificates = () => {
   // Handle Download Certificate
   const handleDownloadCertificate = async (certId) => {
     try {
-      toast.success("Certificate download initiated!" + certId);
-      // Implement actual download logic here
-      // You might want to add a download function in your AllProvider
+      toast.loading("Downloading certificate...", { id: "download" });
+      
+      // Use the downloadCertificate function from your hook
+      const blob = await downloadCertificate(certId);
+      
+      if (!blob) {
+        throw new Error("No certificate data received");
+      }
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      
+      // Get certificate for filename
+      const certificate = certificates.find(cert => 
+        cert.id === certId || cert._id === certId
+      );
+      
+      // Use certificate number or ID for filename
+      const fileName = `certificate_${certificate?.certificateNumber || certId}.pdf`;
+      link.href = url;
+      link.download = fileName;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.dismiss("download");
+      toast.success("Certificate downloaded!");
+      
     } catch (error) {
+      console.error("Download error:", error);
+      toast.dismiss("download");
       toast.error("Failed to download certificate");
-      console.log(error)
     }
   };
 
@@ -456,7 +490,7 @@ const Certificates = () => {
               </span>
               <button
                 onClick={closeModal}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                className="p-2 cursor-pointer hover:bg-gray-100 rounded-lg transition-colors duration-200"
               >
                 <XCircle className="w-5 h-5 text-gray-500" />
               </button>
@@ -658,17 +692,17 @@ const Certificates = () => {
           <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <button
+                <button 
                   onClick={() => handleDownloadCertificate(certId)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors duration-200 flex items-center"
+                  className="px-4 py-2 bg-[#00853b] cursor-pointer text-white rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center"
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Download Certificate
                 </button>
-                {(selectedCertificate.status === 'active' || selectedCertificate.status === 'Active') && (
+                {(selectedCertificate.status === 'expired' || selectedCertificate.status === 'Expired') && (
                   <button
                     onClick={() => handleRenewCertificate(certId)}
-                    className="px-4 py-2 bg-[#00853b] text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 flex items-center"
+                    className="px-4 py-2 cursor-pointer bg-[#00853b] text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 flex items-center"
                   >
                     <RefreshCw className="w-4 h-4 mr-2" />
                     Renew Certificate
@@ -678,17 +712,17 @@ const Certificates = () => {
               <div className="flex items-center space-x-3">
                 <button
                   onClick={closeModal}
-                  className="px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg font-medium transition-colors duration-200"
+                  className="px-4 py-2 cursor-pointer text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg font-medium transition-colors duration-200"
                 >
                   Close
                 </button>
-                <button
+                {/* <button
                   onClick={() => handleDeleteCertificate(certId)}
-                  className="px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-medium transition-colors duration-200 flex items-center"
+                  className="px-4 py-2 cursor-pointer bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-medium transition-colors duration-200 flex items-center"
                 >
                   <XCircle className="w-4 h-4 mr-2" />
                   Delete Certificate
-                </button>
+                </button> */}
               </div>
             </div>
           </div>
@@ -716,7 +750,7 @@ const Certificates = () => {
             <button
               onClick={handleRefresh}
               disabled={isLoading || isRefreshing}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#00853b] text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center cursor-pointer gap-2 px-4 py-2.5 bg-[#00853b] text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading || isRefreshing ? 'animate-spin' : ''}`} />
               {isLoading || isRefreshing ? 'Refreshing...' : 'Refresh'}
@@ -724,7 +758,7 @@ const Certificates = () => {
             <div className="flex border border-gray-300 rounded-lg overflow-hidden">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`px-4 py-2 text-sm font-medium ${
+                className={`px-4 py-2 cursor-pointer text-sm font-medium ${
                   viewMode === 'grid' 
                     ? 'bg-[#00853b] text-white' 
                     : 'bg-white text-gray-700 hover:bg-gray-50'
@@ -734,7 +768,7 @@ const Certificates = () => {
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`px-4 py-2 text-sm font-medium ${
+                className={`px-4 py-2 cursor-pointer text-sm font-medium ${
                   viewMode === 'list' 
                     ? 'bg-[#00853b] text-white' 
                     : 'bg-white text-gray-700 hover:bg-gray-50'
@@ -755,7 +789,7 @@ const Certificates = () => {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               disabled={isLoading}
-              className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center ${
+              className={`px-4 py-2.5 rounded-lg cursor-pointer text-sm font-medium transition-all duration-200 flex items-center ${
                 activeTab === tab.id
                   ? 'bg-[#00853b] text-white shadow-sm'
                   : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
@@ -778,7 +812,7 @@ const Certificates = () => {
           <h3 className="text-lg font-medium text-gray-900">Filters</h3>
           <button
             onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
+            className="lg:hidden p-2 cursor-pointer hover:bg-gray-100 rounded-lg"
           >
             <Filter className="w-5 h-5" />
           </button>
@@ -819,7 +853,7 @@ const Certificates = () => {
                       <button
                         key={company._id || company.id}
                         type="button"
-                        className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700"
+                        className="w-full cursor-pointer text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700"
                         onClick={() => handleCompanySuggestionClick(company.companyName || company.name)}
                       >
                         <div className="font-medium">{company.companyName || company.name}</div>
@@ -874,20 +908,20 @@ const Certificates = () => {
                   setFilter({ search: '', company: '', dateFrom: '', dateTo: '', status: '' });
                   setCompanySuggestions([]);
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                className="px-4 py-2 text-sm cursor-pointer font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200"
                 disabled={isLoading}
               >
                 Clear All Filters
               </button>
-              {selectedCertificates.length > 0 && (
+              {/* {selectedCertificates.length > 0 && (
                 <button
                   onClick={handleBulkDelete}
-                  className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                  className="px-4 py-2 text-sm cursor-pointer font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
                   disabled={isLoading}
                 >
                   Delete Selected
                 </button>
-              )}
+              )} */}
             </div>
           </div>
         </div>
@@ -987,14 +1021,14 @@ const Certificates = () => {
                           <button 
                             onClick={() => handleViewDetails(certId)}
                             disabled={isLoadingDetails}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 inline-flex items-center disabled:opacity-50"
+                            className="px-4 py-2 cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 inline-flex items-center disabled:opacity-50"
                           >
                             <Eye className="w-4 h-4 mr-2" />
                             View
                           </button>
                           <button 
                             onClick={() => handleDownloadCertificate(certId)}
-                            className="px-4 py-2 bg-[#00853b] text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors duration-200 inline-flex items-center"
+                            className="px-4 py-2 bg-[#00853b] cursor-pointer text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors duration-200 inline-flex items-center"
                           >
                             <Download className="w-4 h-4 mr-2" />
                             Download
@@ -1015,7 +1049,7 @@ const Certificates = () => {
                       setActiveTab('all');
                       setCompanySuggestions([]);
                     }}
-                    className="px-4 py-2 text-sm font-medium text-[#00853b] hover:text-green-700"
+                    className="px-4 py-2 cursor-pointer text-sm font-medium text-[#00853b] hover:text-green-700"
                   >
                     Clear filters
                   </button>
@@ -1111,14 +1145,14 @@ const Certificates = () => {
                                 <button 
                                   onClick={() => handleViewDetails(certId)}
                                   disabled={isLoadingDetails}
-                                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200 disabled:opacity-50"
+                                  className="p-1.5 text-gray-400 cursor-pointer hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200 disabled:opacity-50"
                                   title="View Details"
                                 >
                                   <Eye className="w-4 h-4" />
                                 </button>
                                 <button
                                   onClick={() => handleDownloadCertificate(certId)}
-                                  className="p-1.5 text-[#00853b] hover:bg-green-50 rounded-lg transition-colors duration-200"
+                                  className="p-1.5 text-[#00853b] cursor-pointer hover:bg-green-50 rounded-lg transition-colors duration-200"
                                   title="Download Certificate"
                                 >
                                   <Download className="w-4 h-4" />
@@ -1126,7 +1160,7 @@ const Certificates = () => {
                                 {(cert.status === 'active' || cert.status === 'Active') && (
                                   <button
                                     onClick={() => handleRenewCertificate(certId)}
-                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                                    className="p-1.5 text-blue-600 cursor-pointer hover:bg-blue-50 rounded-lg transition-colors duration-200"
                                     title="Renew Certificate"
                                   >
                                     <RefreshCw className="w-4 h-4" />
@@ -1134,7 +1168,7 @@ const Certificates = () => {
                                 )}
                                 <button
                                   onClick={() => handleDeleteCertificate(certId)}
-                                  className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                                  className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 cursor-pointer rounded-lg transition-colors duration-200"
                                   title="Delete Certificate"
                                 >
                                   <XCircle className="w-4 h-4" />
@@ -1156,7 +1190,7 @@ const Certificates = () => {
                               setActiveTab('all');
                               setCompanySuggestions([]);
                             }}
-                            className="px-4 py-2 text-sm font-medium text-[#00853b] hover:text-green-700"
+                            className="px-4 py-2 text-sm cursor-pointer font-medium text-[#00853b] hover:text-green-700"
                           >
                             Clear filters
                           </button>
@@ -1176,19 +1210,19 @@ const Certificates = () => {
                       <span className="font-medium">{certificates.length}</span> certificates
                     </div>
                     <div className="flex items-center space-x-2">
-                      {selectedCertificates.length > 0 && (
+                      {/* {selectedCertificates.length > 0 && (
                         <button
                           onClick={handleBulkDelete}
-                          className="px-3 py-1.5 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                          className="px-3 py-1.5 cursor-pointer text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
                         >
                           Delete Selected ({selectedCertificates.length})
                         </button>
-                      )}
+                      )} */}
                       <div className="flex items-center space-x-2">
-                        <button className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200">
+                        <button className="px-3 py-1.5 text-sm cursor-pointer font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200">
                           Previous
                         </button>
-                        <button className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200">
+                        <button className="px-3 py-1.5 text-sm cursor-pointer font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200">
                           Next
                         </button>
                       </div>

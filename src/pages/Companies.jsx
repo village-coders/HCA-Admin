@@ -108,7 +108,7 @@ const Companies = () => {
             <button
               onClick={handleRefresh}
               disabled={isLoading || isRefreshing}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#00853b] text-white rounded-lg hover:bg-green-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#00853b] text-white rounded-lg hover:bg-green-700 cursor-pointer transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading || isRefreshing ? 'animate-spin' : ''}`} />
               {isLoading || isRefreshing ? 'Refreshing...' : 'Refresh'}
@@ -325,7 +325,7 @@ const Companies = () => {
                   {/* Actions */}
                   <div className="flex justify-between mt-6 pt-6 border-t border-gray-200">
                     <button 
-                      className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                      className="px-4 py-2 text-sm font-medium cursor-pointer text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200"
                       onClick={() => {
                         // Navigate to company details
                         console.log('View details for:', company.companyName);
