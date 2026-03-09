@@ -25,7 +25,15 @@ import {
   Tag,
   Info,
   ExternalLink,
-  FileCheck
+  FileCheck,
+  AlertTriangle,
+  Factory,
+  MapPin,
+  Briefcase,
+  Layers,
+  Globe2,
+  Award,
+  CheckSquare
 } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
 import { toast } from 'sonner';
@@ -47,6 +55,7 @@ const Applications = () => {
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [isIssuing, setIsIssuing] = useState(false);
+  const [activeDetailTab, setActiveDetailTab] = useState('overview');
 
   const { 
     applications, 
@@ -221,7 +230,6 @@ const Applications = () => {
     if (window.confirm("Are you sure you want to delete this application?")) {
       try {
         await deleteApplication(appId);
-        // toast.success("Application deleted!");
         // Close modal if the deleted application is open
         if (selectedApplication && (selectedApplication.id === appId || selectedApplication._id === appId)) {
           setIsViewModalOpen(false);
@@ -242,6 +250,7 @@ const Applications = () => {
       if (application) {
         setSelectedApplication(application);
         setIsViewModalOpen(true);
+        setActiveDetailTab('overview');
       } else {
         toast.error("Failed to load application details");
       }
@@ -428,6 +437,13 @@ const Applications = () => {
       : { bg: 'bg-blue-100', text: 'text-blue-800' };
   };
 
+  // Get yes/no badge
+  const getYesNoBadge = (value) => {
+    return value === 'yes' 
+      ? <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Yes</span>
+      : <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">No</span>;
+  };
+
   // Close modal
   const closeModal = () => {
     setIsViewModalOpen(false);
@@ -443,9 +459,17 @@ const Applications = () => {
     const typeConfig = getTypeConfig(selectedApplication.applicationType);
     const appId = selectedApplication.id || selectedApplication._id;
 
+    const detailTabs = [
+      { id: 'overview', label: 'Overview', icon: Info },
+      { id: 'halal-history', label: 'Halal History', icon: Award },
+      { id: 'product-composition', label: 'Product Composition', icon: Package },
+      { id: 'facilities', label: 'Facilities', icon: Factory },
+      { id: 'markets', label: 'Markets', icon: Globe2 },
+    ];
+
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
           {/* Modal Header */}
           <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -475,180 +499,563 @@ const Applications = () => {
             </div>
           </div>
 
+          {/* Detail Tabs */}
+          <div className="border-b border-gray-200 px-6">
+            <div className="flex space-x-4">
+              {detailTabs.map((tab) => {
+                const TabIcon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveDetailTab(tab.id)}
+                    className={`py-3 px-2 border-b-2 font-medium text-sm flex items-center space-x-2 transition-colors duration-200 ${
+                      activeDetailTab === tab.id
+                        ? 'border-[#00853b] text-[#00853b]'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <TabIcon className="w-4 h-4" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Modal Content */}
-          <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
+          <div className="overflow-y-auto max-h-[calc(90vh-180px)]">
             <div className="p-6">
-              {/* Application Details Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                {/* Company Information */}
-                <div className="bg-gray-50 rounded-lg p-5">
-                  <div className="flex items-center mb-4">
-                    <Building className="w-5 h-5 text-gray-500 mr-2" />
-                    <h3 className="text-lg font-semibold text-gray-900">Company Information</h3>
-                  </div>
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-sm text-gray-600">Company Name</p>
-                      <p className="font-medium text-gray-900">
-                        {selectedApplication.companyName || selectedApplication.company || 'N/A'}
-                      </p>
+              {/* Overview Tab */}
+              {activeDetailTab === 'overview' && (
+                <div className="space-y-6">
+                  {/* Company Information */}
+                  <div className="bg-gray-50 rounded-lg p-5">
+                    <div className="flex items-center mb-4">
+                      <Building className="w-5 h-5 text-gray-500 mr-2" />
+                      <h3 className="text-lg font-semibold text-gray-900">Company Information</h3>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Company Address</p>
-                      <p className="font-medium text-gray-900">
-                        {selectedApplication.companyAddress || 'N/A'}
-                      </p>
-                    </div>
-                    {selectedApplication.companyWebsite && (
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-sm text-gray-600">Website</p>
-                        <a 
-                          href={selectedApplication.companyWebsite} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="font-medium text-blue-600 hover:text-blue-800 flex items-center"
-                        >
-                          {selectedApplication.companyWebsite}
-                          <ExternalLink className="w-3 h-3 ml-1" />
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Applicant Information */}
-                <div className="bg-gray-50 rounded-lg p-5">
-                  <div className="flex items-center mb-4">
-                    <User className="w-5 h-5 text-gray-500 mr-2" />
-                    <h3 className="text-lg font-semibold text-gray-900">Applicant Information</h3>
-                  </div>
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-sm text-gray-600">Applicant Name</p>
-                      <p className="font-medium text-gray-900">
-                        {selectedApplication.applicantName || 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Email</p>
-                      <p className="font-medium text-gray-900">
-                        {selectedApplication.applicantEmail || 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Phone</p>
-                      <p className="font-medium text-gray-900">
-                        {selectedApplication.applicantPhone || 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Product Information */}
-                <div className="bg-gray-50 rounded-lg p-5">
-                  <div className="flex items-center mb-4">
-                    <Package className="w-5 h-5 text-gray-500 mr-2" />
-                    <h3 className="text-lg font-semibold text-gray-900">Product Information</h3>
-                  </div>
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-sm text-gray-600">Product Name</p>
-                      <p className="font-medium text-gray-900">
-                        {selectedApplication.productName || selectedApplication.product || 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Product Category</p>
-                      <p className="font-medium text-gray-900">
-                        {selectedApplication.productCategory || 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Application Type</p>
-                      <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${typeConfig.bg} ${typeConfig.text}`}>
-                        {selectedApplication.applicationType?.charAt(0).toUpperCase() + selectedApplication.applicationType?.slice(1) || 'New'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Application Details */}
-                <div className="bg-gray-50 rounded-lg p-5">
-                  <div className="flex items-center mb-4">
-                    <Info className="w-5 h-5 text-gray-500 mr-2" />
-                    <h3 className="text-lg font-semibold text-gray-900">Application Details</h3>
-                  </div>
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-sm text-gray-600">Application ID</p>
-                      <p className="font-medium text-gray-900">
-                        {appId || 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Submission Date</p>
-                      <p className="font-medium text-gray-900">
-                        {formatDateTime(selectedApplication.createdAt || selectedApplication.submissionDate)}
-                      </p>
-                    </div>
-                    {selectedApplication.updatedAt && (
-                      <div>
-                        <p className="text-sm text-gray-600">Last Updated</p>
+                        <p className="text-sm text-gray-600">Company Name</p>
                         <p className="font-medium text-gray-900">
-                          {formatDateTime(selectedApplication.updatedAt)}
+                          {selectedApplication.companyName || selectedApplication.company || 'N/A'}
                         </p>
                       </div>
-                    )}
-                    {selectedApplication.rejectionReason && (
                       <div>
-                        <p className="text-sm text-red-600">Rejection Reason</p>
-                        <p className="font-medium text-red-700">
-                          {selectedApplication.rejectionReason}
+                        <p className="text-sm text-gray-600">Company Registration No.</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedApplication.companyId || 'N/A'}
                         </p>
                       </div>
-                    )}
-                    {selectedApplication.certificateId && (
+                      <div className="col-span-2">
+                        <p className="text-sm text-gray-600">Address</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedApplication.companyAddress || 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Applicant Information */}
+                  <div className="bg-gray-50 rounded-lg p-5">
+                    <div className="flex items-center mb-4">
+                      <User className="w-5 h-5 text-gray-500 mr-2" />
+                      <h3 className="text-lg font-semibold text-gray-900">Primary Contact</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-sm text-green-600">Certificate ID</p>
-                        <p className="font-medium text-green-700">
-                          {selectedApplication.certificateId}
+                        <p className="text-sm text-gray-600">Name</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedApplication.applicantName || 'N/A'}
                         </p>
                       </div>
-                    )}
+                      <div>
+                        <p className="text-sm text-gray-600">Position/Title</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedApplication.positionTitle || 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Email</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedApplication.applicantEmail || 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Phone</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedApplication.applicantPhone || 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Product Information */}
+                  <div className="bg-gray-50 rounded-lg p-5">
+                    <div className="flex items-center mb-4">
+                      <Package className="w-5 h-5 text-gray-500 mr-2" />
+                      <h3 className="text-lg font-semibold text-gray-900">Product Information</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-600">Product Name</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedApplication.productName || selectedApplication.product || 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Category</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedApplication.category || 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Market Type</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedApplication.marketType || 'N/A'}
+                          {selectedApplication.marketType === 'Other' && selectedApplication.marketTypeOther && 
+                            ` - ${selectedApplication.marketTypeOther}`}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Brand Type</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedApplication.brandType || 'N/A'}
+                          {selectedApplication.brandType === 'Other' && selectedApplication.brandTypeOther && 
+                            ` - ${selectedApplication.brandTypeOther}`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Food Safety Programs */}
+                  {selectedApplication.foodSafetyPrograms && selectedApplication.foodSafetyPrograms.length > 0 && (
+                    <div className="bg-gray-50 rounded-lg p-5">
+                      <div className="flex items-center mb-4">
+                        <CheckSquare className="w-5 h-5 text-gray-500 mr-2" />
+                        <h3 className="text-lg font-semibold text-gray-900">Food Safety Programs</h3>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedApplication.foodSafetyPrograms.map((program, index) => (
+                          <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                            {program}
+                          </span>
+                        ))}
+                        {selectedApplication.foodSafetyPrograms.includes('Other') && selectedApplication.otherFoodSafetyProgram && (
+                          <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">
+                            Other: {selectedApplication.otherFoodSafetyProgram}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Authorized By */}
+                  {selectedApplication.authorizedBy && (
+                    <div className="bg-gray-50 rounded-lg p-5">
+                      <div className="flex items-center mb-4">
+                        <User className="w-5 h-5 text-gray-500 mr-2" />
+                        <h3 className="text-lg font-semibold text-gray-900">Authorized By</h3>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-600">Name</p>
+                          <p className="font-medium text-gray-900">
+                            {selectedApplication.authorizedBy.name || 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Position/Title</p>
+                          <p className="font-medium text-gray-900">
+                            {selectedApplication.authorizedBy.positionTitle || 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Date Authorized</p>
+                          <p className="font-medium text-gray-900">
+                            {formatDate(selectedApplication.authorizedBy.dateAuthorized)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Application Details */}
+                  <div className="bg-gray-50 rounded-lg p-5">
+                    <div className="flex items-center mb-4">
+                      <Info className="w-5 h-5 text-gray-500 mr-2" />
+                      <h3 className="text-lg font-semibold text-gray-900">Application Details</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-600">Application ID</p>
+                        <p className="font-medium text-gray-900">{appId || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Application Type</p>
+                        <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${typeConfig.bg} ${typeConfig.text}`}>
+                          {selectedApplication.applicationType?.charAt(0).toUpperCase() + selectedApplication.applicationType?.slice(1) || 'New'}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Submission Date</p>
+                        <p className="font-medium text-gray-900">
+                          {formatDateTime(selectedApplication.createdAt || selectedApplication.submissionDate)}
+                        </p>
+                      </div>
+                      {selectedApplication.updatedAt && (
+                        <div>
+                          <p className="text-sm text-gray-600">Last Updated</p>
+                          <p className="font-medium text-gray-900">
+                            {formatDateTime(selectedApplication.updatedAt)}
+                          </p>
+                        </div>
+                      )}
+                      {selectedApplication.rejectionReason && (
+                        <div className="col-span-2">
+                          <p className="text-sm text-red-600">Rejection Reason</p>
+                          <p className="font-medium text-red-700">
+                            {selectedApplication.rejectionReason}
+                          </p>
+                        </div>
+                      )}
+                      {selectedApplication.certificateId && (
+                        <div>
+                          <p className="text-sm text-green-600">Certificate ID</p>
+                          <p className="font-medium text-green-700">
+                            {selectedApplication.certificateId}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Attached Documents */}
-              {(selectedApplication.documents || selectedApplication.files) && (
-                <div className="mb-8">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Attached Documents</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {Object.entries(selectedApplication.documents || selectedApplication.files || {}).map(([key, value]) => (
-                      <div key={key} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors duration-200">
-                        <div className="flex items-center">
-                          <File className="w-5 h-5 text-gray-500 mr-3" />
+              {/* Halal History Tab */}
+              {activeDetailTab === 'halal-history' && (
+                <div className="space-y-6">
+                  <div className="bg-gray-50 rounded-lg p-5">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Halal Certification History</h3>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm text-gray-600 mb-2">
+                          Has the company ever applied for Halal certification previously?
+                        </p>
+                        {getYesNoBadge(selectedApplication.hasAppliedBefore)}
+                        {selectedApplication.hasAppliedBefore === 'yes' && selectedApplication.previousHalalAgency && (
+                          <div className="mt-2">
+                            <p className="text-sm text-gray-600">Previous Halal Agency:</p>
+                            <p className="font-medium text-gray-900">{selectedApplication.previousHalalAgency}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <p className="text-sm text-gray-600 mb-2">
+                          Has the factory ever been supervised before?
+                        </p>
+                        {getYesNoBadge(selectedApplication.hasBeenSupervisedBefore)}
+                        {selectedApplication.hasBeenSupervisedBefore === 'yes' && selectedApplication.supervisingHalalAgency && (
+                          <div className="mt-2">
+                            <p className="text-sm text-gray-600">Supervising Halal Agency:</p>
+                            <p className="font-medium text-gray-900">{selectedApplication.supervisingHalalAgency}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Product Composition Tab */}
+              {activeDetailTab === 'product-composition' && (
+                <div className="space-y-6">
+                  <div className="bg-gray-50 rounded-lg p-5">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Product Composition</h3>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-600">Uses pork or pork derivatives?</p>
+                        {getYesNoBadge(selectedApplication.usesPorkOrDerivatives)}
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Uses animal meat or derivatives?</p>
+                        {getYesNoBadge(selectedApplication.usesAnimalMeatOrDerivatives)}
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Uses gelatin or capsule?</p>
+                        {getYesNoBadge(selectedApplication.usesGelatinOrCapsule)}
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Contains alcohol?</p>
+                        {getYesNoBadge(selectedApplication.containsAlcohol)}
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Additives/flavour contain alcohol?</p>
+                        {getYesNoBadge(selectedApplication.additivesOrFlavourContainAlcohol)}
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Uses glycerine or derivatives?</p>
+                        {getYesNoBadge(selectedApplication.usesGlycerineOrDerivatives)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Facilities Tab */}
+              {activeDetailTab === 'facilities' && (
+                <div className="space-y-6">
+                  {/* Manufacturing Facility */}
+                  {selectedApplication.manufacturingFacility && (
+                    <div className="bg-gray-50 rounded-lg p-5">
+                      <div className="flex items-center mb-4">
+                        <Factory className="w-5 h-5 text-gray-500 mr-2" />
+                        <h3 className="text-lg font-semibold text-gray-900">Manufacturing Facility</h3>
+                      </div>
+                      
+                      {Object.keys(selectedApplication.manufacturingFacility).some(key => selectedApplication.manufacturingFacility[key]) ? (
+                        <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <p className="font-medium text-gray-900 capitalize">
-                              {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                            <p className="text-sm text-gray-600">Company/Plant Name</p>
+                            <p className="font-medium text-gray-900">
+                              {selectedApplication.manufacturingFacility.companyName || 'N/A'}
                             </p>
-                            <p className="text-sm text-gray-600">
-                              {typeof value === 'string' ? value : 'Document'}
+                          </div>
+                          <div className="col-span-2">
+                            <p className="text-sm text-gray-600">Address</p>
+                            <p className="font-medium text-gray-900">
+                              {selectedApplication.manufacturingFacility.address || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Local Govt. Area</p>
+                            <p className="font-medium text-gray-900">
+                              {selectedApplication.manufacturingFacility.localGovtArea || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">City</p>
+                            <p className="font-medium text-gray-900">
+                              {selectedApplication.manufacturingFacility.city || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">State</p>
+                            <p className="font-medium text-gray-900">
+                              {selectedApplication.manufacturingFacility.state || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Country</p>
+                            <p className="font-medium text-gray-900">
+                              {selectedApplication.manufacturingFacility.country || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Plant Contact</p>
+                            <p className="font-medium text-gray-900">
+                              {selectedApplication.manufacturingFacility.plantContact || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Position/Title</p>
+                            <p className="font-medium text-gray-900">
+                              {selectedApplication.manufacturingFacility.positionTitle || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Telephone No.</p>
+                            <p className="font-medium text-gray-900">
+                              {selectedApplication.manufacturingFacility.telephoneNo || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Email Address</p>
+                            <p className="font-medium text-gray-900">
+                              {selectedApplication.manufacturingFacility.emailAddress || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Government Plant Code</p>
+                            <p className="font-medium text-gray-900">
+                              {selectedApplication.manufacturingFacility.governmentPlantCode || 'N/A'}
                             </p>
                           </div>
                         </div>
+                      ) : (
+                        <p className="text-gray-500 italic">Same as company address</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Additional Facilities */}
+                  {selectedApplication.additionalFacilities && selectedApplication.additionalFacilities.length > 0 && (
+                    <div className="bg-gray-50 rounded-lg p-5">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Manufacturing Locations</h3>
+                      
+                      {selectedApplication.additionalFacilities.map((facility, index) => (
+                        <div key={index} className="mb-6 last:mb-0 border-b border-gray-200 pb-6 last:border-0 last:pb-0">
+                          <h4 className="font-medium text-gray-900 mb-3">Facility #{index + 1}</h4>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm text-gray-600">Company/Plant Name</p>
+                              <p className="font-medium text-gray-900">{facility.companyName || 'N/A'}</p>
+                            </div>
+                            <div className="col-span-2">
+                              <p className="text-sm text-gray-600">Address</p>
+                              <p className="font-medium text-gray-900">{facility.address || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Local Govt. Area</p>
+                              <p className="font-medium text-gray-900">{facility.localGovtArea || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">City</p>
+                              <p className="font-medium text-gray-900">{facility.city || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">State</p>
+                              <p className="font-medium text-gray-900">{facility.state || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Country</p>
+                              <p className="font-medium text-gray-900">{facility.country || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Plant Contact</p>
+                              <p className="font-medium text-gray-900">{facility.plantContact || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Position/Title</p>
+                              <p className="font-medium text-gray-900">{facility.positionTitle || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Telephone No.</p>
+                              <p className="font-medium text-gray-900">{facility.telephoneNo || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Email Address</p>
+                              <p className="font-medium text-gray-900">{facility.emailAddress || 'N/A'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Packaging Plant */}
+                  {selectedApplication.packagingPlant && selectedApplication.packagingPlant.exists && (
+                    <div className="bg-gray-50 rounded-lg p-5">
+                      <div className="flex items-center mb-4">
+                        <Package className="w-5 h-5 text-gray-500 mr-2" />
+                        <h3 className="text-lg font-semibold text-gray-900">Packaging Plant</h3>
                       </div>
-                    ))}
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-600">Company/Plant Name</p>
+                          <p className="font-medium text-gray-900">
+                            {selectedApplication.packagingPlant.companyName || 'N/A'}
+                          </p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-sm text-gray-600">Address</p>
+                          <p className="font-medium text-gray-900">
+                            {selectedApplication.packagingPlant.address || 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Local Govt. Area</p>
+                          <p className="font-medium text-gray-900">
+                            {selectedApplication.packagingPlant.localGovtArea || 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">City</p>
+                          <p className="font-medium text-gray-900">
+                            {selectedApplication.packagingPlant.city || 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">State</p>
+                          <p className="font-medium text-gray-900">
+                            {selectedApplication.packagingPlant.state || 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Country</p>
+                          <p className="font-medium text-gray-900">
+                            {selectedApplication.packagingPlant.country || 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Plant Contact</p>
+                          <p className="font-medium text-gray-900">
+                            {selectedApplication.packagingPlant.plantContact || 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Position/Title</p>
+                          <p className="font-medium text-gray-900">
+                            {selectedApplication.packagingPlant.positionTitle || 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Telephone No.</p>
+                          <p className="font-medium text-gray-900">
+                            {selectedApplication.packagingPlant.telephoneNo || 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Email Address</p>
+                          <p className="font-medium text-gray-900">
+                            {selectedApplication.packagingPlant.emailAddress || 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Markets Tab */}
+              {activeDetailTab === 'markets' && (
+                <div className="space-y-6">
+                  <div className="bg-gray-50 rounded-lg p-5">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Geographic Markets</h3>
+                    
+                    {selectedApplication.geographicMarkets && selectedApplication.geographicMarkets.length > 0 ? (
+                      <div>
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {selectedApplication.geographicMarkets.map((market, index) => (
+                            <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                              {market}
+                            </span>
+                          ))}
+                        </div>
+                        {selectedApplication.geographicMarkets.includes('Other') && selectedApplication.geographicMarketsOther && (
+                          <div>
+                            <p className="text-sm text-gray-600">Other market specified:</p>
+                            <p className="font-medium text-gray-900">{selectedApplication.geographicMarketsOther}</p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 italic">No geographic markets specified</p>
+                    )}
                   </div>
                 </div>
               )}
 
               {/* Additional Notes */}
-              {selectedApplication.notes && (
+              {selectedApplication.description && (
                 <div className="mb-8">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Notes</h3>
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <p className="text-gray-800">{selectedApplication.notes}</p>
+                    <p className="text-gray-800">{selectedApplication.description}</p>
                   </div>
                 </div>
               )}
@@ -768,10 +1175,6 @@ const Applications = () => {
             >
               <RefreshCw className={`w-4 h-4 ${isLoading || isRefreshing ? 'animate-spin' : ''}`} />
               {isLoading || isRefreshing ? 'Refreshing...' : 'Refresh'}
-            </button>
-            <button className="px-4 py-2.5 bg-[#00853b] text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 inline-flex items-center justify-center gap-2">
-              <Plus className="w-4 h-4" />
-              New Application
             </button>
           </div>
         </div>
@@ -1028,15 +1431,6 @@ const Applications = () => {
                                 >
                                   Approve
                                 </button>
-                                {/* <button
-                                  onClick={() => handleIssueCertificate(appId)}
-                                  disabled={isIssuing}
-                                  className="px-3 py-1.5 bg-[#00853b] text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors duration-200 disabled:opacity-50 flex items-center"
-                                  title="Issue Certificate"
-                                >
-                                  <FileCheck className={`w-3 h-3 mr-1 ${isIssuing ? 'animate-spin' : ''}`} />
-                                  Issue
-                                </button> */}
                                 <button
                                   onClick={() => handleRejectApplication(appId)}
                                   className="px-3 py-1.5 bg-red-600 cursor-pointer text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors duration-200"
@@ -1073,15 +1467,6 @@ const Applications = () => {
                                 >
                                   <Download className="w-4 h-4" />
                                 </button>
-                                {/* <button
-                                  onClick={() => handleIssueCertificate(appId)}
-                                  disabled={isIssuing}
-                                  className="px-3 py-1.5 bg-[#00853b] text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors duration-200 disabled:opacity-50 flex items-center"
-                                  title="Re-issue Certificate"
-                                >
-                                  <FileCheck className={`w-3 h-3 mr-1 ${isIssuing ? 'animate-spin' : ''}`} />
-                                  Re-issue
-                                </button> */}
                               </>
                             ) : null}
                             

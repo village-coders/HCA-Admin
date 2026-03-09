@@ -10,6 +10,8 @@ import Products from "./pages/Products";
 import Companies from "./pages/Companies";
 import ManageAdmins from "./pages/ManageAdmins";
 import VerifyEmail from "./pages/verifyemail";
+import Invoices from "./pages/Invoices";
+import Audits from "./pages/Audits";
 
 import AuthProvider from "./contexts/AuthProvider";
 import AllProvider from "./contexts/AllProvider";
@@ -36,6 +38,8 @@ function App() {
                 <Route path="/products" element={<Products />} />
                 <Route path="/companies" element={<Companies />} />
                 <Route path="/manage-admins" element={<ManageAdmins />} />
+                <Route path="/invoices" element={<Invoices />} />
+                <Route path="/audits" element={<Audits />} />
                 
                 <Route path="/message" element={<AdminMessages />} />
                 <Route path="/socket-message" element={<Messages />} />
