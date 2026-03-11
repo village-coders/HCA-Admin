@@ -12,7 +12,9 @@ import {
   ChevronRight,
   Menu,
   X,
-  MessageCircleIcon
+  MessageCircleIcon,
+  Receipt,
+  CalendarCheck
 } from 'lucide-react';
 
 import { useAuth } from '../hooks/useAuth'
@@ -35,6 +37,8 @@ const Sidebar = () => {
     { path: '/applications', icon: FileText, label: 'Applications' },
     { path: '/products', icon: Package, label: 'Products' },
     { path: '/certificates', icon: Award, label: 'Certificates' },
+    { path: '/invoices', icon: Receipt, label: 'Invoices' },
+    { path: '/audits', icon: CalendarCheck, label: 'Audits' },
     ...(user?.role === "super admin"
       ? [{ path: '/manage-admins', icon: Users, label: 'Manage Admin' }]
       : []),

@@ -11,6 +11,8 @@ const AllProvider = ({ children }) => {
   const [certificates, setCertificates] = useState([]);
   const [applications, setApplications] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [invoices, setInvoices] = useState([]);
+  const [audits, setAudits] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState("");
 
@@ -51,6 +53,8 @@ const AllProvider = ({ children }) => {
     fetchCertificates();
     fetchApplications();
     fetchCompanies();
+    fetchInvoices();
+    fetchAudits();
   }, []);
 
   // 📦 Fetch products
@@ -805,6 +809,124 @@ const AllProvider = ({ children }) => {
     }
   };
 
+  // 📝 Invoice Management
+  const fetchInvoices = async () => {
+    const token = getToken();
+    if (!token) return;
+    setIsLoading(true);
+    try {
+      const res = await axios.get(`${baseUrl}/invoices`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setInvoices(res.data || []);
+      setErrors("");
+    } catch (error) {
+      console.error("Failed to fetch invoices:", error);
+      setErrors("Failed to load invoices");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const issueInvoice = async (id, amount) => {
+    const token = getToken();
+    if (!token) return { success: false };
+    setIsLoading(true);
+    try {
+      const res = await axios.put(`${baseUrl}/invoices/${id}/issue`, { amount }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setInvoices(prev => prev.map(inv => inv._id === id ? res.data : inv));
+      toast.success("Invoice issued successfully!");
+      return { success: true, data: res.data };
+    } catch (error) {
+      console.error("Failed to issue invoice:", error);
+      toast.error(error.response?.data?.message || "Failed to issue invoice");
+      return { success: false, error };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 🕵️ Audit Management
+  const fetchAudits = async () => {
+    const token = getToken();
+    if (!token) return;
+    setIsLoading(true);
+    try {
+      const res = await axios.get(`${baseUrl}/audits`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setAudits(res.data || []);
+      setErrors("");
+    } catch (error) {
+      console.error("Failed to fetch audits:", error);
+      setErrors("Failed to load audits");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const scheduleAudit = async (auditData) => {
+    const token = getToken();
+    if (!token) return { success: false };
+    setIsLoading(true);
+    try {
+      const res = await axios.post(`${baseUrl}/audits/schedule`, auditData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setAudits(prev => [res.data, ...prev]);
+      toast.success("Audit scheduled successfully!");
+      return { success: true, data: res.data };
+    } catch (error) {
+      console.error("Failed to schedule audit:", error);
+      toast.error(error.response?.data?.message || "Failed to schedule audit");
+      return { success: false, error };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const addAuditCorrection = async (id, issue) => {
+    const token = getToken();
+    if (!token) return { success: false };
+    setIsLoading(true);
+    try {
+      const res = await axios.put(`${baseUrl}/audits/${id}/correction`, { issue }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setAudits(prev => prev.map(audit => audit._id === id ? res.data : audit));
+      toast.success("Correction added successfully!");
+      return { success: true, data: res.data };
+    } catch (error) {
+      console.error("Failed to add correction:", error);
+      toast.error("Failed to add correction");
+      return { success: false, error };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const completeAudit = async (id) => {
+    const token = getToken();
+    if (!token) return { success: false };
+    setIsLoading(true);
+    try {
+      const res = await axios.put(`${baseUrl}/audits/${id}/complete`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setAudits(prev => prev.map(audit => audit._id === id ? res.data : audit));
+      toast.success("Audit completed successfully!");
+      return { success: true, data: res.data };
+    } catch (error) {
+      console.error("Failed to complete audit:", error);
+      toast.error(error.response?.data?.message || "Failed to complete audit");
+      return { success: false, error };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
 
   const value = {
@@ -849,6 +971,18 @@ const AllProvider = ({ children }) => {
     approveApplication,
     rejectApplication,
     getApplicationStats,
+    
+    // Invoices
+    invoices,
+    fetchInvoices,
+    issueInvoice,
+
+    // Audits
+    audits,
+    fetchAudits,
+    scheduleAudit,
+    addAuditCorrection,
+    completeAudit,
     
     // Common
     isLoading,
