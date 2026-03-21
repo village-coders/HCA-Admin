@@ -21,6 +21,8 @@ const ManageAdmins = () => {
   const [submitting, setSubmitting] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   
+  const [editingAdmin, setEditingAdmin] = useState(null); // NEW: track editing admin
+
   const [newAdmin, setNewAdmin] = useState({
     name: "",
     email: "",
@@ -43,9 +45,6 @@ const ManageAdmins = () => {
         }
       );
       const data = await res.json();
-
-      // console.log(data);
-      
       
       const adminsArray = Array.isArray(data)
         ? data
@@ -55,7 +54,7 @@ const ManageAdmins = () => {
         ? data.users
         : [];
         
-        const formattedAdmins = adminsArray.map((admin) => ({
+      const formattedAdmins = adminsArray.map((admin) => ({
         id: admin._id,
         name: admin.fullName || admin.name || "N/A",
         email: admin.email || "—",
@@ -82,9 +81,9 @@ const ManageAdmins = () => {
     return () => controller.abort()
   }, []);
 
-  // 🔹 ADD ADMIN (API)
+  // 🔹 ADD / EDIT ADMIN (API)
   const handleAddAdmin = async () => {
-    if (!newAdmin.name || !newAdmin.email || !newAdmin.password || !newAdmin.contact) {
+    if (!newAdmin.name || !newAdmin.email || !newAdmin.contact) {
       toast.warning("All fields are required");
       return;
     }
@@ -92,33 +91,38 @@ const ManageAdmins = () => {
     try {
       setSubmitting(true);
 
-      const token = JSON.parse(localStorage.getItem("accessToken"))
+      const token = JSON.parse(localStorage.getItem("accessToken"));
 
-      const res = await fetch(
-        `${import.meta.env.VITE_BASE_URL}/users/admin`,
-        {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json" ,
-            Authorization: `Bearer ${token} `,
-          },
-          body: JSON.stringify({
-            fullName: newAdmin.name,
-            email: newAdmin.email,
-            password: newAdmin.password,
-            contact: newAdmin.contact,
-            role: newAdmin.role,
-          }),
-        }
-      );
+      const url = editingAdmin
+        ? `${import.meta.env.VITE_BASE_URL}/users/admin/${editingAdmin.id}` // PUT endpoint for edit
+        : `${import.meta.env.VITE_BASE_URL}/users/admin`;            // POST endpoint for new
 
-      const data = await res.json()
+      const method = editingAdmin ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          fullName: newAdmin.name,
+          email: newAdmin.email,
+          password: newAdmin.password,
+          contact: newAdmin.contact,
+          role: newAdmin.role,
+        }),
+      });
+
+      const data = await res.json();
 
       if (!res.ok) throw new Error(data.message);
 
-      toast.success(data.message)
+      toast.success(data.message);
 
+      // Reset form
       setShowAddForm(false);
+      setEditingAdmin(null);
       setNewAdmin({
         name: "",
         email: "",
@@ -127,7 +131,7 @@ const ManageAdmins = () => {
         role: "Admin",
       });
 
-      fetchAdmins(); // 🔁 refresh list
+      fetchAdmins(); // refresh list
     } catch (err) {
       console.log(err);
       toast.error(err.message);
@@ -213,14 +217,19 @@ const ManageAdmins = () => {
         </button>
       </div>
 
-      {/* Add Admin Form Modal */}
+      {/* Add / Edit Admin Form Modal */}
       {showAddForm && (
         <div className="fixed inset-0 bg-gradient-to-br from-green-200 via-gray-200 to-green-500 bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Add New Admin</h2>
+              <h2 className="text-xl font-bold text-gray-900">
+                {editingAdmin ? "Edit Admin" : "Add New Admin"}
+              </h2>
               <button
-                onClick={() => setShowAddForm(false)}
+                onClick={() => {
+                  setShowAddForm(false);
+                  setEditingAdmin(null);
+                }}
                 className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-lg"
               >
                 <XCircle className="w-5 h-5" />
@@ -296,13 +305,15 @@ const ManageAdmins = () => {
                 >
                   <option value="admin">Admin</option>
                   <option value="super admin">Super Admin</option>
-                  {/* <option value="Viewer">Viewer</option> */}
                 </select>
               </div>
             </div>
             <div className="flex justify-end space-x-3 mt-8">
               <button
-                onClick={() => setShowAddForm(false)}
+                onClick={() => {
+                  setShowAddForm(false);
+                  setEditingAdmin(null);
+                }}
                 className="px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 cursor-pointer"
               >
                 Cancel
@@ -312,7 +323,13 @@ const ManageAdmins = () => {
                 disabled={submitting}
                 className="px-6 py-2 bg-[#00853b] text-white rounded-lg hover:bg-green-700 cursor-pointer"
               >
-                {submitting ? <SyncLoader size={10} color="white" /> : "Add Admin"}
+                {submitting ? (
+                  <SyncLoader size={10} color="white" />
+                ) : editingAdmin ? (
+                  "Update Admin"
+                ) : (
+                  "Add Admin"
+                )}
               </button>
             </div>
           </div>
@@ -434,7 +451,20 @@ const ManageAdmins = () => {
                   </td>
 
                   <td className="p-4 flex space-x-2">
-                    <button className="p-1.5 hover:bg-gray-100 rounded-lg cursor-pointer">
+                    <button
+                      onClick={() => {
+                        setEditingAdmin(admin);
+                        setNewAdmin({
+                          name: admin.name,
+                          email: admin.email,
+                          password: "",
+                          contact: admin.contact,
+                          role: admin.role,
+                        });
+                        setShowAddForm(true);
+                      }}
+                      className="p-1.5 hover:bg-gray-100 rounded-lg cursor-pointer"
+                    >
                       <Edit2 className="w-4 h-4" />
                     </button>
                     {admin.role !== "super admin" && (
