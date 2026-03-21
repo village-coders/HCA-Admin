@@ -650,10 +650,10 @@ const Products = () => {
               <RefreshCw className={`w-4 h-4 ${isLoading || isRefreshing ? 'animate-spin' : ''}`} />
               {isLoading || isRefreshing ? 'Refreshing...' : 'Refresh'}
             </button>
-            <button className="px-4 py-2.5 bg-[#00853b] text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 inline-flex items-center justify-center gap-2">
+            {/* <button className="px-4 py-2.5 bg-[#00853b] text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 inline-flex items-center justify-center gap-2">
               <Plus className="w-4 h-4" />
               New Product
-            </button>
+            </button> */}
           </div>
         </div>
       </div>
