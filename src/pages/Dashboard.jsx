@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp, Users, Clock, CheckCircle, Award, Package, FileText, RefreshCw, AlertCircle, ClipboardList } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
+import DashboardHeader from "../components/DashboardHeader"
 
 // Stat Card Component
 const StatCard = ({ stat, isLoading }) => {
@@ -348,6 +349,7 @@ const Dashboard = () => {
               )}
             </div>
           </div>
+          <DashboardHeader />
           <div className="flex items-center gap-3">
             {errors && (
               <div className="flex items-center gap-1 text-red-600 text-sm">
@@ -366,6 +368,7 @@ const Dashboard = () => {
           </div>
         </div>
       </header>
+      
 
       {/* Error Alert */}
       {errors && (
