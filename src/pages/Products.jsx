@@ -35,10 +35,22 @@ const Products = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, activeTab]);
+
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [isApprovingId, setIsApprovingId] = useState(null);
+  const [isRejectingId, setIsRejectingId] = useState(null);
+  const [isDeletingId, setIsDeletingId] = useState(null);
+  const [isBulkApproving, setIsBulkApproving] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const { 
     products, 
@@ -102,6 +114,9 @@ const Products = () => {
     return true;
   });
 
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage) || 1;
+  const paginatedProducts = filteredProducts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   // Format date
   const formatDate = (dateString) => {
     try {
@@ -134,6 +149,7 @@ const Products = () => {
 
   // Handle Approve Product
   const handleApproveProduct = async (productId, reason = "") => {
+    setIsApprovingId(productId);
     try {
       await approveProduct(productId, reason);
       toast.success("Product approved successfully!");
@@ -150,12 +166,15 @@ const Products = () => {
     } catch (error) {
       toast.error("Failed to approve product");
       console.log(error)
+    } finally {
+      setIsApprovingId(null);
     }
   };
 
   const handleRejectProduct = async (productId) => {
     const reason = prompt("Enter rejection reason:");
     if (reason) {
+      setIsRejectingId(productId);
       try {
         await rejectProduct(productId, reason);
         toast.success("Product rejected!");
@@ -173,12 +192,15 @@ const Products = () => {
       } catch (error) {
         toast.error("Failed to reject product");
         console.log(error)
+      } finally {
+        setIsRejectingId(null);
       }
     }
   };
 
   const handleDeleteProduct = async (productId) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
+      setIsDeletingId(productId);
       try {
         await deleteProduct(productId);
         toast.success("Product deleted!");
@@ -193,6 +215,8 @@ const Products = () => {
       } catch (error) {
         toast.error("Failed to delete product");
         console.log(error)
+      } finally {
+        setIsDeletingId(null);
       }
     }
   };
@@ -408,12 +432,6 @@ const Products = () => {
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Product Market Type</p>
-                      <p className="font-medium text-gray-900">
-                        {selectedProduct.marketType || 'N/A'}
-                      </p>
-                    </div>
-                    <div>
                       <p className="text-sm text-gray-600">Product Code</p>
                       <p className="font-medium text-gray-900">
                         {selectedProduct?._id.slice(-8) || 'N/A'}
@@ -432,25 +450,26 @@ const Products = () => {
                     <div>
                       <p className="text-sm text-gray-600">Company Name</p>
                       <p className="font-medium text-gray-900">
-                        {getCompanyName(selectedProduct?.companyId) || selectedProduct?.companyName || 'N/A'}
+                        {console.log(selectedProduct)}
+                        {selectedProduct?.createdBy?.companyName || 'N/A'}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Company Address</p>
                       <p className="font-medium text-gray-900">
-                        {selectedProduct?.address || 'N/A'}
+                        {selectedProduct?.createdBy?.address || 'N/A'}
                       </p>
                     </div>
-                    {selectedProduct.companyWebsite && (
+                    {selectedProduct?.createdBy?.website && (
                       <div>
                         <p className="text-sm text-gray-600">Website</p>
                         <a 
-                          href={selectedProduct.companyWebsite} 
+                          href={selectedProduct?.createdBy?.website} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="font-medium text-blue-600 hover:text-blue-800 flex items-center"
                         >
-                          {selectedProduct.companyWebsite}
+                          {selectedProduct?.createdBy?.website}
                           <ExternalLink className="w-3 h-3 ml-1" />
                         </a>
                       </div>
@@ -540,25 +559,55 @@ const Products = () => {
               </div>
 
               {/* Attached Documents */}
-              {(selectedProduct.documents || selectedProduct.files) && (
+              {(selectedProduct.document1 || selectedProduct.document2 || selectedProduct.document3) && (
                 <div className="mb-8">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Attached Documents</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {Object.entries(selectedProduct.documents || selectedProduct.files || {}).map(([key, value]) => (
-                      <div key={key} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors duration-200">
-                        <div className="flex items-center">
-                          <FileText className="w-5 h-5 text-gray-500 mr-3" />
-                          <div>
-                            <p className="font-medium text-gray-900 capitalize">
-                              {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              {typeof value === 'string' ? value : 'Document'}
-                            </p>
+                    {selectedProduct.document1 && (
+                      <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors duration-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <FileText className="w-5 h-5 text-[#00853b] mr-3" />
+                            <div>
+                              <p className="font-medium text-gray-900 capitalize">Document 1</p>
+                              <a href={selectedProduct.document1.fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800">
+                                View File <ExternalLink className="w-3 h-3 inline ml-1" />
+                              </a>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    ))}
+                    )}
+                    {selectedProduct.document2 && (
+                      <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors duration-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <FileText className="w-5 h-5 text-[#00853b] mr-3" />
+                            <div>
+                              <p className="font-medium text-gray-900 capitalize">Document 2</p>
+                              <a href={selectedProduct.document2.fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800">
+                                View File <ExternalLink className="w-3 h-3 inline ml-1" />
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {selectedProduct.document3 && (
+                      <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors duration-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <FileText className="w-5 h-5 text-[#00853b] mr-3" />
+                            <div>
+                              <p className="font-medium text-gray-900 capitalize">Document 3</p>
+                              <a href={selectedProduct.document3.fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800">
+                                View File <ExternalLink className="w-3 h-3 inline ml-1" />
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -583,17 +632,19 @@ const Products = () => {
                   <>
                     <button
                       onClick={() => handleApproveProduct(productId)}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 flex items-center"
+                      disabled={isApprovingId === productId}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
                     >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Approve Product
+                      {isApprovingId === productId ? <CheckCircle className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                      {isApprovingId === productId ? 'Approving...' : 'Approve Product'}
                     </button>
                     <button
                       onClick={() => handleRejectProduct(productId)}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors duration-200 flex items-center"
+                      disabled={isRejectingId === productId}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
                     >
-                      <XCircle className="w-4 h-4 mr-2" />
-                      Reject Product
+                      {isRejectingId === productId ? <XCircle className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />}
+                      {isRejectingId === productId ? 'Rejecting...' : 'Reject Product'}
                     </button>
                   </>
                 )}
@@ -613,10 +664,11 @@ const Products = () => {
                 </button>
                 <button
                   onClick={() => handleDeleteProduct(productId)}
-                  className="px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-medium transition-colors duration-200 flex items-center"
+                  disabled={isDeletingId === productId}
+                  className="px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
                 >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Product
+                  {isDeletingId === productId ? <Trash2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                  {isDeletingId === productId ? 'Deleting...' : 'Delete Product'}
                 </button>
               </div>
             </div>
@@ -774,17 +826,17 @@ const Products = () => {
                 <>
                   <button
                     onClick={handleBulkApprove}
-                    className="px-4 py-2 text-sm font-medium bg-[#00853b] text-white hover:bg-green-700 rounded-lg transition-colors duration-200"
-                    disabled={isLoading}
+                    disabled={isLoading || isBulkApproving}
+                    className="px-4 py-2 text-sm font-medium bg-[#00853b] text-white hover:bg-green-700 rounded-lg transition-colors duration-200 disabled:opacity-50"
                   >
-                    Approve Selected
+                    {isBulkApproving ? 'Approving...' : 'Approve Selected'}
                   </button>
                   <button
                     onClick={handleBulkDelete}
-                    className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
-                    disabled={isLoading}
+                    disabled={isLoading || isBulkDeleting}
+                    className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
                   >
-                    Delete Selected
+                    {isBulkDeleting ? 'Deleting...' : 'Delete Selected'}
                   </button>
                 </>
               )}
@@ -823,7 +875,6 @@ const Products = () => {
                   </th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Market Type</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -831,7 +882,7 @@ const Products = () => {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {filteredProducts.length > 0 ? (
-                  filteredProducts.map((product) => {
+                  paginatedProducts.map((product) => {
                     const productId = product.id || product._id;
                     const statusConfig = getStatusConfig(product.status);
                     const StatusIcon = statusConfig.icon;
@@ -861,16 +912,11 @@ const Products = () => {
                         </td>
                         <td className="p-4">
                           <div className="text-sm font-medium text-gray-900">
-                            {getCompanyName(product.companyId) || product.companyName || 'Unknown Company'}
+                            {product?.createdBy?.companyName || 'Unknown Company'}
                           </div>
-                          {product.companyEmail && (
-                            <div className="text-xs text-gray-500">{product.companyEmail}</div>
+                          {product?.createdBy?.email && (
+                            <div className="text-xs text-gray-500">{product?.createdBy?.email}</div>
                           )}
-                        </td>
-                        <td className="p-4">
-                          <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${product.marketType ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
-                            {product.marketType || 'Uncategorized'}
-                          </span>
                         </td>
                         <td className="p-4">
                           <span className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full ${statusConfig.bg} ${statusConfig.text}`}>
@@ -913,10 +959,11 @@ const Products = () => {
                             
                             <button
                               onClick={() => handleDeleteProduct(productId)}
-                              className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                              disabled={isDeletingId === productId}
+                              className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
                               title="Delete Product"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              {isDeletingId === productId ? <Trash2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                             </button>
                           </div>
                         </td>
@@ -950,34 +997,48 @@ const Products = () => {
             <div className="px-6 py-4 border-t border-gray-200">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="text-sm text-gray-600">
-                  Showing <span className="font-medium">{filteredProducts.length}</span> of{' '}
-                  <span className="font-medium">{products.length}</span> products
+                  Showing <span className="font-medium">{((currentPage - 1) * itemsPerPage) + 1}</span> to{' '}
+                  <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredProducts.length)}</span> of{' '}
+                  <span className="font-medium">{filteredProducts.length}</span> products
                 </div>
                 <div className="flex items-center space-x-2">
                   {selectedProducts.length > 0 && (
                     <>
                       <button
                         onClick={handleBulkApprove}
-                        className="px-3 py-1.5 text-sm font-medium bg-[#00853b] text-white hover:bg-green-700 rounded-lg transition-colors duration-200"
+                        disabled={isLoading || isBulkApproving}
+                        className="px-3 py-1.5 text-sm font-medium bg-[#00853b] text-white hover:bg-green-700 rounded-lg transition-colors duration-200 disabled:opacity-50"
                       >
-                        Approve Selected ({selectedProducts.length})
+                       {isBulkApproving ? `Approving (${selectedProducts.length})...` : `Approve Selected (${selectedProducts.length})`}
                       </button>
                       <button
                         onClick={handleBulkDelete}
-                        className="px-3 py-1.5 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                        disabled={isLoading || isBulkDeleting}
+                        className="px-3 py-1.5 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
                       >
-                        Delete Selected
+                        {isBulkDeleting ? 'Deleting...' : 'Delete Selected'}
                       </button>
                     </>
                   )}
-                  <div className="flex items-center space-x-2">
-                    <button className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200">
-                      Previous
-                    </button>
-                    <button className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200">
-                      Next
-                    </button>
-                  </div>
+                  {totalPages > 1 && (
+                    <div className="flex items-center space-x-2 ml-4 border-l pl-4 border-gray-200">
+                      <button 
+                        onClick={() => setCurrentPage(p => p - 1)}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 bg-white border border-gray-300 shadow-sm rounded-lg transition-colors duration-200 disabled:opacity-50"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-sm text-gray-600 px-2">Page {currentPage} of {totalPages}</span>
+                      <button 
+                        onClick={() => setCurrentPage(p => p + 1)}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 bg-white border border-gray-300 shadow-sm rounded-lg transition-colors duration-200 disabled:opacity-50"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

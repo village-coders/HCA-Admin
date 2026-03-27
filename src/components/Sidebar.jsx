@@ -14,7 +14,8 @@ import {
   X,
   MessageCircleIcon,
   Receipt,
-  CalendarCheck
+  CalendarCheck,
+  FolderOpen
 } from 'lucide-react';
 
 import { useAuth } from '../hooks/useAuth'
@@ -37,6 +38,7 @@ const Sidebar = () => {
     { path: '/applications', icon: FileText, label: 'Applications' },
     { path: '/products', icon: Package, label: 'Products' },
     { path: '/certificates', icon: Award, label: 'Certificates' },
+    { path: '/documents', icon: FolderOpen, label: 'Documents' },
     { path: '/invoices', icon: Receipt, label: 'Invoices' },
     { path: '/audits', icon: CalendarCheck, label: 'Audits' },
     ...(user?.role === "super admin"
@@ -83,7 +85,7 @@ const Sidebar = () => {
         ${isCollapsed ? 'lg:w-20' : 'lg:w-64'}
       `}>
         {/* Sidebar Header */}
-        <div className={`p-6 border-b border-gray-200 ${isCollapsed ? 'lg:px-4' : ''}`}>
+        <div className={`p-6 border-b border-gray-200 ${isCollapsed ? 'lg:px-4' : ''} ${isMobileOpen ? 'lg:hidden pt-20' : ''}`}>
           <div className={`flex items-center justify-between ${isCollapsed ? 'flex-col space-y-2' : ''}`}>
             {!isCollapsed && (
               <div>
@@ -106,7 +108,7 @@ const Sidebar = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-1">
+        <nav className="p-4 space-y-1 overflow-y-auto h-[calc(100vh-150px)] scrollbar-hide">
           {
           navItems.map((item) => (          
             
@@ -127,27 +129,41 @@ const Sidebar = () => {
             </NavLink>
           ))}
           
-          <button className={`
-            flex items-center ${isCollapsed ? 'justify-center px-3' : 'px-4'} py-3 w-full rounded-lg
-            text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200 mt-8 cursor-pointer`}
-            onClick={logout}
-            >
-            <LogOut className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'}`} />
-            {!isCollapsed && <span className="text-sm font-medium">Logout</span>}
-          </button>
+          {isMobileOpen && (
+            <button className={`
+              flex items-center ${isCollapsed ? 'justify-center px-3' : 'px-4'} py-3 rounded-lg
+              text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200 cursor-pointer`}
+              onClick={logout}
+              >
+              <LogOut className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'}`} />
+              {!isCollapsed && <span className="text-sm font-medium">Logout</span>}
+            </button>
+          )}
         </nav>
 
         {/* User Profile */}
         {!isCollapsed && (
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-            <div className="flex items-center">
-              <div className="w-10 h-10 rounded-full bg-[#00853b]/10 flex items-center justify-center">
-                <span className="text-[#00853b] font-bold">{user?.fullName?.charAt(0).toUpperCase()}</span>
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-10 h-10 rounded-full bg-[#00853b]/10 flex items-center justify-center">
+                  <span className="text-[#00853b] font-bold">{user?.fullName?.charAt(0).toUpperCase()}</span>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-800">{`${user?.fullName?.split(' ')[0].charAt(0).toUpperCase() + user?.fullName?.split(' ')[0].slice(1)} `}</p>
+                  <p className="text-xs text-gray-600">{user?.role}</p>
+                </div>
               </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-800">{`${user?.fullName?.split(' ')[0].charAt(0).toUpperCase() + user?.fullName?.split(' ')[0].slice(1)} `}</p>
-                <p className="text-xs text-gray-600">{user?.role}</p>
-              </div>
+              {!isMobileOpen && (
+                <button className={`
+                  flex items-center ${isCollapsed ? 'justify-center px-3' : 'px-3'} py-3 rounded-lg
+                  text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200 cursor-pointer`}
+                  onClick={logout}
+                  >
+                  <LogOut className={`w-5 h-5 ${isCollapsed ? '' : 'mr-2'}`} />
+                  {!isCollapsed && <span className="text-sm font-medium">Logout</span>}
+                </button>
+              )}
             </div>
           </div>
         )}

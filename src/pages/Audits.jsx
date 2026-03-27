@@ -30,7 +30,10 @@ const Audits = () => {
     fetchApplications,
     scheduleAudit,
     addAuditCorrection,
-    completeAudit 
+    completeAudit,
+    uploadAuditReport,
+    sendCorrectionReminder,
+    resendAuditCorrection
   } = useAll();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,10 +43,14 @@ const Audits = () => {
   const [selectedAudit, setSelectedAudit] = useState(null);
   const [correctionIssue, setCorrectionIssue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportFile, setReportFile] = useState(null);
 
   const [scheduleForm, setScheduleForm] = useState({
     applicationId: '',
     staffName: '',
+    auditorEmail: '',
+    auditorPhone: '',
     scheduledDate: '',
     scheduledTime: ''
   });
@@ -73,7 +80,7 @@ const Audits = () => {
     // Only applications that don't have an audit or are approved can be scheduled
     // This is a simplified filter; in production, you might want more complex logic
     return applications.filter(app => 
-      (app.status === 'Approved' || app.status === 'Submitted') && 
+      (app.status === 'Accepted' || app.status === 'Submitted') && 
       !audits.some(audit => audit.applicationId?._id === app._id || audit.applicationId === app._id)
     );
   };
@@ -107,9 +114,36 @@ const Audits = () => {
       setScheduleForm({
         applicationId: '',
         staffName: '',
+        auditorEmail: '',
+        auditorPhone: '',
         scheduledDate: '',
         scheduledTime: ''
       });
+    }
+  };
+
+  const handleReportUpload = async (e) => {
+    e.preventDefault();
+    if (!reportFile || !selectedAudit) return;
+
+    setIsSubmitting(true);
+    const result = await uploadAuditReport(selectedAudit._id, reportFile);
+    setIsSubmitting(false);
+
+    if (result.success) {
+      setIsReportModalOpen(false);
+      setReportFile(null);
+      setSelectedAudit(null);
+    }
+  };
+
+  const handleSendReminder = async (id) => {
+    await sendCorrectionReminder(id);
+  };
+
+  const handleResendCorrection = async (auditId, correctionId) => {
+    if (window.confirm('Mark this correction as unacceptable and resend to client?')) {
+      await resendAuditCorrection(auditId, correctionId);
     }
   };
 
@@ -254,8 +288,9 @@ const Audits = () => {
                     <User className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase">Assigned Staff</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase">Lead Auditor</span>
                     <p className="text-xs font-bold text-gray-900">{audit.staffName}</p>
+                    {audit.auditorEmail && <p className="text-[10px] text-gray-500">{audit.auditorEmail}</p>}
                   </div>
                 </div>
               </div>
@@ -284,6 +319,15 @@ const Audits = () => {
                       Mark Complete
                     </button>
                   )}
+                  {audit.status === 'Accepted' && (
+                    <button 
+                      onClick={() => { setSelectedAudit(audit); setIsReportModalOpen(true); }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-xs font-bold transition-colors"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      Upload Report
+                    </button>
+                  )}
                   {audit.status === 'Scheduled' && (
                     <span className="text-xs text-gray-400 italic">Waiting for User</span>
                   )}
@@ -306,6 +350,27 @@ const Audits = () => {
                         {audit.corrections.filter(c => c.status === 'Pending').length}
                       </span>
                     </div>
+                    <div className="space-y-2 mt-2">
+                        {audit.corrections.map(c => (
+                            <div key={c._id} className="flex items-center justify-between text-xs p-2 bg-white rounded border border-red-50">
+                                <span className={c.status === 'Resolved' ? 'line-through text-gray-400' : 'text-gray-700 font-medium'}>{c.issue}</span>
+                                {c.status === 'Resolved' && (
+                                    <button 
+                                        onClick={() => handleResendCorrection(audit._id, c._id)}
+                                        className="text-[10px] text-red-600 hover:underline font-bold"
+                                    >
+                                        Resend
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                    <button 
+                        onClick={() => handleSendReminder(audit._id)}
+                        className="w-full mt-3 py-2 bg-orange-100 text-orange-700 rounded-lg text-[10px] font-bold hover:bg-orange-200 transition-colors"
+                    >
+                        Send Correction Reminder
+                    </button>
                   </div>
                 </div>
               )}
@@ -343,7 +408,7 @@ const Audits = () => {
             <form onSubmit={handleScheduleSubmit} className="p-6">
               <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Select Application</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Select Company</label>
                   <div className="relative">
                     <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <select 
@@ -352,10 +417,10 @@ const Audits = () => {
                       value={scheduleForm.applicationId}
                       onChange={(e) => setScheduleForm({...scheduleForm, applicationId: e.target.value})}
                     >
-                      <option value="">Choose an application...</option>
+                      <option value="">Choose a company application...</option>
                       {getEligibleApplications().map(app => (
                         <option key={app._id} value={app._id}>
-                          {app.applicationNumber} - {app.companyName}
+                          {app.company.companyName} ({app.applicationNumber})
                         </option>
                       ))}
                     </select>
@@ -363,17 +428,48 @@ const Audits = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Assigned Audit Staff</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Lead Auditor Name</label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input 
                       type="text" 
                       required
-                      placeholder="e.g. John Doe, Lead Auditor"
+                      placeholder="Auditor Full Name"
                       className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
                       value={scheduleForm.staffName}
                       onChange={(e) => setScheduleForm({...scheduleForm, staffName: e.target.value})}
                     />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Auditor Email</label>
+                    <div className="relative">
+                      <MoreVertical className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input 
+                        type="email" 
+                        required
+                        placeholder="email@example.com"
+                        className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
+                        value={scheduleForm.auditorEmail}
+                        onChange={(e) => setScheduleForm({...scheduleForm, auditorEmail: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Auditor Phone</label>
+                    <div className="relative">
+                      <MoreVertical className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input 
+                        type="tel" 
+                        required
+                        placeholder="+234..."
+                        className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
+                        value={scheduleForm.auditorPhone}
+                        onChange={(e) => setScheduleForm({...scheduleForm, auditorPhone: e.target.value})}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -482,6 +578,65 @@ const Audits = () => {
                 >
                   {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <AlertTriangle className="w-4 h-4" />}
                   Flag Issue
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Audit Report Modal */}
+      {isReportModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setIsReportModalOpen(false)}></div>
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-blue-50/50">
+              <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-blue-600" />
+                Upload Audit Report
+              </h3>
+              <button 
+                onClick={() => setIsReportModalOpen(false)}
+                className="p-1.5 hover:bg-blue-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleReportUpload} className="p-6">
+              <div className="mb-4 bg-blue-50 p-4 rounded-xl border border-blue-100 flex gap-3">
+                <AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-blue-800 leading-relaxed">
+                  Uploading the audit report will notify the client and make it available for download in their portal.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Audit Report (PDF)</label>
+                <input 
+                  type="file" 
+                  required
+                  accept=".pdf"
+                  onChange={(e) => setReportFile(e.target.files[0])}
+                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                />
+              </div>
+
+              <div className="mt-8 flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setIsReportModalOpen(false)}
+                  className="flex-1 px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg font-bold hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isSubmitting || !reportFile}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                  Submit Report
                 </button>
               </div>
             </form>

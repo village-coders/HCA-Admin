@@ -12,6 +12,7 @@ import ManageAdmins from "./pages/ManageAdmins";
 import VerifyEmail from "./pages/verifyemail";
 import Invoices from "./pages/Invoices";
 import Audits from "./pages/Audits";
+import Documents from "./pages/Documents";
 
 import AuthProvider from "./contexts/AuthProvider";
 import AllProvider from "./contexts/AllProvider";
@@ -40,6 +41,7 @@ function App() {
                 <Route path="/manage-admins" element={<ManageAdmins />} />
                 <Route path="/invoices" element={<Invoices />} />
                 <Route path="/audits" element={<Audits />} />
+                <Route path="/documents" element={<Documents />} />
                 
                 <Route path="/message" element={<AdminMessages />} />
                 <Route path="/socket-message" element={<Messages />} />

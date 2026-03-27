@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { BellDot, X } from 'lucide-react';
+import { Bell, X } from 'lucide-react';
 
 const DashboardHeader = ({ title }) => {
   const [notifications, setNotifications] = useState([]);
@@ -99,7 +99,7 @@ const DashboardHeader = ({ title }) => {
       <div className="header-actions">
         <div className="relative" ref={dropdownRef}>
           <button className="notification-btn cursor-pointer" onClick={handleBellClick}>
-            <BellDot />
+            <Bell />
             {unreadCount > 0 && (
               <span className="text-red-500 font-bold absolute -top-5 right-0">{unreadCount}</span>
             )}

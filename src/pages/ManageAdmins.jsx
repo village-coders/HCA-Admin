@@ -28,7 +28,7 @@ const ManageAdmins = () => {
     email: "",
     password: "",
     contact: "",
-    role: "Admin",
+    role: "admin",
   });
   
   // 🔹 FETCH ADMINS (SAFE)
@@ -59,7 +59,7 @@ const ManageAdmins = () => {
         name: admin.fullName || admin.name || "N/A",
         email: admin.email || "—",
         contact: admin.contact || "—",
-        role: admin.role || "Admin",
+        role: admin.role || "admin",
         addedDate: admin.createdAt
           ? new Date(admin.createdAt).toISOString().split("T")[0]
           : "—",
@@ -324,7 +324,7 @@ const ManageAdmins = () => {
                 className="px-6 py-2 bg-[#00853b] text-white rounded-lg hover:bg-green-700 cursor-pointer"
               >
                 {submitting ? (
-                  <SyncLoader size={10} color="white" />
+                  <p>{editingAdmin ? "Updating Admin..." : "Adding Admin..."}</p>
                 ) : editingAdmin ? (
                   "Update Admin"
                 ) : (

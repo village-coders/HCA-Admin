@@ -4,3 +4,18 @@
 body {
   font-family: Cambria, Cochin, Georgia, Times, "Times New Roman", serif;
 }
+/* Hide scrollbar for Chrome, Safari */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge, Firefox */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

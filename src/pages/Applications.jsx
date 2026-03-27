@@ -55,6 +55,10 @@ const Applications = () => {
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [isIssuing, setIsIssuing] = useState(false);
+  const [isAcceptingId, setIsAcceptingId] = useState(null);
+  const [isRejectingId, setIsRejectingId] = useState(null);
+  const [isDeletingId, setIsDeletingId] = useState(null);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [activeDetailTab, setActiveDetailTab] = useState('overview');
 
   const { 
@@ -62,7 +66,7 @@ const Applications = () => {
     isLoading, 
     errors,
     fetchApplications,
-    approveApplication,
+    acceptApplication,
     rejectApplication,
     deleteApplication,
     getApplicationById,
@@ -95,8 +99,8 @@ const Applications = () => {
         return app.applicationType === 'renewal';
       case 'issued':
         return app.status === 'issued' || app.status === 'Issued';
-      case 'approved':
-        return app.status === 'approved' || app.status === 'Approved';
+      case 'accepted':
+        return app.status === 'accepted' || app.status === 'Accepted';
       case 'rejected':
         return app.status === 'rejected' || app.status === 'Rejected';
       default:
@@ -150,27 +154,30 @@ const Applications = () => {
     }
   };
 
-  // Handle Approve Application
-  const handleApproveApplication = async (appId) => {
+  // Handle Accept Application
+  const handleAcceptApplication = async (appId) => {
+    setIsAcceptingId(appId);
     try {
-      const result = await approveApplication(appId);
+      const result = await acceptApplication(appId);
       if (result.success) {
-        toast.success("Application approved!");
+        toast.success("Application accepted!");
         
         // Update local state if modal is open
         if (selectedApplication && selectedApplication.id === appId) {
           setSelectedApplication(prev => ({
             ...prev,
-            status: 'approved'
+            status: 'accepted'
           }));
         }
         
         fetchApplications();
       }
     } catch (error) {
-      toast.error("Failed to approve application");
+      toast.error("Failed to accept application");
       console.log(error);
       
+    } finally {
+      setIsAcceptingId(null);
     }
   };
 
@@ -207,6 +214,7 @@ const Applications = () => {
   const handleRejectApplication = async (appId) => {
     const reason = prompt("Enter rejection reason:");
     if (reason) {
+      setIsRejectingId(appId);
       try {
         await rejectApplication(appId, reason);
         toast.success("Application rejected!");
@@ -222,12 +230,15 @@ const Applications = () => {
       } catch (error) {
         toast.error("Failed to reject application");
         console.log(error)
+      } finally {
+        setIsRejectingId(null);
       }
     }
   };
 
   const handleDeleteApplication = async (appId) => {
     if (window.confirm("Are you sure you want to delete this application?")) {
+      setIsDeletingId(appId);
       try {
         await deleteApplication(appId);
         // Close modal if the deleted application is open
@@ -239,6 +250,8 @@ const Applications = () => {
       } catch (error) {
         toast.error("Failed to delete application");
         console.log(error)
+      } finally {
+        setIsDeletingId(null);
       }
     }
   };
@@ -298,6 +311,7 @@ const Applications = () => {
     }
 
     if (window.confirm(`Are you sure you want to delete ${selectedApplications.length} selected applications?`)) {
+      setIsBulkDeleting(true);
       try {
         const deletePromises = selectedApplications.map(id => deleteApplication(id));
         await Promise.all(deletePromises);
@@ -307,7 +321,8 @@ const Applications = () => {
       } catch (error) {
         toast.error("Failed to delete some applications");
         console.log(error);
-        
+      } finally {
+        setIsBulkDeleting(false);
       }
     }
   };
@@ -319,22 +334,22 @@ const Applications = () => {
       return;
     }
 
-    // Filter only approved applications
-    const approvedApplications = selectedApplications.filter(appId => {
+    // Filter only accepted applications
+    const acceptedApplications = selectedApplications.filter(appId => {
       const app = applications.find(a => a.id === appId || a._id === appId);
       return app && (app.status === 'Submitted');
     });
 
-    if (approvedApplications.length === 0) {
-      toast.warning("No approved applications selected. Please approve applications first.");
+    if (acceptedApplications.length === 0) {
+      toast.warning("No accepted applications selected. Please accept applications first.");
       return;
     }
 
-    if (window.confirm(`Are you sure you want to issue certificates for ${approvedApplications.length} approved applications?`)) {
+    if (window.confirm(`Are you sure you want to issue certificates for ${acceptedApplications.length} accepted applications?`)) {
       setIsIssuing(true);
       try {
         const results = [];
-        for (const appId of approvedApplications) {
+        for (const appId of acceptedApplications) {
           try {
             const result = await addCertificate(appId);
             results.push({ appId, success: result.success });
@@ -385,8 +400,8 @@ const Applications = () => {
         a.status === 'Pending' || a.status === 'Submitted'
       ).length,
       renewal: applications.filter(a => a.applicationType === 'renewal').length,
-      approved: applications.filter(a => 
-        a.status === 'approved' || a.status === 'Approved'
+      accepted: applications.filter(a => 
+        a.status === 'accepted' || a.status === 'Accepted'
       ).length,
       issued: applications.filter(a => 
         a.status === 'issued' || a.status === 'Issued'
@@ -403,7 +418,7 @@ const Applications = () => {
     { id: 'all', label: 'All Applications', count: tabCounts.all },
     { id: 'pending', label: 'Pending', count: tabCounts.pending },
     { id: 'renewal', label: 'Renewal', count: tabCounts.renewal },
-    { id: 'approved', label: 'Approved', count: tabCounts.approved },
+    { id: 'accepted', label: 'Accepted', count: tabCounts.accepted },
     { id: 'issued', label: 'Issued', count: tabCounts.issued },
     { id: 'rejected', label: 'Rejected', count: tabCounts.rejected },
   ];
@@ -415,7 +430,7 @@ const Applications = () => {
       case 'pending':
       case 'submitted':
         return { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: Clock };
-      case 'approved':
+      case 'accepted':
         return { bg: 'bg-blue-100', text: 'text-blue-800', icon: CheckCircle };
       case 'issued':
         return { bg: 'bg-green-100', text: 'text-green-800', icon: FileCheck };
@@ -538,19 +553,19 @@ const Applications = () => {
                       <div>
                         <p className="text-sm text-gray-600">Company Name</p>
                         <p className="font-medium text-gray-900">
-                          {selectedApplication.companyName || selectedApplication.company || 'N/A'}
+                          {selectedApplication.company.companyName || 'N/A'}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Company Registration No.</p>
                         <p className="font-medium text-gray-900">
-                          {selectedApplication.companyId || 'N/A'}
+                          {selectedApplication.company.registrationNo || 'N/A'}
                         </p>
                       </div>
                       <div className="col-span-2">
                         <p className="text-sm text-gray-600">Address</p>
                         <p className="font-medium text-gray-900">
-                          {selectedApplication.companyAddress || 'N/A'}
+                          {selectedApplication.company.address || 'N/A'}
                         </p>
                       </div>
                     </div>
@@ -1063,36 +1078,42 @@ const Applications = () => {
           </div>
 
           {/* Modal Footer */}
-          <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
+          <div className="border-t border-gray-200 px-6 py-2 bg-gray-50">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 {selectedApplication.status?.toLowerCase() === 'pending' || 
                  selectedApplication.status?.toLowerCase() === 'submitted' ? (
                   <>
                     <button
-                      onClick={() => handleApproveApplication(appId)}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors duration-200 flex items-center"
+                      onClick={() => handleAcceptApplication(appId)}
+                      disabled={isAcceptingId === appId}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
                     >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Approve
+                      {isAcceptingId === appId ? <CheckCircle className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                      {isAcceptingId === appId ? 'Accepting...' : 'Accept'}
                     </button>
-                    <button
-                      onClick={() => handleIssueCertificate(appId)}
-                      disabled={isIssuing}
-                      className="px-4 py-2 bg-[#00853b] text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
-                    >
-                      <FileCheck className={`w-4 h-4 mr-2 ${isIssuing ? 'animate-spin' : ''}`} />
-                      {isIssuing ? 'Issuing...' : 'Issue Certificate'}
-                    </button>
+                    {
+                      selectedApplication.status?.toLowerCase() === 'accepted' && (
+                        <button
+                          onClick={() => handleIssueCertificate(appId)}
+                          disabled={isIssuing}
+                          className="px-4 py-2 bg-[#00853b] text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
+                        >
+                          <FileCheck className={`w-4 h-4 mr-2 ${isIssuing ? 'animate-spin' : ''}`} />
+                          {isIssuing ? 'Issuing...' : 'Issue Certificate'}
+                        </button>
+                      )
+                    }
                     <button
                       onClick={() => handleRejectApplication(appId)}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors duration-200 flex items-center"
+                      disabled={isRejectingId === appId}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
                     >
-                      <XCircle className="w-4 h-4 mr-2" />
-                      Reject
+                      {isRejectingId === appId ? <XCircle className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />}
+                      {isRejectingId === appId ? 'Rejecting...' : 'Reject'}
                     </button>
                   </>
-                ) : selectedApplication.status?.toLowerCase() === 'approved' ? (
+                ) : selectedApplication.status?.toLowerCase() === 'accepted' ? (
                   <>
                     <button
                       onClick={() => handleIssueCertificate(appId)}
@@ -1104,10 +1125,11 @@ const Applications = () => {
                     </button>
                     <button
                       onClick={() => handleRejectApplication(appId)}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors duration-200 flex items-center"
+                      disabled={isRejectingId === appId}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
                     >
-                      <XCircle className="w-4 h-4 mr-2" />
-                      Reject
+                      {isRejectingId === appId ? <XCircle className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />}
+                      {isRejectingId === appId ? 'Rejecting...' : 'Reject'}
                     </button>
                   </>
                 ) : selectedApplication.status?.toLowerCase() === 'issued' ? (
@@ -1139,10 +1161,11 @@ const Applications = () => {
                 </button>
                 <button
                   onClick={() => handleDeleteApplication(appId)}
-                  className="px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-medium transition-colors duration-200 flex items-center"
+                  disabled={isDeletingId === appId}
+                  className="px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
                 >
-                  <XCircle className="w-4 h-4 mr-2" />
-                  Delete
+                  {isDeletingId === appId ? <XCircle className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />}
+                  {isDeletingId === appId ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
             </div>
@@ -1310,10 +1333,10 @@ const Applications = () => {
                   </button>
                   <button
                     onClick={handleBulkDelete}
-                    className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
-                    disabled={isLoading}
+                    disabled={isLoading || isBulkDeleting}
+                    className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
                   >
-                    Delete Selected
+                    {isBulkDeleting ? 'Deleting...' : 'Delete Selected'}
                   </button>
                 </>
               )}
@@ -1350,8 +1373,8 @@ const Applications = () => {
                       className="rounded border-gray-300 text-[#00853b] focus:ring-[#00853b]"
                     />
                   </th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Application</th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Application ID</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
@@ -1378,22 +1401,20 @@ const Applications = () => {
                         </td>
                         <td className="p-4">
                           <div>
-                            <div className="font-medium text-gray-900">#{app.applicationNumber || appId.slice(-8)}</div>
-                            <div className="text-sm text-gray-600">
-                              {app.companyName || app.company || app.applicantName || 'Unknown Company'}
-                            </div>
-                            {app.applicantEmail && (
-                              <div className="text-xs text-gray-500">{app.applicantEmail}</div>
+                            <div className="font-medium text-gray-900">{app.company.companyName}</div>
+                            {/* <div className="text-sm text-gray-600">
+                              
+                            </div> */}
+                            {app.company.email && (
+                              <div className="text-xs text-gray-500">{app.company.email}</div>
                             )}
                           </div>
                         </td>
                         <td className="p-4">
                           <div className="text-sm font-medium text-gray-900">
-                            {app.productName || app.product || 'Unknown Product'}
+                            #{app.applicationNumber  || 'N/A'}
                           </div>
-                          {app.productCategory && (
-                            <div className="text-xs text-gray-500">{app.productCategory}</div>
-                          )}
+                          
                         </td>
                         <td className="p-4">
                           <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${typeConfig.bg} ${typeConfig.text}`}>
@@ -1425,11 +1446,11 @@ const Applications = () => {
                              app.status?.toLowerCase() === 'submitted' ? (
                               <>
                                 <button
-                                  onClick={() => handleApproveApplication(appId)}
+                                  onClick={() => handleAcceptApplication(appId)}
                                   className="px-3 py-1.5 bg-blue-600 cursor-pointer text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                                  title="Approve Application"
+                                  title="Accept Application"
                                 >
-                                  Approve
+                                  Accept
                                 </button>
                                 <button
                                   onClick={() => handleRejectApplication(appId)}
@@ -1439,7 +1460,7 @@ const Applications = () => {
                                   Reject
                                 </button>
                               </>
-                            ) : app.status?.toLowerCase() === 'approved' ? (
+                            ) : app.status?.toLowerCase() === 'accepted' ? (
                               <>
                                 <button
                                   onClick={() => handleIssueCertificate(appId)}

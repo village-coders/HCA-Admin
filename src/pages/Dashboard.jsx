@@ -193,7 +193,7 @@ const Dashboard = () => {
           const isApp = 'applicationType' in item;
           return {
             id: item.id || item._id,
-            company: item.companyName || item.company || item.companyId || 'Unknown',
+            company: item.company?.companyName || item.companyName || item.companyId || 'Unknown',
             type: isApp ? item.applicationType : item.certificateType || 'New',
             status: item.status || 'pending',
             date: item.createdAt || item.updatedAt || item.submissionDate || new Date().toISOString().split('T')[0],

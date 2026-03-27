@@ -304,14 +304,14 @@ const AllProvider = ({ children }) => {
   };
   
   
-  const approveApplication = async (id, reason = "") => {
+  const acceptApplication = async (id, reason = "") => {
     const token = getToken();
     if (!token) return { success: false };
 
     setIsLoading(true);
     try {
       const res = await axios.put(
-        `${baseUrl}/applications/${id}/approve`,
+        `${baseUrl}/applications/${id}/accept`,
         { reason },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -848,6 +848,46 @@ const AllProvider = ({ children }) => {
     }
   };
 
+  const createInvoice = async (invoiceData) => {
+    const token = getToken();
+    if (!token) return { success: false };
+    setIsLoading(true);
+    try {
+      const res = await axios.post(`${baseUrl}/invoices/admin-create`, invoiceData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setInvoices(prev => [res.data.invoice, ...prev]);
+      toast.success(res.data.message || "Invoice created successfully!");
+      return { success: true, data: res.data };
+    } catch (error) {
+      console.error("Failed to create invoice:", error);
+      toast.error(error.response?.data?.message || "Failed to create invoice");
+      return { success: false, error };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const approvePayment = async (id) => {
+    const token = getToken();
+    if (!token) return { success: false };
+    setIsLoading(true);
+    try {
+      const res = await axios.put(`${baseUrl}/invoices/${id}/approve-payment`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setInvoices(prev => prev.map(inv => inv._id === id ? res.data.invoice : inv));
+      toast.success(res.data.message || "Payment approved!");
+      return { success: true, data: res.data };
+    } catch (error) {
+      console.error("Failed to approve payment:", error);
+      toast.error(error.response?.data?.message || "Failed to approve payment");
+      return { success: false, error };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // 🕵️ Audit Management
   const fetchAudits = async () => {
     const token = getToken();
@@ -881,6 +921,75 @@ const AllProvider = ({ children }) => {
     } catch (error) {
       console.error("Failed to schedule audit:", error);
       toast.error(error.response?.data?.message || "Failed to schedule audit");
+      return { success: false, error };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const uploadAuditReport = async (auditId, file) => {
+    const token = getToken();
+    if (!token) return { success: false };
+    
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('report', file);
+
+      const res = await axios.post(`${baseUrl}/audits/${auditId}/upload-report`, formData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        },
+      });
+
+      setAudits(prev => prev.map(audit => audit._id === auditId ? res.data.audit : audit));
+      toast.success("Report uploaded successfully!");
+      return { success: true, data: res.data };
+    } catch (error) {
+      console.error("Failed to upload report:", error);
+      toast.error(error.response?.data?.message || "Failed to upload report");
+      return { success: false, error };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const sendCorrectionReminder = async (auditId) => {
+    const token = getToken();
+    if (!token) return { success: false };
+    
+    setIsLoading(true);
+    try {
+      await axios.post(`${baseUrl}/audits/${auditId}/reminder`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      toast.success("Reminder sent to client!");
+      return { success: true };
+    } catch (error) {
+      console.error("Failed to send reminder:", error);
+      toast.error(error.response?.data?.message || "Failed to send reminder");
+      return { success: false, error };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resendAuditCorrection = async (auditId, correctionId) => {
+    const token = getToken();
+    if (!token) return { success: false };
+    
+    setIsLoading(true);
+    try {
+      const res = await axios.put(`${baseUrl}/audits/${auditId}/correction/${correctionId}/resend`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setAudits(prev => prev.map(audit => audit._id === auditId ? res.data : audit));
+      toast.success("Correction resent to client!");
+      return { success: true, data: res.data };
+    } catch (error) {
+      console.error("Failed to resend correction:", error);
+      toast.error(error.response?.data?.message || "Failed to resend correction");
       return { success: false, error };
     } finally {
       setIsLoading(false);
@@ -968,7 +1077,7 @@ const AllProvider = ({ children }) => {
     getApplicationById,
     updateApplication,
     deleteApplication,
-    approveApplication,
+    acceptApplication,
     rejectApplication,
     getApplicationStats,
     
@@ -976,6 +1085,8 @@ const AllProvider = ({ children }) => {
     invoices,
     fetchInvoices,
     issueInvoice,
+    createInvoice,
+    approvePayment,
 
     // Audits
     audits,
@@ -983,6 +1094,9 @@ const AllProvider = ({ children }) => {
     scheduleAudit,
     addAuditCorrection,
     completeAudit,
+    uploadAuditReport,
+    sendCorrectionReminder,
+    resendAuditCorrection,
     
     // Common
     isLoading,
