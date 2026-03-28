@@ -13,6 +13,7 @@ const AuthProvider = ({ children }) => {
   const [signingIn, setSigningIn] = useState(false);
   const [signingUp, setSigningUp] = useState(false);
   const [userLoading, setUserLoading] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
 
 
   const baseUrl = import.meta.env.VITE_BASE_URL;
@@ -116,12 +117,33 @@ const AuthProvider = ({ children }) => {
   };
 
 
-  const resetPassword = async (email) => {
+  const requestPasswordReset = async (email) => {
+    setResettingPassword(true);
     try {
-      const response = await axios.post(`${baseUrl}/auth/update-password/${user.id}`, { email });
-      return response.data.message;
+      const response = await axios.post(`${baseUrl}/auth/forgot-password`, { email });
+      toast.success(response.data.message);
+      return { success: true, message: response.data.message };
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Password reset failed');
+      const message = error.response?.data?.message || 'Failed to send reset link';
+      toast.error(message);
+      return { success: false, message };
+    } finally {
+      setResettingPassword(false);
+    }
+  };
+
+  const resetPassword = async (token, password) => {
+    setResettingPassword(true);
+    try {
+      const response = await axios.post(`${baseUrl}/auth/reset-password/${token}`, { password });
+      toast.success(response.data.message);
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      const message = error.response?.data?.message || 'Password reset failed';
+      toast.error(message);
+      return { success: false, message };
+    } finally {
+      setResettingPassword(false);
     }
   };
 
@@ -184,6 +206,8 @@ const AuthProvider = ({ children }) => {
     signingUp,
     signup,
     resetPassword,
+    requestPasswordReset,
+    resettingPassword,
     userLoading,
     isAuthenticated
   };

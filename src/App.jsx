@@ -13,6 +13,8 @@ import VerifyEmail from "./pages/verifyemail";
 import Invoices from "./pages/Invoices";
 import Audits from "./pages/Audits";
 import Documents from "./pages/Documents";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 import AuthProvider from "./contexts/AuthProvider";
 import AllProvider from "./contexts/AllProvider";
@@ -29,6 +31,8 @@ function App() {
         <AllProvider>
           <Routes>
             <Route path="/" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
             <Route path="/verify/:token" element={<VerifyEmail />} />
 
             <Route element={<ProtectedRoutes/>}>

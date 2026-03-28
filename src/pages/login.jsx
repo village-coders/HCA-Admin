@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { useAuth } from "../hooks/useAuth";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import logo from '../assets/hcaLogo.png'
 import { PulseLoader } from "react-spinners";
 
@@ -37,8 +37,8 @@ export default function Login() {
             className="w-full h-full mb-6"
             loading="lazy"
           />
-          <h1 className="text-3xl font-bold text-gray-800">HDI Admin Portal</h1>
-          <p className="text-gray-500 mt-1">
+          <h1 className="text-3xl font-bold text-gray-800 text-center">HDI Admin Portal</h1>
+          <p className="text-gray-500 mt-1 text-center">
             Enter Your Credentials To Proceed to Your Dashboard
           </p>
         </div>
@@ -74,6 +74,12 @@ export default function Login() {
             >
               {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
             </button>
+          </div>
+
+          <div className="flex justify-end pt-1">
+            <Link to="/forgot-password" title="Click to reset password"  className="text-green-600 hover:text-green-700 text-sm font-medium hover:underline transition-colors pb-3">
+              Forgot Password?
+            </Link>
           </div>
 
           <button
