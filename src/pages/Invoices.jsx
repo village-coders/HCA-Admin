@@ -12,7 +12,6 @@ import {
   CreditCard,
   Building,
   Calendar,
-  DollarSign
 } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
 import { toast } from 'sonner';
@@ -395,7 +394,7 @@ const Invoices = () => {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Invoice Amount (NGN)</label>
                   <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400">₦</div>
                     <input 
                       type="number" 
                       required
