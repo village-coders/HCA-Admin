@@ -127,6 +127,8 @@ const Certificates = () => {
         break;
       case 'active':
         return cert.status === 'active' || cert.status === 'Active';
+      case 'expiring_soon':
+        return cert.status?.toLowerCase() === 'expiring soon';
       case 'expired':
         return cert.status === 'expired' || cert.status === 'Expired';
       case 'renewal':
@@ -221,6 +223,8 @@ const Certificates = () => {
       case 'pending_renewal':
       case 'renewal':
         return { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: Clock };
+      case 'expiring soon':
+        return { bg: 'bg-orange-100', text: 'text-orange-800', icon: Clock };
       default:
         return { bg: 'bg-gray-100', text: 'text-gray-800', icon: Clock };
     }
@@ -395,6 +399,9 @@ const Certificates = () => {
       active: certificates.filter(c => 
         c.status === 'active' || c.status === 'Active'
       ).length,
+      expiring_soon: certificates.filter(c => 
+        c.status?.toLowerCase() === 'expiring soon'
+      ).length,
       expired: certificates.filter(c => 
         c.status === 'expired' || c.status === 'Expired'
       ).length,
@@ -412,6 +419,7 @@ const Certificates = () => {
   const tabs = [
     { id: 'all', label: 'All Certificates', count: tabCounts.all },
     { id: 'active', label: 'Active', count: tabCounts.active },
+    { id: 'expiring_soon', label: 'Expiring Soon', count: tabCounts.expiring_soon },
     { id: 'expired', label: 'Expired', count: tabCounts.expired },
     { id: 'renewal', label: 'Renewal', count: tabCounts.renewal },
     { id: 'revoked', label: 'Revoked', count: tabCounts.revoked },
@@ -819,7 +827,7 @@ const Certificates = () => {
         </div>
         
         <div className={`${isFilterOpen ? 'block' : 'hidden lg:block'}`}>
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
               <div className="relative">
@@ -892,6 +900,28 @@ const Certificates = () => {
                   onChange={(e) => setFilter({ ...filter, dateTo: e.target.value })}
                   disabled={isLoading}
                 />
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <div className="relative">
+                <select
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b] appearance-none"
+                  value={filter.status}
+                  onChange={(e) => setFilter({ ...filter, status: e.target.value })}
+                  disabled={isLoading}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="Active">Active</option>
+                  <option value="Expiring Soon">Expiring Soon</option>
+                  <option value="Expired">Expired</option>
+                  <option value="Revoked">Revoked</option>
+                  <option value="Pending">Pending</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                </div>
               </div>
             </div>
           </div>

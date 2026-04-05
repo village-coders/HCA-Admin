@@ -553,7 +553,7 @@ const Applications = () => {
                       <div>
                         <p className="text-sm text-gray-600">Company Name</p>
                         <p className="font-medium text-gray-900">
-                          {selectedApplication.company.companyName || 'N/A'}
+                          {selectedApplication.company?.companyName || 'N/A'}
                         </p>
                       </div>
                       <div>
@@ -836,7 +836,7 @@ const Applications = () => {
                           <div>
                             <p className="text-sm text-gray-600">Company/Plant Name</p>
                             <p className="font-medium text-gray-900">
-                              {selectedApplication.manufacturingFacility.companyName || 'N/A'}
+                              {selectedApplication.manufacturingFacility?.companyName || 'N/A'}
                             </p>
                           </div>
                           <div className="col-span-2">
@@ -917,7 +917,7 @@ const Applications = () => {
                           <div className="grid grid-cols-2 gap-4">
                             <div>
                               <p className="text-sm text-gray-600">Company/Plant Name</p>
-                              <p className="font-medium text-gray-900">{facility.companyName || 'N/A'}</p>
+                              <p className="font-medium text-gray-900">{facility?.companyName || 'N/A'}</p>
                             </div>
                             <div className="col-span-2">
                               <p className="text-sm text-gray-600">Address</p>
@@ -973,7 +973,7 @@ const Applications = () => {
                         <div>
                           <p className="text-sm text-gray-600">Company/Plant Name</p>
                           <p className="font-medium text-gray-900">
-                            {selectedApplication.packagingPlant.companyName || 'N/A'}
+                            {selectedApplication.packagingPlant?.companyName || 'N/A'}
                           </p>
                         </div>
                         <div className="col-span-2">
@@ -1401,11 +1401,11 @@ const Applications = () => {
                         </td>
                         <td className="p-4">
                           <div>
-                            <div className="font-medium text-gray-900">{app.company.companyName}</div>
+                            <div className="font-medium text-gray-900">{app.company?.companyName}</div>
                             {/* <div className="text-sm text-gray-600">
                               
                             </div> */}
-                            {app.company.email && (
+                            {app.company?.email && (
                               <div className="text-xs text-gray-500">{app.company.email}</div>
                             )}
                           </div>
@@ -1442,7 +1442,7 @@ const Applications = () => {
                             </button>
                             
                             {/* Show different buttons based on status */}
-                            {app.status?.toLowerCase() === 'pending' || 
+                            {app.status?.toLowerCase() === 'renewal' || 
                              app.status?.toLowerCase() === 'submitted' ? (
                               <>
                                 <button

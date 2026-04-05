@@ -108,7 +108,7 @@ const Products = () => {
     if (filter.dateTo && product.createdAt && new Date(product.createdAt) > new Date(filter.dateTo)) {
       return false;
     }
-    if (filter.status && product.status !== filter.status) {
+    if (filter.status && product.status?.toLowerCase() !== filter.status.toLowerCase()) {
       return false;
     }
     return true;
@@ -748,7 +748,7 @@ const Products = () => {
         </div>
         
         <div className={`${isFilterOpen ? 'block' : 'hidden lg:block'}`}>
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Product Name</label>
               <div className="relative">
@@ -804,6 +804,27 @@ const Products = () => {
                   onChange={(e) => setFilter({ ...filter, dateTo: e.target.value })}
                   disabled={isLoading}
                 />
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <div className="relative">
+                <select
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b] appearance-none"
+                  value={filter.status}
+                  onChange={(e) => setFilter({ ...filter, status: e.target.value })}
+                  disabled={isLoading}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="pending">Pending / Requested</option>
+                  <option value="approved">Approved</option>
+                  <option value="registered">Registered</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                </div>
               </div>
             </div>
           </div>
