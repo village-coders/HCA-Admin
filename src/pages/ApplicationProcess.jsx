@@ -530,17 +530,10 @@ export default function ApplicationProcess() {
                         </>
                       )}
                       {sub.type === 'confirm' && (
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button className="action-btn-primary sm" onClick={() => submitStep(6, sub.id)} disabled={saving}>
-                            {saving ? <Loader2 className="spin" size={14} /> : <CheckCircle size={14} />}
-                            {sub.id === 2 ? 'Mark as Audited' : sub.id === 4 ? 'Mark NC as Closed' : 'Confirm Audit Report Received'}
-                          </button>
-                          {(sub.id === 3 || sub.id === 4) && (
-                            <button className="action-btn-primary sm" onClick={() => submitStep(6, sub.id, 'skipped')} disabled={saving} style={{ backgroundColor: '#f3f4f6', color: '#4b5563', border: '1px solid #d1d5db' }}>
-                              Skip Step
-                            </button>
-                          )}
-                        </div>
+                        <button className="action-btn-primary sm" onClick={() => submitStep(6, sub.id)} disabled={saving}>
+                          {saving ? <Loader2 className="spin" size={14} /> : <CheckCircle size={14} />}
+                          {sub.id === 2 ? 'Mark as Audited' : sub.id === 4 ? 'Mark NC as Closed' : 'Confirm Audit Report Received'}
+                        </button>
                       )}
                       {sub.type === 'display' && (
                         <div className="substep-display">
@@ -586,19 +579,14 @@ export default function ApplicationProcess() {
                             accept=".pdf,.doc,.docx"
                             onChange={e => setNcReportFile(e.target.files[0])}
                           />
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                              className="action-btn-primary sm"
-                              onClick={() => submitStep(6, 3, null, ncReportFile)}
-                              disabled={saving || !ncReportFile}
-                            >
-                              {saving ? <Loader2 className="spin" size={14} /> : <Upload size={14} />}
-                              Upload NC Report
-                            </button>
-                            <button className="action-btn-primary sm" onClick={() => submitStep(6, 4, 'skipped')} disabled={saving} style={{ backgroundColor: '#f3f4f6', color: '#4b5563', border: '1px solid #d1d5db' }}>
-                              Skip NC Phase
-                            </button>
-                          </div>
+                          <button
+                            className="action-btn-primary sm"
+                            onClick={() => submitStep(6, 3, null, ncReportFile)}
+                            disabled={saving || !ncReportFile}
+                          >
+                            {saving ? <Loader2 className="spin" size={14} /> : <Upload size={14} />}
+                            Upload NC Report
+                          </button>
                         </>
                       )}
                     </div>

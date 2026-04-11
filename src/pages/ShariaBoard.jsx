@@ -11,7 +11,9 @@ import {
   Filter,
   ArrowRight,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  X,
+  FileText
 } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
 import { toast } from 'sonner';
@@ -25,11 +27,16 @@ const ShariaBoard = () => {
     isLoading, 
     fetchApplications, 
     approveShariaApplication,
-    rejectApplication 
+    rejectApplication,
+    getApplicationById
   } = useAll();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [activeDetailTab, setActiveDetailTab] = useState('overview');
 
   useEffect(() => {
     fetchApplications();
@@ -60,13 +67,48 @@ const ShariaBoard = () => {
     }
   };
 
+  const handleViewDetails = async (appId) => {
+    setIsLoadingDetails(true);
+    try {
+      const application = await getApplicationById(appId);
+      if (application) {
+        setSelectedApplication(application);
+        setIsViewModalOpen(true);
+        setActiveDetailTab('overview');
+      } else {
+        toast.error("Failed to load application details");
+      }
+    } catch (error) {
+      toast.error("Failed to load application details");
+      console.log(error);
+    } finally {
+      setIsLoadingDetails(false);
+    }
+  };
+
+  const formatDateTime = (date) => {
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getYesNoBadge = (value) => {
+    const isYes = value === 'yes' || value === true;
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+        isYes ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+      }`}>
+        {isYes ? 'Yes' : 'No'}
+      </span>
+    );
+  };
+
   const shariaApplications = applications.filter(app => 
     (app.status === "With Shari'a Board") &&
     (app.applicationNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
      app.company?.companyName?.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = () => {
     return "bg-amber-100 text-amber-800 border-amber-200";
   };
 
@@ -166,7 +208,7 @@ const ShariaBoard = () => {
                       {app.processData?.shariaBoardSentAt ? new Date(app.processData.shariaBoardSentAt).toLocaleDateString() : 'N/A'}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border uppercase tracking-wider ${getStatusBadge(app.status)}`}>
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border uppercase tracking-wider ${getStatusBadge()}`}>
                         {app.status}
                       </span>
                     </td>
@@ -174,6 +216,11 @@ const ShariaBoard = () => {
                       <TableActions 
                         direction="up"
                         actions={[
+                          {
+                            label: 'View Details',
+                            icon: Eye,
+                            onClick: () => handleViewDetails(app._id)
+                          },
                           {
                             label: 'View Tracking',
                             icon: Eye,
@@ -191,7 +238,14 @@ const ShariaBoard = () => {
                             icon: XCircle,
                             onClick: () => handleReject(app._id),
                             color: 'text-red-600'
-                          }
+                          },
+                          // Add View Audit Report action if report exists
+                          ...(app.processData?.audit?.auditReportFile ? [{
+                            label: 'View Audit Report',
+                            icon: FileText,
+                            onClick: () => window.open(app.processData.audit.auditReportFile, '_blank'),
+                            color: 'text-purple-600'
+                          }] : [])
                         ]}
                       />
                     </td>
@@ -211,6 +265,370 @@ const ShariaBoard = () => {
           </table>
         </div>
       </div>
+
+      {/* View Details Modal */}
+      {isViewModalOpen && selectedApplication && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
+            <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <Award className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    Application #{selectedApplication.applicationNumber || selectedApplication._id?.slice(-8)}
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    Submitted on {formatDateTime(selectedApplication.createdAt)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-800">
+                  {selectedApplication.status}
+                </span>
+                <button
+                  onClick={() => {
+                    setIsViewModalOpen(false);
+                    setSelectedApplication(null);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+            </div>
+
+            <div className="border-b border-gray-200 px-6">
+              <div className="flex space-x-4">
+                {['overview', 'halal-history', 'product-composition', 'facilities', 'markets', 'audit-report'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveDetailTab(tab)}
+                    className={`py-3 px-2 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                      activeDetailTab === tab
+                        ? 'border-[#00853b] text-[#00853b]'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {tab.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="overflow-y-auto max-h-[calc(90vh-180px)]">
+              <div className="p-6">
+                {activeDetailTab === 'overview' && (
+                  <div className="space-y-6">
+                    <div className="bg-gray-50 rounded-lg p-5">
+                      <div className="flex items-center mb-4">
+                        <Building className="w-5 h-5 text-gray-500 mr-2" />
+                        <h3 className="text-lg font-semibold text-gray-900">Company Information</h3>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-600">Company Name</p>
+                          <p className="font-medium text-gray-900">{selectedApplication.company?.companyName || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Registration No.</p>
+                          <p className="font-medium text-gray-900">{selectedApplication.company?.registrationNo || 'N/A'}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-sm text-gray-600">Address</p>
+                          <p className="font-medium text-gray-900">{selectedApplication.company?.address || 'N/A'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-lg p-5">
+                      <div className="flex items-center mb-4">
+                        <Building className="w-5 h-5 text-gray-500 mr-2" />
+                        <h3 className="text-lg font-semibold text-gray-900">Applicant Information</h3>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-600">Name</p>
+                          <p className="font-medium text-gray-900">{selectedApplication.applicantName || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Position</p>
+                          <p className="font-medium text-gray-900">{selectedApplication.positionTitle || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Email</p>
+                          <p className="font-medium text-gray-900">{selectedApplication.applicantEmail || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Phone</p>
+                          <p className="font-medium text-gray-900">{selectedApplication.applicantPhone || 'N/A'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-lg p-5">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Application Details</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-600">Product Name</p>
+                          <p className="font-medium text-gray-900">{selectedApplication.productName || selectedApplication.product || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Category</p>
+                          <p className="font-medium text-gray-900">{selectedApplication.category || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Market Type</p>
+                          <p className="font-medium text-gray-900">{selectedApplication.marketType || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Brand Type</p>
+                          <p className="font-medium text-gray-900">{selectedApplication.brandType || 'N/A'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {selectedApplication.foodSafetyPrograms && selectedApplication.foodSafetyPrograms.length > 0 && (
+                      <div className="bg-gray-50 rounded-lg p-5">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Food Safety Programs</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedApplication.foodSafetyPrograms.map((program, index) => (
+                            <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                              {program}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="bg-gray-50 rounded-lg p-5">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Timeline</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-600">Application Type</p>
+                          <p className="font-medium text-gray-900">{selectedApplication.applicationType || 'New'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Created</p>
+                          <p className="font-medium text-gray-900">{formatDateTime(selectedApplication.createdAt)}</p>
+                        </div>
+                        {selectedApplication.updatedAt && (
+                          <div>
+                            <p className="text-sm text-gray-600">Last Updated</p>
+                            <p className="font-medium text-gray-900">{formatDateTime(selectedApplication.updatedAt)}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-lg p-5">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Audit Reports</h3>
+                      {selectedApplication.processData?.audit?.auditReportFile ? (
+                        <div className="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-lg">
+                          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                            <FileText className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">Final Audit Report</h4>
+                            <p className="text-sm text-gray-500">Document uploaded by the lead auditor after completion.</p>
+                          </div>
+                          <a 
+                            href={`${selectedApplication.processData.audit.auditReportFile}`} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium rounded-lg text-sm transition-colors"
+                          >
+                            View Report
+                          </a>
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 text-sm">No audit report has been attached to this application yet.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {activeDetailTab === 'halal-history' && (
+                  <div className="space-y-6">
+                    <div className="bg-gray-50 rounded-lg p-5">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Previous Halal Certification</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-600">Has Applied Before</p>
+                          {getYesNoBadge(selectedApplication.hasAppliedBefore)}
+                          {selectedApplication.hasAppliedBefore === 'yes' && selectedApplication.previousHalalAgency && (
+                            <p className="font-medium text-gray-900 mt-2">{selectedApplication.previousHalalAgency}</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Previously Supervised</p>
+                          {getYesNoBadge(selectedApplication.hasBeenSupervisedBefore)}
+                          {selectedApplication.hasBeenSupervisedBefore === 'yes' && selectedApplication.supervisingHalalAgency && (
+                            <p className="font-medium text-gray-900 mt-2">{selectedApplication.supervisingHalalAgency}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeDetailTab === 'product-composition' && (
+                  <div className="space-y-6">
+                    <div className="bg-gray-50 rounded-lg p-5">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Product Composition Details</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-600">Uses Pork or Derivatives</p>
+                          {getYesNoBadge(selectedApplication.usesPorkOrDerivatives)}
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Uses Animal Meat or Derivatives</p>
+                          {getYesNoBadge(selectedApplication.usesAnimalMeatOrDerivatives)}
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Uses Gelatin or Capsule</p>
+                          {getYesNoBadge(selectedApplication.usesGelatinOrCapsule)}
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Contains Alcohol</p>
+                          {getYesNoBadge(selectedApplication.containsAlcohol)}
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Additives/Flavour Contain Alcohol</p>
+                          {getYesNoBadge(selectedApplication.additivesOrFlavourContainAlcohol)}
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Uses Glycerine or Derivatives</p>
+                          {getYesNoBadge(selectedApplication.usesGlycerineOrDerivatives)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeDetailTab === 'facilities' && (
+                  <div className="space-y-6">
+                    {selectedApplication.manufacturingFacility && (
+                      <div className="bg-gray-50 rounded-lg p-5">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Manufacturing Facility</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-gray-600">Company Name</p>
+                            <p className="font-medium text-gray-900">{selectedApplication.manufacturingFacility?.companyName || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Address</p>
+                            <p className="font-medium text-gray-900">{selectedApplication.manufacturingFacility?.address || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Local Government Area</p>
+                            <p className="font-medium text-gray-900">{selectedApplication.manufacturingFacility?.localGovtArea || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">City</p>
+                            <p className="font-medium text-gray-900">{selectedApplication.manufacturingFacility?.city || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">State</p>
+                            <p className="font-medium text-gray-900">{selectedApplication.manufacturingFacility?.state || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Country</p>
+                            <p className="font-medium text-gray-900">{selectedApplication.manufacturingFacility?.country || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Contact Person</p>
+                            <p className="font-medium text-gray-900">{selectedApplication.manufacturingFacility?.plantContact || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Position</p>
+                            <p className="font-medium text-gray-900">{selectedApplication.manufacturingFacility?.positionTitle || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Telephone</p>
+                            <p className="font-medium text-gray-900">{selectedApplication.manufacturingFacility?.telephoneNo || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Email</p>
+                            <p className="font-medium text-gray-900">{selectedApplication.manufacturingFacility?.emailAddress || 'N/A'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedApplication.additionalFacilities && selectedApplication.additionalFacilities.length > 0 && (
+                      <div className="bg-gray-50 rounded-lg p-5">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Facilities</h3>
+                        {selectedApplication.additionalFacilities.map((facility, index) => (
+                          <div key={index} className="mb-4 p-4 bg-white rounded-lg">
+                            <p className="font-medium text-gray-900">{facility.companyName}</p>
+                            <p className="text-sm text-gray-600">{facility.address}, {facility.city}, {facility.state}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeDetailTab === 'markets' && (
+                  <div className="space-y-6">
+                    <div className="bg-gray-50 rounded-lg p-5">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Market Information</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-600">Market Type</p>
+                          <p className="font-medium text-gray-900">{selectedApplication.marketType || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Brand Type</p>
+                          <p className="font-medium text-gray-900">{selectedApplication.brandType || 'N/A'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeDetailTab === 'audit-report' && (
+                  <div className="space-y-6">
+                    <div className="bg-gray-50 rounded-lg p-5">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Audit Reports</h3>
+                      {selectedApplication.processData?.audit?.auditReportFile ? (
+                        <div className="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-lg">
+                          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                            <FileText className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">Final Audit Report</h4>
+                            <p className="text-sm text-gray-500">Document uploaded by the lead auditor after completion.</p>
+                          </div>
+                          <a 
+                            href={`${selectedApplication.processData.audit.auditReportFile}`} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium rounded-lg text-sm transition-colors"
+                          >
+                            View Report
+                          </a>
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 text-sm">No audit report has been attached to this application yet.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isLoadingDetails && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00853b]"></div>
+        </div>
+      )}
     </div>
   );
 };

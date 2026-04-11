@@ -485,6 +485,7 @@ const Applications = () => {
       { id: 'product-composition', label: 'Product Composition', icon: Package },
       { id: 'facilities', label: 'Facilities', icon: Factory },
       { id: 'markets', label: 'Markets', icon: Globe2 },
+      { id: 'audit-report', label: 'Audit Report', icon: FileText },
     ];
 
     return (
@@ -1065,6 +1066,36 @@ const Applications = () => {
                       </div>
                     ) : (
                       <p className="text-gray-500 italic">No geographic markets specified</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Audit Report Tab */}
+              {activeDetailTab === 'audit-report' && (
+                <div className="space-y-6">
+                  <div className="bg-gray-50 rounded-lg p-5">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Audit Reports</h3>
+                    {selectedApplication.processData?.audit?.auditReportFile ? (
+                      <div className="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-lg">
+                        <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900">Final Audit Report</h4>
+                          <p className="text-sm text-gray-500">Document uploaded by the lead auditor after completion.</p>
+                        </div>
+                        <a 
+                          href={`${selectedApplication.processData.audit.auditReportFile}`} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium rounded-lg text-sm transition-colors"
+                        >
+                          View Report
+                        </a>
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-sm">No audit report has been attached to this application yet.</p>
                     )}
                   </div>
                 </div>

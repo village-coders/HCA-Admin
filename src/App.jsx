@@ -50,7 +50,6 @@ function App() {
                 <Route path="/documents" element={<Documents />} />
                 <Route path="/applications/:id/process" element={<ApplicationProcess />} />
                 <Route path="/sharia-board" element={<ShariaBoard />} />
-                
                 <Route path="/message" element={<AdminMessages />} />
                 <Route path="/socket-message" element={<Messages />} />
               </Route>
