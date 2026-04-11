@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
 import { toast } from 'sonner';
+import TableActions from '../components/TableActions';
 
 const Certificates = () => {
   const controller = new AbortController()
@@ -42,7 +43,6 @@ const Certificates = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedCertificate, setSelectedCertificate] = useState(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [companySuggestions, setCompanySuggestions] = useState([]);
 
   const { 
@@ -707,15 +707,6 @@ const Certificates = () => {
                   <Download className="w-4 h-4 mr-2" />
                   Download Certificate
                 </button>
-                {(selectedCertificate.status === 'expired' || selectedCertificate.status === 'Expired') && (
-                  <button
-                    onClick={() => handleRenewCertificate(certId)}
-                    className="px-4 py-2 cursor-pointer bg-[#00853b] text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 flex items-center"
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Renew Certificate
-                  </button>
-                )}
               </div>
               <div className="flex items-center space-x-3">
                 <button
@@ -724,13 +715,6 @@ const Certificates = () => {
                 >
                   Close
                 </button>
-                {/* <button
-                  onClick={() => handleDeleteCertificate(certId)}
-                  className="px-4 py-2 cursor-pointer bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-medium transition-colors duration-200 flex items-center"
-                >
-                  <XCircle className="w-4 h-4 mr-2" />
-                  Delete Certificate
-                </button> */}
               </div>
             </div>
           </div>
@@ -763,28 +747,6 @@ const Certificates = () => {
               <RefreshCw className={`w-4 h-4 ${isLoading || isRefreshing ? 'animate-spin' : ''}`} />
               {isLoading || isRefreshing ? 'Refreshing...' : 'Refresh'}
             </button>
-            <div className="flex border border-gray-300 rounded-lg overflow-hidden">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`px-4 py-2 cursor-pointer text-sm font-medium ${
-                  viewMode === 'grid' 
-                    ? 'bg-[#00853b] text-white' 
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                Grid
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`px-4 py-2 cursor-pointer text-sm font-medium ${
-                  viewMode === 'list' 
-                    ? 'bg-[#00853b] text-white' 
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                List
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -972,135 +934,12 @@ const Certificates = () => {
 
       {/* Certificates Display */}
       {!isLoading && (
-        <>
-          {viewMode === 'grid' ? (
-            // Grid View
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-              {filteredCertificates.length > 0 ? (
-                filteredCertificates.map((cert) => {
-                  const certId = cert.id || cert._id;
-                  const statusConfig = getStatusConfig(cert.status);
-                  const expiryStatus = getExpiryStatus(cert.expiryDate, cert.status);
-                  const StatusIcon = statusConfig.icon;
-                  const companyName = getCompanyNameFromCert(cert);
-                  const productName = cert.product?.name || getProductName(cert.productId);
-
-                  return (
-                    <div key={certId} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 overflow-hidden group">
-                      <div className="p-6">
-                        {/* Certificate Header */}
-                        <div className="flex items-start justify-between mb-6">
-                          <div className="flex items-center">
-                            <div className="w-12 h-12 rounded-lg bg-[#00853b]/10 flex items-center justify-center">
-                              <Award className="w-6 h-6 text-[#00853b]" />
-                            </div>
-                            <div className="ml-4">
-                              <h3 className="text-lg font-bold text-gray-900">{cert.certificateNumber || `CERT-${certId.slice(-8)}`}</h3>
-                              <p className="text-sm text-gray-600">Certificate ID</p>
-                            </div>
-                          </div>
-                          <span className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full ${statusConfig.bg} ${statusConfig.text}`}>
-                            <StatusIcon className="w-3 h-3 mr-1" />
-                            {cert.status?.charAt(0).toUpperCase() + cert.status?.slice(1) || 'Unknown'}
-                          </span>
-                        </div>
-                        
-                        {/* Certificate Details */}
-                        <div className="space-y-4">
-                          <div>
-                            <p className="text-sm text-gray-600 mb-1">Company</p>
-                            <p className="font-medium text-gray-900">{companyName}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-600 mb-1">Product</p>
-                            <p className="font-medium text-gray-900">
-                              {productName?.charAt(0)?.toUpperCase() + productName?.slice(1)}
-                            </p>
-                          </div>
-                          
-                          {/* Dates */}
-                          <div className="pt-4 border-t border-gray-200">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <p className="text-sm text-gray-600 mb-1">Issue Date</p>
-                                <div className="flex items-center">
-                                  <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-                                  <span className="font-medium text-gray-900">{formatDate(cert.issueDate)}</span>
-                                </div>
-                              </div>
-                              <div>
-                                <p className="text-sm text-gray-600 mb-1">Expiry Date</p>
-                                <div className="flex items-center">
-                                  <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-                                  <span className={`font-medium ${expiryStatus.color}`}>
-                                    {formatDate(cert.expiryDate)}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="mt-3">
-                              <span className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full ${expiryStatus.bg} ${expiryStatus.color}`}>
-                                {expiryStatus.text}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {/* Actions */}
-                        <div className="flex justify-between mt-6 pt-6 border-t border-gray-200">
-                          <button 
-                            onClick={() => handleViewDetails(certId)}
-                            disabled={isLoadingDetails}
-                            className="px-4 py-2 cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 inline-flex items-center disabled:opacity-50"
-                          >
-                            <Eye className="w-4 h-4 mr-2" />
-                            View
-                          </button>
-                          <button 
-                            onClick={() => handleDownloadCertificate(certId)}
-                            className="px-4 py-2 bg-[#00853b] cursor-pointer text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors duration-200 inline-flex items-center"
-                          >
-                            <Download className="w-4 h-4 mr-2" />
-                            Download
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="col-span-full bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-                  <Award className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No certificates found</h3>
-                  <p className="text-gray-600 mb-6">Try adjusting your search or filter criteria</p>
-                  <button 
-                    onClick={() => { 
-                      setFilter({ search: '', company: '', dateFrom: '', dateTo: '', status: '' });
-                      setActiveTab('all');
-                      setCompanySuggestions([]);
-                    }}
-                    className="px-4 py-2 cursor-pointer text-sm font-medium text-[#00853b] hover:text-green-700"
-                  >
-                    Clear filters
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
             // List View (Table)
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1000px] lg:min-w-0">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                        <input
-                          type="checkbox"
-                          checked={selectedCertificates.length === filteredCertificates.length && filteredCertificates.length > 0}
-                          onChange={toggleSelectAll}
-                          className="rounded border-gray-300 text-[#00853b] focus:ring-[#00853b]"
-                        />
-                      </th>
                       <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Certificate</th>
                       <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
                       <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
@@ -1122,14 +961,6 @@ const Certificates = () => {
 
                         return (
                           <tr key={certId} className="hover:bg-gray-50">
-                            <td className="p-4">
-                              <input
-                                type="checkbox"
-                                checked={selectedCertificates.includes(certId)}
-                                onChange={() => toggleSelectCertificate(certId)}
-                                className="rounded border-gray-300 text-[#00853b] focus:ring-[#00853b]"
-                              />
-                            </td>
                             <td className="p-4">
                               <div>
                                 <div className="font-medium text-gray-900">{cert.certificateNumber || `CERT-${certId.slice(-8)}`}</div>
@@ -1171,39 +1002,21 @@ const Certificates = () => {
                               </span>
                             </td>
                             <td className="p-4">
-                              <div className="flex items-center space-x-2">
-                                <button 
-                                  onClick={() => handleViewDetails(certId)}
-                                  disabled={isLoadingDetails}
-                                  className="p-1.5 text-gray-400 cursor-pointer hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200 disabled:opacity-50"
-                                  title="View Details"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDownloadCertificate(certId)}
-                                  className="p-1.5 text-[#00853b] cursor-pointer hover:bg-green-50 rounded-lg transition-colors duration-200"
-                                  title="Download Certificate"
-                                >
-                                  <Download className="w-4 h-4" />
-                                </button>
-                                {(cert.status === 'active' || cert.status === 'Active') && (
-                                  <button
-                                    onClick={() => handleRenewCertificate(certId)}
-                                    className="p-1.5 text-blue-600 cursor-pointer hover:bg-blue-50 rounded-lg transition-colors duration-200"
-                                    title="Renew Certificate"
-                                  >
-                                    <RefreshCw className="w-4 h-4" />
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => handleDeleteCertificate(certId)}
-                                  className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 cursor-pointer rounded-lg transition-colors duration-200"
-                                  title="Delete Certificate"
-                                >
-                                  <XCircle className="w-4 h-4" />
-                                </button>
-                              </div>
+                              <TableActions 
+                                actions={[
+                                  {
+                                    label: 'View Details',
+                                    icon: Eye,
+                                    onClick: () => handleViewDetails(certId),
+                                    disabled: isLoadingDetails
+                                  },
+                                  {
+                                    label: 'Download Certificate',
+                                    icon: Download,
+                                    onClick: () => handleDownloadCertificate(certId)
+                                  }
+                                ].filter(Boolean)}
+                              />
                             </td>
                           </tr>
                         );
@@ -1240,14 +1053,6 @@ const Certificates = () => {
                       <span className="font-medium">{certificates.length}</span> certificates
                     </div>
                     <div className="flex items-center space-x-2">
-                      {/* {selectedCertificates.length > 0 && (
-                        <button
-                          onClick={handleBulkDelete}
-                          className="px-3 py-1.5 cursor-pointer text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
-                        >
-                          Delete Selected ({selectedCertificates.length})
-                        </button>
-                      )} */}
                       <div className="flex items-center space-x-2">
                         <button className="px-3 py-1.5 text-sm cursor-pointer font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200">
                           Previous
@@ -1261,8 +1066,6 @@ const Certificates = () => {
                 </div>
               )}
             </div>
-          )}
-        </>
       )}
 
       {/* View Certificate Modal */}

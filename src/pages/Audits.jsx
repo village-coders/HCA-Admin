@@ -16,10 +16,14 @@ import {
   FileText,
   AlertCircle,
   ShieldCheck,
-  ChevronRight
+  ChevronRight,
+  Eye,
+  Download,
+  ExternalLink
 } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
 import { toast } from 'sonner';
+import TableActions from '../components/TableActions';
 
 const Audits = () => {
   const { 
@@ -45,6 +49,7 @@ const Audits = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportFile, setReportFile] = useState(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   const [scheduleForm, setScheduleForm] = useState({
     applicationId: '',
@@ -231,160 +236,137 @@ const Audits = () => {
         </div>
       </div>
 
-      {/* Audit Grid/List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {isLoading ? (
-          Array(6).fill(0).map((_, i) => (
-            <div key={i} className="h-64 bg-white rounded-2xl border border-gray-100 animate-pulse shadow-sm"></div>
-          ))
-        ) : filteredAudits.length > 0 ? (
-          filteredAudits.map((audit) => (
-            <div 
-              key={audit._id} 
-              className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-300 group"
-            >
-              {/* Card Title Strip */}
-              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600">
-                    <ShieldCheck className="w-5 h-5" />
-                  </div>
-                  <span className="font-bold text-gray-900">{audit.applicationId?.applicationNumber || 'N/A'}</span>
-                </div>
-                <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full border ${getStatusBadge(audit.status)}`}>
-                  {audit.status}
-                </span>
-              </div>
-
-              {/* Card Content */}
-              <div className="p-6 space-y-4">
-                <div className="flex items-start gap-3">
-                  <Building className="w-5 h-5 text-gray-400 mt-0.5" />
-                  <div>
-                    <h4 className="text-sm font-bold text-gray-900">{audit.userId?.companyName || 'Unknown Company'}</h4>
-                    <p className="text-xs text-gray-500">{audit.userId?.email}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 pt-2">
-                  <div className="bg-gray-50 p-3 rounded-xl">
-                    <div className="flex items-center gap-2 text-gray-400 mb-1">
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span className="text-[10px] font-bold uppercase">Scheduled Date</span>
-                    </div>
-                    <p className="text-xs font-bold text-gray-900">{new Date(audit.scheduledDate).toDateString()}</p>
-                  </div>
-                  <div className="bg-gray-50 p-3 rounded-xl">
-                    <div className="flex items-center gap-2 text-gray-400 mb-1">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span className="text-[10px] font-bold uppercase">Time</span>
-                    </div>
-                    <p className="text-xs font-bold text-gray-900">{audit.scheduledTime}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 pt-2">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-700">
-                    <User className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase">Lead Auditor</span>
-                    <p className="text-xs font-bold text-gray-900">{audit.staffName}</p>
-                    {audit.auditorEmail && <p className="text-[10px] text-gray-500">{audit.auditorEmail}</p>}
-                  </div>
-                </div>
-              </div>
-
-              {/* Card Footer/Actions */}
-              <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-                <div className="flex gap-2">
-                  {(audit.status === 'Accepted' || audit.status === 'Correction Needed') && (
-                    <button 
-                      onClick={() => { setSelectedAudit(audit); setIsCorrectionModalOpen(true); }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 rounded-lg text-xs font-bold transition-colors"
-                    >
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                      Flag Problem
-                    </button>
-                  )}
-                </div>
-                
-                <div className="flex gap-2">
-                  {(audit.status === 'Accepted' || audit.status === 'Correction Needed') && (
-                    <button 
-                      onClick={() => handleComplete(audit._id)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white hover:bg-green-700 rounded-lg text-xs font-bold transition-colors"
-                    >
-                      <CheckCircle className="w-3.5 h-3.5" />
-                      Mark Complete
-                    </button>
-                  )}
-                  {audit.status === 'Accepted' && (
-                    <button 
-                      onClick={() => { setSelectedAudit(audit); setIsReportModalOpen(true); }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-xs font-bold transition-colors"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      Upload Report
-                    </button>
-                  )}
-                  {audit.status === 'Scheduled' && (
-                    <span className="text-xs text-gray-400 italic">Waiting for User</span>
-                  )}
-                  {audit.status === 'Completed' && (
-                    <span className="flex items-center gap-1 text-green-600 font-bold text-xs">
-                      <ShieldCheck className="w-4 h-4" />
-                      CERTIFIED
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Correction Summary (if needed) */}
-              {audit.status === 'Correction Needed' && (
-                <div className="px-6 pb-4">
-                  <div className="p-3 bg-red-50 rounded-xl border border-red-100">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] font-bold text-red-700 uppercase">Pending Issues</span>
-                      <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[9px] font-bold">
-                        {audit.corrections.filter(c => c.status === 'Pending').length}
-                      </span>
-                    </div>
-                    <div className="space-y-2 mt-2">
-                        {audit.corrections.map(c => (
-                            <div key={c._id} className="flex items-center justify-between text-xs p-2 bg-white rounded border border-red-50">
-                                <span className={c.status === 'Resolved' ? 'line-through text-gray-400' : 'text-gray-700 font-medium'}>{c.issue}</span>
-                                {c.status === 'Resolved' && (
-                                    <button 
-                                        onClick={() => handleResendCorrection(audit._id, c._id)}
-                                        className="text-[10px] text-red-600 hover:underline font-bold"
-                                    >
-                                        Resend
-                                    </button>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                    <button 
-                        onClick={() => handleSendReminder(audit._id)}
-                        className="w-full mt-3 py-2 bg-orange-100 text-orange-700 rounded-lg text-[10px] font-bold hover:bg-orange-200 transition-colors"
-                    >
-                        Send Correction Reminder
-                    </button>
-                  </div>
-                </div>
+      {/* Audit List (Table) */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1000px]">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Application</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Company</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Auditor</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Scheduled Date</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {isLoading ? (
+                Array(5).fill(0).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td colSpan="6" className="px-6 py-8">
+                      <div className="h-4 bg-gray-200 rounded w-full"></div>
+                    </td>
+                  </tr>
+                ))
+              ) : filteredAudits.length > 0 ? (
+                filteredAudits.map((audit) => {
+                  const statusBadge = getStatusBadge(audit.status);
+                  return (
+                    <tr key={audit._id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 bg-blue-50 rounded-lg text-blue-600">
+                            <ShieldCheck className="w-4 h-4" />
+                          </div>
+                          <span className="text-sm font-bold text-gray-900">{audit.applicationId?.applicationNumber || 'N/A'}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-gray-100 rounded-lg">
+                            <Building className="w-4 h-4 text-gray-600" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-bold text-gray-900">{audit.userId?.companyName || 'Unknown Company'}</div>
+                            <div className="text-xs text-gray-500">{audit.userId?.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold text-xs">
+                            {audit.staffName?.charAt(0) || 'A'}
+                          </div>
+                          <div>
+                            <div className="text-sm font-bold text-gray-900">{audit.staffName}</div>
+                            {audit.auditorEmail && <div className="text-[10px] text-gray-500">{audit.auditorEmail}</div>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-1.5 text-sm font-bold text-gray-900">
+                            <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                            {new Date(audit.scheduledDate).toLocaleDateString()}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                            <Clock className="w-3.5 h-3.5 text-gray-400" />
+                            {audit.scheduledTime}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full border ${statusBadge}`}>
+                          {audit.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <TableActions 
+                          actions={[
+                            {
+                              label: 'View Details',
+                              icon: Eye,
+                              onClick: () => { setSelectedAudit(audit); setIsViewModalOpen(true); }
+                            },
+                            (audit.status === 'Accepted' || audit.status === 'Correction Needed') && {
+                              label: 'Upload Audit Report',
+                              icon: FileText,
+                              onClick: () => { setSelectedAudit(audit); setIsReportModalOpen(true); }
+                            },
+                            (audit.status === 'Accepted' || audit.status === 'Correction Needed') && {
+                              label: 'Flag Non Conformant',
+                              icon: AlertTriangle,
+                              onClick: () => { setSelectedAudit(audit); setIsCorrectionModalOpen(true); }
+                            },
+                            (audit.status === 'Accepted' || audit.status === 'Correction Needed') && {
+                              label: 'Mark Complete',
+                              icon: CheckCircle,
+                              onClick: () => handleComplete(audit._id)
+                            },
+                            audit.status === 'Correction Needed' && {
+                              label: 'Send Reminder',
+                              icon: RefreshCw,
+                              onClick: () => handleSendReminder(audit._id)
+                            },
+                            audit.auditReport && {
+                              label: 'View Audit Report',
+                              icon: ExternalLink,
+                              onClick: () => window.open(audit.auditReport, '_blank')
+                            },
+                            audit.ncReport && {
+                              label: 'View NC Report',
+                              icon: ExternalLink,
+                              onClick: () => window.open(audit.ncReport, '_blank')
+                            }
+                          ].filter(Boolean)} 
+                        />
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="6" className="py-20 text-center">
+                    <Calendar className="w-16 h-16 text-gray-200 mx-auto mb-4" />
+                    <h3 className="text-lg font-bold text-gray-900">No audits found</h3>
+                    <p className="text-gray-500 max-w-xs mx-auto mt-1">Start by scheduling an audit for a submitted application.</p>
+                  </td>
+                </tr>
               )}
-            </div>
-          ))
-        ) : (
-          <div className="col-span-full py-20 bg-white rounded-2xl border border-gray-100 text-center">
-            <Calendar className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-            <h3 className="text-lg font-bold text-gray-900">No audits found</h3>
-            <p className="text-gray-500 max-w-xs mx-auto mt-1">
-              Start by scheduling an audit for a submitted application.
-            </p>
-          </div>
-        )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Schedule Audit Modal */}
@@ -525,7 +507,7 @@ const Audits = () => {
         </div>
       )}
 
-      {/* Flag Issue/Correction Modal */}
+      {/* Flag Non conformant/Correction Modal */}
       {isCorrectionModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setIsCorrectionModalOpen(false)}></div>
@@ -533,7 +515,7 @@ const Audits = () => {
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-red-50/50">
               <h3 className="text-lg font-bold text-red-900 flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-red-600" />
-                Audit Finding / Correction
+                Audit Non Conformant / Correction
               </h3>
               <button 
                 onClick={() => setIsCorrectionModalOpen(false)}
@@ -547,7 +529,7 @@ const Audits = () => {
               <div className="mb-4 bg-orange-50 p-4 rounded-xl border border-orange-100 flex gap-3">
                 <AlertCircle className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
                 <p className="text-xs text-orange-800 leading-relaxed">
-                  Flagging a problem will notify the user. They must resolve this issue before the audit can be marked as complete.
+                  Flagging a Non Conformant will notify the user. They must resolve this issue before the audit can be marked as complete.
                 </p>
               </div>
 
@@ -577,7 +559,7 @@ const Audits = () => {
                   className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <AlertTriangle className="w-4 h-4" />}
-                  Flag Issue
+                  Flag Non Conformant
                 </button>
               </div>
             </form>
@@ -640,6 +622,194 @@ const Audits = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Audit Details Modal */}
+      {isViewModalOpen && selectedAudit && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setIsViewModalOpen(false)}></div>
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Eye className="w-5 h-5 text-blue-600" />
+                Audit Report & Details
+              </h3>
+              <button 
+                onClick={() => setIsViewModalOpen(false)}
+                className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            <div className="p-6 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Audit Information */}
+                <div>
+                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Audit Information</h4>
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-blue-50 rounded-lg shrink-0">
+                        <Calendar className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">Scheduled Date</div>
+                        <div className="text-sm font-bold text-gray-900">{new Date(selectedAudit.scheduledDate).toLocaleDateString()}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-blue-50 rounded-lg shrink-0">
+                        <Clock className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">Scheduled Time</div>
+                        <div className="text-sm font-bold text-gray-900">{selectedAudit.scheduledTime}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-blue-50 rounded-lg shrink-0">
+                        <User className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">Lead Auditor</div>
+                        <div className="text-sm font-bold text-gray-900">{selectedAudit.staffName}</div>
+                        {selectedAudit.auditorEmail && <div className="text-[10px] text-gray-500">{selectedAudit.auditorEmail}</div>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Company & Application Info */}
+                <div>
+                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Company Details</h4>
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-green-50 rounded-lg shrink-0">
+                        <Building className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">Company Name</div>
+                        <div className="text-sm font-bold text-gray-900">{selectedAudit.userId?.companyName || 'N/A'}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-green-50 rounded-lg shrink-0">
+                        <ShieldCheck className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">Application Number</div>
+                        <div className="text-sm font-bold text-gray-900">{selectedAudit.applicationId?.applicationNumber || 'N/A'}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-orange-50 rounded-lg shrink-0">
+                        <AlertCircle className="w-4 h-4 text-orange-600" />
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">Status</div>
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${getStatusBadge(selectedAudit.status)}`}>
+                          {selectedAudit.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reports Section */}
+                <div className="md:col-span-2">
+                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Audit Reports</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className={`p-4 rounded-xl border-2 border-dashed flex items-center justify-between ${selectedAudit.auditReport ? 'bg-blue-50/50 border-blue-100' : 'bg-gray-50 border-gray-100'}`}>
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${selectedAudit.auditReport ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                          <FileText className={`w-5 h-5 ${selectedAudit.auditReport ? 'text-blue-600' : 'text-gray-400'}`} />
+                        </div>
+                        <div>
+                          <div className="text-sm font-bold text-gray-900">Audit Report</div>
+                          <div className="text-xs text-gray-500">{selectedAudit.auditReport ? 'Available for view' : 'Not uploaded yet'}</div>
+                        </div>
+                      </div>
+                      {selectedAudit.auditReport && (
+                        <button 
+                          onClick={() => window.open(selectedAudit.auditReport, '_blank')}
+                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors flex items-center gap-1.5"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          View
+                        </button>
+                      )}
+                    </div>
+
+                    <div className={`p-4 rounded-xl border-2 border-dashed flex items-center justify-between ${selectedAudit.ncReport ? 'bg-indigo-50/50 border-indigo-100' : 'bg-gray-50 border-gray-100'}`}>
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${selectedAudit.ncReport ? 'bg-indigo-100' : 'bg-gray-100'}`}>
+                          <AlertTriangle className={`w-5 h-5 ${selectedAudit.ncReport ? 'text-indigo-600' : 'text-gray-400'}`} />
+                        </div>
+                        <div>
+                          <div className="text-sm font-bold text-gray-900">NC Report</div>
+                          <div className="text-xs text-gray-500">{selectedAudit.ncReport ? 'Available for view' : 'No finding reported'}</div>
+                        </div>
+                      </div>
+                      {selectedAudit.ncReport && (
+                        <button 
+                          onClick={() => window.open(selectedAudit.ncReport, '_blank')}
+                          className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-colors flex items-center gap-1.5"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          View
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Corrections List */}
+                {selectedAudit.corrections?.length > 0 && (
+                  <div className="md:col-span-2">
+                    <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Non-Conformance & Corrections</h4>
+                    <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
+                      <table className="w-full text-left">
+                        <thead className="bg-gray-100 border-b border-gray-200">
+                          <tr>
+                            <th className="px-4 py-2 text-xs font-bold text-gray-600">Finding / Issue</th>
+                            <th className="px-4 py-2 text-xs font-bold text-gray-600">Status</th>
+                            <th className="px-4 py-2 text-xs font-bold text-gray-600">Date Reported</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {selectedAudit.corrections.map((corr, idx) => (
+                            <tr key={idx}>
+                              <td className="px-4 py-3 text-sm text-gray-900">{corr.issue}</td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
+                                  corr.status === 'Resolved' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                                }`}>
+                                  {corr.status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                                {new Date(selectedAudit.createdAt).toLocaleDateString()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50/80 border-t border-gray-100 flex justify-end">
+              <button 
+                onClick={() => setIsViewModalOpen(false)}
+                className="px-6 py-2 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-colors"
+              >
+                Close Details
+              </button>
+            </div>
           </div>
         </div>
       )}

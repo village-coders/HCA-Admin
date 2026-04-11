@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
 import { toast } from 'sonner';
+import TableActions from '../components/TableActions';
 
 const Products = () => {
   const controller = new AbortController()
@@ -948,45 +949,35 @@ const Products = () => {
                         <td className="p-4 text-sm text-gray-500">
                           {formatDate(product?.createdAt || product?.submissionDate)}
                         </td>
-                        <td className="p-4">
-                          <div className="flex items-center space-x-2">
-                            <button 
-                              onClick={() => handleViewDetails(productId)}
-                              disabled={isLoadingDetails}
-                              className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200 disabled:opacity-50"
-                              title="View Details"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            
-                            {product.status?.toLowerCase() === 'pending' && (
-                              <>
-                                <button
-                                  onClick={() => handleApproveProduct(productId)}
-                                  className="px-3 py-1.5 bg-[#00853b] text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors duration-200"
-                                  title="Approve Product"
-                                >
-                                  Approve
-                                </button>
-                                <button
-                                  onClick={() => handleRejectProduct(productId)}
-                                  className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors duration-200"
-                                  title="Reject Product"
-                                >
-                                  Reject
-                                </button>
-                              </>
-                            )}
-                            
-                            <button
-                              onClick={() => handleDeleteProduct(productId)}
-                              disabled={isDeletingId === productId}
-                              className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
-                              title="Delete Product"
-                            >
-                              {isDeletingId === productId ? <Trash2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                            </button>
-                          </div>
+                        <td className="p-4 text-left">
+                          <TableActions 
+                            actions={[
+                              {
+                                label: 'View Details',
+                                icon: Eye,
+                                onClick: () => handleViewDetails(productId),
+                                disabled: isLoadingDetails
+                              },
+                              product.status?.toLowerCase() === 'pending' && {
+                                label: 'Approve Product',
+                                icon: CheckCircle,
+                                onClick: () => handleApproveProduct(productId)
+                              },
+                              product.status?.toLowerCase() === 'pending' && {
+                                label: 'Reject Product',
+                                icon: XCircle,
+                                onClick: () => handleRejectProduct(productId),
+                                variant: 'danger'
+                              },
+                              {
+                                label: 'Delete Product',
+                                icon: Trash2,
+                                onClick: () => handleDeleteProduct(productId),
+                                variant: 'danger',
+                                disabled: isDeletingId === productId
+                              }
+                            ].filter(Boolean)}
+                          />
                         </td>
                       </tr>
                     );

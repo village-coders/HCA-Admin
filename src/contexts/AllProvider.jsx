@@ -625,18 +625,20 @@ const AllProvider = ({ children }) => {
     }
 
     try {
-      const response = await axios.get(
-        `${baseUrl}/certificates/${certificateId}/download`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-          responseType: 'blob', // Important for file downloads
-        }
-      );
+      // If we have the certificate in state, check if it's an external link
+      const cert = certificates.find(c => (c.id === certificateId || c._id === certificateId));
+      if (cert && cert.pdfPath && cert.pdfPath.startsWith('http') && !cert.pdfPath.includes('/api/files/')) {
+        window.open(cert.pdfPath, '_blank');
+        toast.info("Opening external certificate link...");
+        return null; // Return null to indicate no blob to handle
+      }
+
+      const response = await fetch(cert.pdfPath);
+
+      const blob = response.blob()
       
       // The backend should return a proper PDF file
-      return response.data;
+      return blob;
       
     } catch (error) {
       console.error("Download error:", error);
@@ -853,8 +855,18 @@ const AllProvider = ({ children }) => {
     if (!token) return { success: false };
     setIsLoading(true);
     try {
-      const res = await axios.post(`${baseUrl}/invoices/admin-create`, invoiceData, {
-        headers: { Authorization: `Bearer ${token}` },
+      const formData = new FormData();
+      Object.entries(invoiceData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          formData.append(key, value);
+        }
+      });
+
+      const res = await axios.post(`${baseUrl}/invoices/admin-create`, formData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data" 
+        },
       });
       setInvoices(prev => [res.data.invoice, ...prev]);
       toast.success(res.data.message || "Invoice created successfully!");
@@ -1038,6 +1050,26 @@ const AllProvider = ({ children }) => {
 
 
 
+  const approveShariaApplication = async (id) => {
+    const token = getToken();
+    if (!token) return { success: false };
+    setIsLoading(true);
+    try {
+      const res = await axios.patch(`${baseUrl}/applications/${id}/process`, { step: 9 }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setApplications(prev => prev.map(app => app._id === id ? res.data.application : app));
+      toast.success("Application approved by Shari'a Board!");
+      return { success: true, data: res.data };
+    } catch (error) {
+      console.error("Failed to approve Shari'a application:", error);
+      toast.error(error.response?.data?.message || "Failed to approve application");
+      return { success: false, error };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const value = {
     // Products
     products,
@@ -1079,6 +1111,7 @@ const AllProvider = ({ children }) => {
     deleteApplication,
     acceptApplication,
     rejectApplication,
+    approveShariaApplication,
     getApplicationStats,
     
     // Invoices

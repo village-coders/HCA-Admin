@@ -1,0 +1,340 @@
+/* ApplicationProcess.css */
+
+.process-page {
+  padding: 24px 32px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-top: 80px;
+}
+
+/* Header */
+.process-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+
+.process-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.process-header p {
+  color: #6b7280;
+  font-size: 14px;
+  margin: 4px 0 0;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+.back-button:hover { background: #e5e7eb; }
+
+.header-badge {
+  margin-left: auto;
+  padding: 6px 16px;
+  border-radius: 99px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Stepper Card */
+.stepper-card {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07);
+  padding: 40px 32px;
+  margin-bottom: 28px;
+}
+
+.stepper-row {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+}
+
+/* Action Panel */
+.action-panel {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07);
+  padding: 36px 40px;
+  margin-bottom: 28px;
+  animation: fadeSlideIn 0.3s ease;
+}
+
+.action-panel.completed {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.action-panel h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 10px;
+}
+
+.action-panel p {
+  color: #6b7280;
+  font-size: 14px;
+  margin: 0 0 24px;
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Details Grid */
+.details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.details-card {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+}
+
+.details-card h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.details-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.details-table td {
+  padding: 8px 4px;
+  font-size: 14px;
+  vertical-align: top;
+}
+
+.details-table td:first-child {
+  color: #6b7280;
+  font-weight: 500;
+  width: 45%;
+}
+
+.details-table td:last-child {
+  color: #111827;
+  font-weight: 600;
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 99px;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Action Buttons */
+.action-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #00853b;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 28px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn-primary:hover:not(:disabled) { background: #006b2f; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,133,59,0.3); }
+.action-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.action-btn-primary.success { background: #2563eb; }
+.action-btn-primary.success:hover:not(:disabled) { background: #1d4ed8; box-shadow: 0 4px 12px rgba(37, 99,235,0.3); }
+.action-btn-primary.sm { padding: 9px 20px; font-size: 14px; margin-top: 12px; }
+
+/* Upload Area */
+.upload-area {
+  border: 2px dashed #d1d5db;
+  border-radius: 10px;
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: #f9fafb;
+}
+
+.upload-area:hover { border-color: #00853b; background: #f0fdf4; }
+
+.upload-area p {
+  margin: 0;
+  font-weight: 500;
+  color: #374151;
+  font-size: 14px;
+}
+
+.upload-area span {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.upload-area.sm {
+  padding: 18px;
+  margin: 8px 0;
+}
+
+.file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #2563eb;
+  font-size: 14px;
+  text-decoration: none;
+  font-weight: 600;
+}
+.file-link:hover { text-decoration: underline; }
+
+/* Form Input */
+.form-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #111827;
+  margin-bottom: 4px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.form-input:focus { border-color: #00853b; box-shadow: 0 0 0 3px rgba(0,133,59,0.1); }
+
+/* Audit Sub-steps */
+.audit-substeps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.audit-substep {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.audit-substep.completed { border-color: #bbf7d0; background: #f0fdf4; }
+.audit-substep.active { border-color: #bfdbfe; }
+.audit-substep.locked { opacity: 0.5; }
+
+.substep-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.substep-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #374151;
+}
+
+.substep-form {
+  padding: 16px 18px;
+  border-top: 1px solid #e5e7eb;
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.substep-display {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.substep-display .file-info {
+  background: #f1f5f9;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.substep-display .file-info p {
+  margin-bottom: 8px !important;
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.substep-form label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.substep-completed {
+  padding: 8px 18px;
+  border-top: 1px solid #dcfce7;
+}
+
+/* Spinner */
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .process-page { padding: 16px; padding-top: 70px; }
+  .stepper-card { padding: 24px 16px; }
+  .stepper-row { flex-direction: column; }
+  .action-panel { padding: 24px 20px; }
+  .details-grid { grid-template-columns: 1fr; }
+  .process-header { flex-direction: column; align-items: flex-start; }
+  .header-badge { margin-left: 0; }
+}

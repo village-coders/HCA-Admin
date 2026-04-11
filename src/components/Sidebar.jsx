@@ -41,6 +41,7 @@ const Sidebar = () => {
     { path: '/documents', icon: FolderOpen, label: 'Documents' },
     { path: '/invoices', icon: Receipt, label: 'Invoices' },
     { path: '/audits', icon: CalendarCheck, label: 'Audits' },
+    { path: '/sharia-board', icon: Award, label: "Shari'a Board" },
     ...(user?.role === "super admin"
       ? [{ path: '/manage-admins', icon: Users, label: 'Manage Admin' }]
       : []),

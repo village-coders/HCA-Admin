@@ -33,12 +33,17 @@ import {
   Layers,
   Globe2,
   Award,
-  CheckSquare
+  CheckSquare,
+  Trash2,
+  Activity
 } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
+import TableActions from '../components/TableActions';
 
 const Applications = () => {
+  const navigate = useNavigate();
   const controller = new AbortController()
   const [filter, setFilter] = useState({
     company: '',
@@ -1081,91 +1086,11 @@ const Applications = () => {
           <div className="border-t border-gray-200 px-6 py-2 bg-gray-50">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                {selectedApplication.status?.toLowerCase() === 'pending' || 
-                 selectedApplication.status?.toLowerCase() === 'submitted' ? (
-                  <>
-                    <button
-                      onClick={() => handleAcceptApplication(appId)}
-                      disabled={isAcceptingId === appId}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
-                    >
-                      {isAcceptingId === appId ? <CheckCircle className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                      {isAcceptingId === appId ? 'Accepting...' : 'Accept'}
-                    </button>
-                    {
-                      selectedApplication.status?.toLowerCase() === 'accepted' && (
-                        <button
-                          onClick={() => handleIssueCertificate(appId)}
-                          disabled={isIssuing}
-                          className="px-4 py-2 bg-[#00853b] text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
-                        >
-                          <FileCheck className={`w-4 h-4 mr-2 ${isIssuing ? 'animate-spin' : ''}`} />
-                          {isIssuing ? 'Issuing...' : 'Issue Certificate'}
-                        </button>
-                      )
-                    }
-                    <button
-                      onClick={() => handleRejectApplication(appId)}
-                      disabled={isRejectingId === appId}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
-                    >
-                      {isRejectingId === appId ? <XCircle className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />}
-                      {isRejectingId === appId ? 'Rejecting...' : 'Reject'}
-                    </button>
-                  </>
-                ) : selectedApplication.status?.toLowerCase() === 'accepted' ? (
-                  <>
-                    <button
-                      onClick={() => handleIssueCertificate(appId)}
-                      disabled={isIssuing}
-                      className="px-4 py-2 bg-[#00853b] text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
-                    >
-                      <FileCheck className={`w-4 h-4 mr-2 ${isIssuing ? 'animate-spin' : ''}`} />
-                      {isIssuing ? 'Issuing...' : 'Issue Certificate'}
-                    </button>
-                    <button
-                      onClick={() => handleRejectApplication(appId)}
-                      disabled={isRejectingId === appId}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
-                    >
-                      {isRejectingId === appId ? <XCircle className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />}
-                      {isRejectingId === appId ? 'Rejecting...' : 'Reject'}
-                    </button>
-                  </>
-                ) : selectedApplication.status?.toLowerCase() === 'issued' ? (
-                  <>
-                    <button
-                      onClick={() => handleDownloadCertificate(appId)}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors duration-200 flex items-center"
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download Certificate
-                    </button>
-                    <button
-                      onClick={() => handleIssueCertificate(appId)}
-                      disabled={isIssuing}
-                      className="px-4 py-2 bg-[#00853b] text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
-                    >
-                      <FileCheck className={`w-4 h-4 mr-2 ${isIssuing ? 'animate-spin' : ''}`} />
-                      {isIssuing ? 'Issuing...' : 'Re-issue Certificate'}
-                    </button>
-                  </>
-                ) : null}
-              </div>
-              <div className="flex items-center space-x-3">
                 <button
                   onClick={closeModal}
                   className="px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg font-medium transition-colors duration-200"
                 >
                   Close
-                </button>
-                <button
-                  onClick={() => handleDeleteApplication(appId)}
-                  disabled={isDeletingId === appId}
-                  className="px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
-                >
-                  {isDeletingId === appId ? <XCircle className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />}
-                  {isDeletingId === appId ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
             </div>
@@ -1269,7 +1194,7 @@ const Applications = () => {
                   <option value="">All Status</option>
                   <option value="pending">Pending</option>
                   <option value="submitted">Submitted</option>
-                  <option value="approved">Approved</option>
+                  <option value="accepted">Accepted</option>
                   <option value="issued">Issued</option>
                   <option value="rejected">Rejected</option>
                   <option value="under_review">Under Review</option>
@@ -1310,7 +1235,7 @@ const Applications = () => {
           <div className="flex justify-between items-center mt-4">
             <div className="text-sm text-gray-600">
               {selectedApplications.length > 0 && (
-                <span>{selectedApplications.length} applications selected</span>
+                <span>{applications.length} Applications</span>
               )}
             </div>
             <div className="flex gap-2">
@@ -1321,25 +1246,6 @@ const Applications = () => {
               >
                 Clear All Filters
               </button>
-              {selectedApplications.length > 0 && (
-                <>
-                  <button
-                    onClick={handleBulkIssue}
-                    disabled={isIssuing}
-                    className="px-4 py-2 text-sm font-medium bg-[#00853b] text-white hover:bg-green-700 rounded-lg transition-colors duration-200 disabled:opacity-50 flex items-center gap-2"
-                  >
-                    <FileCheck className={`w-4 h-4 ${isIssuing ? 'animate-spin' : ''}`} />
-                    {isIssuing ? 'Issuing...' : 'Issue Selected'}
-                  </button>
-                  <button
-                    onClick={handleBulkDelete}
-                    disabled={isLoading || isBulkDeleting}
-                    className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
-                  >
-                    {isBulkDeleting ? 'Deleting...' : 'Delete Selected'}
-                  </button>
-                </>
-              )}
             </div>
           </div>
         </div>
@@ -1365,14 +1271,6 @@ const Applications = () => {
             <table className="w-full min-w-[1000px] lg:min-w-0">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                    <input
-                      type="checkbox"
-                      checked={selectedApplications.length === filteredApplications.length && filteredApplications.length > 0}
-                      onChange={toggleSelectAll}
-                      className="rounded border-gray-300 text-[#00853b] focus:ring-[#00853b]"
-                    />
-                  </th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Application ID</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
@@ -1391,14 +1289,6 @@ const Applications = () => {
 
                     return (
                       <tr key={appId} className="hover:bg-gray-50">
-                        <td className="p-4">
-                          <input
-                            type="checkbox"
-                            checked={selectedApplications.includes(appId)}
-                            onChange={() => toggleSelectApplication(appId)}
-                            className="rounded border-gray-300 text-[#00853b] focus:ring-[#00853b]"
-                          />
-                        </td>
                         <td className="p-4">
                           <div>
                             <div className="font-medium text-gray-900">{app.company?.companyName}</div>
@@ -1431,74 +1321,20 @@ const Applications = () => {
                           {formatDate(app.createdAt || app.submissionDate || app.date)}
                         </td>
                         <td className="p-4">
-                          <div className="flex items-center space-x-2">
-                            <button 
-                              onClick={() => handleViewDetails(appId)}
-                              disabled={isLoadingDetails}
-                              className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200 disabled:opacity-50"
-                              title="View Details"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            
-                            {/* Show different buttons based on status */}
-                            {app.status?.toLowerCase() === 'renewal' || 
-                             app.status?.toLowerCase() === 'submitted' ? (
-                              <>
-                                <button
-                                  onClick={() => handleAcceptApplication(appId)}
-                                  className="px-3 py-1.5 bg-blue-600 cursor-pointer text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                                  title="Accept Application"
-                                >
-                                  Accept
-                                </button>
-                                <button
-                                  onClick={() => handleRejectApplication(appId)}
-                                  className="px-3 py-1.5 bg-red-600 cursor-pointer text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors duration-200"
-                                  title="Reject Application"
-                                >
-                                  Reject
-                                </button>
-                              </>
-                            ) : app.status?.toLowerCase() === 'accepted' ? (
-                              <>
-                                <button
-                                  onClick={() => handleIssueCertificate(appId)}
-                                  disabled={isIssuing}
-                                  className="px-3 py-1.5 bg-[#00853b] cursor-pointer text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors duration-200 disabled:opacity-50 flex items-center"
-                                  title="Issue Certificate"
-                                >
-                                  <FileCheck className={`w-3 h-3 mr-1 ${isIssuing ? 'animate-spin' : ''}`} />
-                                  Issue
-                                </button>
-                                <button
-                                  onClick={() => handleRejectApplication(appId)}
-                                  className="px-3 py-1.5 bg-red-600 cursor-pointer text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors duration-200"
-                                  title="Reject Application"
-                                >
-                                  Reject
-                                </button>
-                              </>
-                            ) : app.status?.toLowerCase() === 'issued' ? (
-                              <>
-                                <button
-                                  onClick={() => handleDownloadCertificate(appId)}
-                                  className="p-1.5 text-blue-600 cursor-pointer hover:bg-blue-50 rounded-lg transition-colors duration-200"
-                                  title="Download Certificate"
-                                >
-                                  <Download className="w-4 h-4" />
-                                </button>
-                              </>
-                            ) : null}
-                            
-                            <button
-                              onClick={() => handleDeleteApplication(appId)}
-                              className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
-                              title="Delete Application"
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </button>
-                          </div>
+                          <TableActions 
+                            actions={[
+                              {
+                                label: 'Processing',
+                                icon: Activity,
+                                onClick: () => navigate(`/applications/${appId}/process`)
+                              },
+                              {
+                                label: 'View Details',
+                                icon: Eye,
+                                onClick: () => handleViewDetails(appId)
+                              }
+                            ].filter(Boolean)}
+                          />
                         </td>
                       </tr>
                     );
@@ -1534,23 +1370,6 @@ const Applications = () => {
                   <span className="font-medium">{applications.length}</span> applications
                 </div>
                 <div className="flex items-center space-x-2">
-                  <button 
-                    onClick={handleBulkExport}
-                    className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200 disabled:opacity-50"
-                    disabled={selectedApplications.length === 0}
-                  >
-                    Export Selected ({selectedApplications.length})
-                  </button>
-                  {selectedApplications.length > 0 && (
-                    <button
-                      onClick={handleBulkIssue}
-                      disabled={isIssuing}
-                      className="px-3 py-1.5 text-sm font-medium bg-[#00853b] text-white hover:bg-green-700 rounded-lg transition-colors duration-200 disabled:opacity-50 flex items-center gap-2"
-                    >
-                      <FileCheck className={`w-4 h-4 ${isIssuing ? 'animate-spin' : ''}`} />
-                      {isIssuing ? 'Issuing...' : `Issue ${selectedApplications.length}`}
-                    </button>
-                  )}
                   <div className="flex items-center space-x-2">
                     <button className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200">
                       Previous
