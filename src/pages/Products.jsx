@@ -85,8 +85,8 @@ const Products = () => {
     switch (activeTab) {
       case 'all':
         break;
-      case 'pending':
-        return product.status === 'pending' || product.status === 'Pending';
+      case 'requested':
+        return product.status === 'requested' || product.status === 'Requested';
       case 'approved':
         return product.status === 'approved' || product.status === 'Approved';
       case 'rejected':
@@ -288,11 +288,11 @@ const Products = () => {
     // Filter only pending products
     const pendingProducts = selectedProducts.filter(productId => {
       const product = products.find(p => p.id === productId || p._id === productId);
-      return product && (product.status.toLowerCase() === 'pending' || product.status.toLowerCase() === 'requested');
+      return product && (product.status.toLowerCase() === 'requested' || product.status.toLowerCase() === 'requested');
     });
 
     if (pendingProducts.length === 0) {
-      toast.warning("No pending products selected");
+      toast.warning("No requested products selected");
       return;
     }
 
@@ -319,8 +319,8 @@ const Products = () => {
   const getTabCounts = () => {
     return {
       all: products.length,
-      pending: products.filter(p => 
-        p.status === 'pending' || p.status === 'Pending'
+      requested: products.filter(p => 
+        p.status === 'requested' || p.status === 'Requested'
       ).length,
       approved: products.filter(p => 
         p.status === 'approved' || p.status === 'Approved'
@@ -335,7 +335,7 @@ const Products = () => {
 
   const tabs = [
     { id: 'all', label: 'All Products', count: tabCounts.all },
-    { id: 'pending', label: 'Pending', count: tabCounts.pending },
+    { id: 'requested', label: 'Requested', count: tabCounts.requested },
     { id: 'approved', label: 'Approved', count: tabCounts.approved },
     { id: 'rejected', label: 'Rejected', count: tabCounts.rejected },
   ];
@@ -344,7 +344,7 @@ const Products = () => {
   const getStatusConfig = (status) => {
     const statusLower = status?.toLowerCase();
     switch (statusLower) {
-      case 'pending':
+      case 'requested':
         return { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: Clock };
       case 'approved':
         return { bg: 'bg-green-100', text: 'text-green-800', icon: CheckCircle };
@@ -629,7 +629,7 @@ const Products = () => {
           <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                {selectedProduct.status?.toLowerCase() === 'pending' && (
+                {selectedProduct.status?.toLowerCase() === 'requested' && (
                   <>
                     <button
                       onClick={() => handleApproveProduct(productId)}
@@ -818,7 +818,7 @@ const Products = () => {
                   disabled={isLoading}
                 >
                   <option value="">All Statuses</option>
-                  <option value="pending">Pending / Requested</option>
+                  <option value="requested">Requested</option>
                   <option value="approved">Approved</option>
                   <option value="registered">Registered</option>
                   <option value="rejected">Rejected</option>
@@ -958,12 +958,12 @@ const Products = () => {
                                 onClick: () => handleViewDetails(productId),
                                 disabled: isLoadingDetails
                               },
-                              product.status?.toLowerCase() === 'pending' && {
+                              product.status?.toLowerCase() === 'requested' && {
                                 label: 'Approve Product',
                                 icon: CheckCircle,
                                 onClick: () => handleApproveProduct(productId)
                               },
-                              product.status?.toLowerCase() === 'pending' && {
+                              product.status?.toLowerCase() === 'requested' && {
                                 label: 'Reject Product',
                                 icon: XCircle,
                                 onClick: () => handleRejectProduct(productId),
