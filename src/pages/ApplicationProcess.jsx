@@ -470,6 +470,15 @@ export default function ApplicationProcess() {
                     <div className="substep-form">
                       {sub.type === 'date' && (
                         <>
+                          {processData?.audit?.auditRejected && (
+                            <div className="mb-4 bg-red-50 p-4 rounded-xl border border-red-100 flex gap-3 text-red-800 text-sm" style={{ marginBottom: '16px' }}>
+                              <XCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                              <div>
+                                <p style={{ fontWeight: 600, marginBottom: '4px' }}>Previous Schedule Rejected by Client</p>
+                                <p style={{ margin: 0 }}>Reason: {processData.audit.rejectReason || 'No reason provided.'}</p>
+                              </div>
+                            </div>
+                          )}
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                             <div>
                               <label>Audit Date</label>

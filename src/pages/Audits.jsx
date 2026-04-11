@@ -717,6 +717,21 @@ const Audits = () => {
                   </div>
                 </div>
 
+                {/* Rejection Info (If applicable) */}
+                {selectedAudit.status === 'Rejected' && selectedAudit.rejectReason && (
+                  <div className="md:col-span-2">
+                    <div className="bg-red-50 p-4 rounded-xl border border-red-100 flex items-start gap-4 text-red-800">
+                      <div className="p-2 bg-red-100 rounded-lg shrink-0">
+                        <AlertTriangle className="w-5 h-5 text-red-600" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm mb-1">Audit Rejected by Client</p>
+                        <p className="text-sm">{selectedAudit.rejectReason}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Reports Section */}
                 <div className="md:col-span-2">
                   <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Audit Reports</h4>
