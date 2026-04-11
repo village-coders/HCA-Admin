@@ -134,6 +134,14 @@ export default function ApplicationProcess() {
       if (data.applicationNumber) {
         setCertNumber(data.applicationNumber);
       }
+      
+      if (data.processData?.audit) {
+        if (data.processData.audit.scheduledDate) setAuditDate(new Date(data.processData.audit.scheduledDate).toISOString().split('T')[0]);
+        if (data.processData.audit.scheduledTime) setAuditTime(data.processData.audit.scheduledTime);
+        if (data.processData.audit.leadAuditorName) setAuditLeadName(data.processData.audit.leadAuditorName);
+        if (data.processData.audit.leadAuditorEmail) setAuditLeadEmail(data.processData.audit.leadAuditorEmail);
+        if (data.processData.audit.leadAuditorPhone) setAuditLeadPhone(data.processData.audit.leadAuditorPhone);
+      }
     } catch (err) {
       toast.error('Failed to load application');
     } finally {
@@ -454,7 +462,7 @@ export default function ApplicationProcess() {
             {AUDIT_SUB_STEPS.map((sub) => {
               const subCompleted = auditSubStep >= sub.id;
               const subActive = auditSubStep === sub.id - 1 && currentStep === 6;
-              const canAccessSub = auditSubStep >= sub.id - 1 && currentStep >= 6;
+              const canAccessSub = true; // Unlocked to allow out-of-order changes
               return (
                 <div key={sub.id} className={`audit-substep ${subCompleted ? 'completed' : subActive ? 'active' : 'pending'} ${!canAccessSub ? 'locked' : ''}`}>
                   <div className="substep-header" onClick={() => canAccessSub && setActiveAuditSubStep(activeAuditSubStep === sub.id ? null : sub.id)}>
@@ -462,11 +470,11 @@ export default function ApplicationProcess() {
                       {subCompleted ? <CheckCircle size={18} color="#22c55e" fill="#22c55e" /> : <Circle size={18} color={subActive ? '#3b82f6' : '#d1d5db'} />}
                       <span>{sub.label}</span>
                     </div>
-                    {canAccessSub && !subCompleted && <ChevronDown size={16} style={{ transform: activeAuditSubStep === sub.id ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />}
+                    {canAccessSub && <ChevronDown size={16} style={{ transform: activeAuditSubStep === sub.id ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />}
                   </div>
 
                   {/* Sub-step action form */}
-                  {activeAuditSubStep === sub.id && canAccessSub && !subCompleted && (
+                  {activeAuditSubStep === sub.id && canAccessSub && (
                     <div className="substep-form">
                       {sub.type === 'date' && (
                         <>
@@ -517,15 +525,22 @@ export default function ApplicationProcess() {
                             disabled={saving || !auditDate || !auditLeadName || !auditLeadEmail || !auditLeadPhone}
                           >
                             {saving ? <Loader2 className="spin" size={14} /> : <Calendar size={14} />}
-                            Schedule Audit
+                            {subCompleted ? 'Update Audit Schedule' : 'Schedule Audit'}
                           </button>
                         </>
                       )}
                       {sub.type === 'confirm' && (
-                        <button className="action-btn-primary sm" onClick={() => submitStep(6, sub.id)} disabled={saving}>
-                          {saving ? <Loader2 className="spin" size={14} /> : <CheckCircle size={14} />}
-                          {sub.id === 2 ? 'Mark as Audited' : sub.id === 4 ? 'Mark NC as Closed' : 'Confirm Audit Report Received'}
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button className="action-btn-primary sm" onClick={() => submitStep(6, sub.id)} disabled={saving}>
+                            {saving ? <Loader2 className="spin" size={14} /> : <CheckCircle size={14} />}
+                            {sub.id === 2 ? 'Mark as Audited' : sub.id === 4 ? 'Mark NC as Closed' : 'Confirm Audit Report Received'}
+                          </button>
+                          {(sub.id === 3 || sub.id === 4) && (
+                            <button className="action-btn-primary sm" onClick={() => submitStep(6, sub.id, 'skipped')} disabled={saving} style={{ backgroundColor: '#f3f4f6', color: '#4b5563', border: '1px solid #d1d5db' }}>
+                              Skip Step
+                            </button>
+                          )}
+                        </div>
                       )}
                       {sub.type === 'display' && (
                         <div className="substep-display">
@@ -571,21 +586,26 @@ export default function ApplicationProcess() {
                             accept=".pdf,.doc,.docx"
                             onChange={e => setNcReportFile(e.target.files[0])}
                           />
-                          <button
-                            className="action-btn-primary sm"
-                            onClick={() => submitStep(6, 3, null, ncReportFile)}
-                            disabled={saving || !ncReportFile}
-                          >
-                            {saving ? <Loader2 className="spin" size={14} /> : <Upload size={14} />}
-                            Upload NC Report
-                          </button>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              className="action-btn-primary sm"
+                              onClick={() => submitStep(6, 3, null, ncReportFile)}
+                              disabled={saving || !ncReportFile}
+                            >
+                              {saving ? <Loader2 className="spin" size={14} /> : <Upload size={14} />}
+                              Upload NC Report
+                            </button>
+                            <button className="action-btn-primary sm" onClick={() => submitStep(6, 4, 'skipped')} disabled={saving} style={{ backgroundColor: '#f3f4f6', color: '#4b5563', border: '1px solid #d1d5db' }}>
+                              Skip NC Phase
+                            </button>
+                          </div>
                         </>
                       )}
                     </div>
                   )}
 
                   {/* Completed state */}
-                  {subCompleted && (
+                  {subCompleted && activeAuditSubStep !== sub.id && (
                     <div className="substep-completed">
                       <span style={{ color: '#15803d', fontSize: '13px' }}>
                         ✓ Completed
