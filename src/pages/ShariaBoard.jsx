@@ -121,7 +121,7 @@ const ShariaBoard = () => {
             <Award className="w-8 h-8 text-[#00853b]" />
             Shari'a Board Review
           </h1>
-          <p className="text-gray-500 mt-1">Manage applications currently awaiting Al-Aqaba Shari'a Board formal approval.</p>
+          <p className="text-gray-500 mt-1">Manage applications currently awaiting Shari'a Board formal approval.</p>
         </div>
         <div className="flex items-center gap-2">
           <button 

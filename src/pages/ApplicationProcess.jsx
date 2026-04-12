@@ -20,7 +20,7 @@ const STEPS = [
   { id: 5, label: 'PRODUCT RECEIVED' },
   { id: 6, label: 'AUDIT SESSION', hasSubSteps: true },
   { id: 7, label: 'APPLICATION SUCCESSFUL FOR CERTIFICATION' },
-  { id: 8, label: "AL-AQABA SHARI'A BOARD REVIEW" },
+  { id: 8, label: "SHARI'A BOARD REVIEW" },
   { id: 9, label: 'CERTIFICATE PROCESSING' },
   { id: 10, label: 'SEND CERTIFICATE' },
 ];
