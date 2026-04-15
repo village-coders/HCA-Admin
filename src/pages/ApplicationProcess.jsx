@@ -259,7 +259,14 @@ export default function ApplicationProcess() {
         { headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'multipart/form-data' } }
       );
       setApplication(data.application);
-      toast.success('Step updated successfully!');
+      
+      const stepLabel = (stepId === 6 && subStep)
+        ? AUDIT_SUB_STEPS.find(s => s.id === parseInt(subStep))?.label
+        : STEPS.find(s => s.id === stepId)?.label || 'Step';
+        
+      const formattedLabel = stepLabel.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+      
+      toast.success(`${formattedLabel} Successfully!`);
       setActiveStep(null);
       setAuditExpanded(false);
     } catch (err) {
