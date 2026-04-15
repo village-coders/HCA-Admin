@@ -121,15 +121,34 @@ export default function ApplicationProcess() {
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejecting, setRejecting] = useState(false);
+  const [appInvoice, setAppInvoice] = useState(null);
+  const [appProducts, setAppProducts] = useState([]);
 
   const getToken = () => JSON.parse(localStorage.getItem('accessToken'));
 
   const fetchApplication = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get(`${API_BASE_URL}/applications/${id}`, {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
+      const [appRes, invRes, prodRes] = await Promise.all([
+        axios.get(`${API_BASE_URL}/applications/${id}`, {
+          headers: { Authorization: `Bearer ${getToken()}` }
+        }),
+        axios.get(`${API_BASE_URL}/invoices`, {
+          headers: { Authorization: `Bearer ${getToken()}` }
+        }),
+        axios.get(`${API_BASE_URL}/products/admin-all`, {
+          headers: { Authorization: `Bearer ${getToken()}` }
+        })
+      ]);
+      const { data } = appRes;
+      const invoices = invRes.data;
+      const currentInvoice = invoices.find(inv => inv.applicationId?._id === id || inv.applicationId === id);
+      setAppInvoice(currentInvoice || null);
+      
+      const productsData = prodRes.data.products || [];
+      const currentProducts = productsData.filter(p => p.applicationId?._id === id || p.applicationId === id);
+      setAppProducts(currentProducts);
+
       setApplication(data);
       if (data.applicationNumber) {
         setCertNumber(data.applicationNumber);
@@ -284,6 +303,30 @@ export default function ApplicationProcess() {
     }
   };
 
+  const handleApproveProduct = async (productId) => {
+    try {
+      await axios.put(`${API_BASE_URL}/products/approve/${productId}`, {}, {
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
+      toast.success('Product approved');
+      fetchApplication();
+    } catch (err) {
+      toast.error('Failed to approve product');
+    }
+  };
+
+  const handleRejectProduct = async (productId) => {
+    try {
+      await axios.put(`${API_BASE_URL}/products/reject/${productId}`, {}, {
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
+      toast.success('Product rejected');
+      fetchApplication();
+    } catch (err) {
+      toast.error('Failed to reject product');
+    }
+  };
+
   const renderActionPanel = () => {
     if (!activeStep) return null;
 
@@ -430,6 +473,24 @@ export default function ApplicationProcess() {
       return (
         <div className="action-panel">
           <h2>Confirm Payment</h2>
+          
+          {appInvoice?.proofOfPayment ? (
+            <div className="mb-6 bg-blue-50 p-4 rounded-xl border border-blue-100 flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-blue-600" />
+                <span className="font-semibold text-blue-800">Proof of Payment Uploaded</span>
+              </div>
+              <p className="text-sm text-blue-700" style={{ margin: 0 }}>The applicant has uploaded a proof of payment document for your review.</p>
+              <a href={appInvoice.proofOfPayment} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium w-fit hover:bg-blue-700 transition" style={{ textDecoration: 'none', marginTop: '8px' }}>
+                <Download size={16} /> View Document
+              </a>
+            </div>
+          ) : (
+            <div className="mb-6 bg-slate-50 p-4 text-slate-600 text-sm border border-slate-200 rounded-xl">
+              No proof of payment uploaded by applicant yet.
+            </div>
+          )}
+
           <p>Confirm that payment has been received from the applicant.</p>
           <button className="action-btn-primary" onClick={() => submitStep(4)} disabled={saving}>
             {saving ? <Loader2 className="spin" size={16} /> : <CheckCircle size={16} />}
@@ -441,14 +502,73 @@ export default function ApplicationProcess() {
 
     if (step.id === 5) {
       if (isComplete) return <CompletedPanel label="Product Approval Forms Received" timestamp={processData?.productFormsReceivedAt} />;
+      
+      const allApprovedOrRejected = appProducts.length > 0 && appProducts.every(p => p.status === 'approved' || p.status === 'rejected');
+      
       return (
         <div className="action-panel">
-          <h2>Product Approval Forms</h2>
-          <p>Confirm that all product approval forms have been received from the applicant.</p>
-          <button className="action-btn-primary" onClick={() => submitStep(5)} disabled={saving}>
+          <div className="flex justify-between items-center mb-4">
+            <h2>Product Approval Forms</h2>
+          </div>
+          <p className="mb-6 text-sm text-slate-600">Review the products submitted by the applicant. You must approve or reject all products before proceeding.</p>
+
+          <div className="flex flex-col gap-3 mb-8">
+            {appProducts.length === 0 ? (
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-500">
+                No products submitted for this application yet.
+              </div>
+            ) : (
+              appProducts.map(product => (
+                <div key={product._id} className="flex flex-wrap items-center justify-between p-4 bg-white border border-slate-200 rounded-xl shadow-sm gap-4">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-slate-800">{product.name}</span>
+                    <span className="text-xs text-slate-500 uppercase font-medium mt-1">Status: {product.status || 'Pending'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {product.status === 'approved' && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
+                        <CheckCircle size={14} /> Approved
+                      </span>
+                    )}
+                    {product.status === 'rejected' && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 text-red-700 text-xs font-semibold border border-red-200">
+                        <XCircle size={14} /> Rejected
+                      </span>
+                    )}
+                    {(!product.status || product.status.toLowerCase() === 'pending') && (
+                      <div className="flex items-center gap-2">
+                        <button 
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-medium text-xs flex items-center gap-1.5 transition"
+                          onClick={() => handleApproveProduct(product._id)}
+                        >
+                          <CheckCircle size={14} /> Approve
+                        </button>
+                        <button 
+                          className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-medium text-xs flex items-center gap-1.5 transition"
+                          onClick={() => handleRejectProduct(product._id)}
+                        >
+                          <XCircle size={14} /> Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <button 
+            className="action-btn-primary" 
+            onClick={() => submitStep(5)} 
+            disabled={saving || (appProducts.length > 0 && !allApprovedOrRejected)}
+          >
             {saving ? <Loader2 className="spin" size={16} /> : <CheckCircle size={16} />}
             {saving ? 'Processing...' : 'Confirm Forms Received'}
           </button>
+          
+          {appProducts.length > 0 && !allApprovedOrRejected && (
+            <p className="text-xs text-red-600 mt-2 font-medium">Please review (approve/reject) all products before proceeding.</p>
+          )}
         </div>
       );
     }

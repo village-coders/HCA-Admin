@@ -887,14 +887,6 @@ const Products = () => {
             <table className="w-full min-w-[1000px] lg:min-w-0">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                    <input
-                      type="checkbox"
-                      checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
-                      onChange={toggleSelectAll}
-                      className="rounded border-gray-300 text-[#00853b] focus:ring-[#00853b]"
-                    />
-                  </th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -911,14 +903,6 @@ const Products = () => {
 
                     return (
                       <tr key={productId} className="hover:bg-gray-50">
-                        <td className="p-4">
-                          <input
-                            type="checkbox"
-                            checked={selectedProducts.includes(productId)}
-                            onChange={() => toggleSelectProduct(productId)}
-                            className="rounded border-gray-300 text-[#00853b] focus:ring-[#00853b]"
-                          />
-                        </td>
                         <td className="p-4">
                           <div>
                             <div className="font-medium text-gray-900">{product.name || 'Unnamed Product'}</div>
