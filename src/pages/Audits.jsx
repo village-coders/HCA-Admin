@@ -195,13 +195,13 @@ const Audits = () => {
           >
             <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
-          <button 
+          {/* <button 
             onClick={() => setIsScheduleModalOpen(true)}
             className="flex items-center gap-2 px-5 py-2.5 bg-[#00853b] text-white rounded-lg shadow-sm hover:bg-green-700 transition-all font-semibold"
           >
             <Plus className="w-5 h-5" />
             Schedule Audit
-          </button>
+          </button> */}
         </div>
       </div>
 
