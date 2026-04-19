@@ -122,21 +122,29 @@ const Certificates = () => {
   // Filter certificates with improved company search
   const filteredCertificates = certificates.filter(cert => {
     // Tab filter
-    switch (activeTab) {
-      case 'all':
-        break;
-      case 'active':
-        return cert.status === 'active' || cert.status === 'Active';
-      case 'expiring_soon':
-        return cert.status?.toLowerCase() === 'expiring soon';
-      case 'expired':
-        return cert.status === 'expired' || cert.status === 'Expired';
-      case 'renewal':
-        return cert.status === 'pending_renewal' || cert.status === 'Renewal';
-      case 'revoked':
-        return cert.status === 'revoked' || cert.status === 'Revoked';
-      default:
-        break;
+    if (activeTab !== 'all') {
+      let tabMatch = false;
+      switch (activeTab) {
+        case 'active':
+          tabMatch = cert.status === 'active' || cert.status === 'Active';
+          break;
+        case 'expiring_soon':
+          tabMatch = cert.status?.toLowerCase() === 'expiring soon';
+          break;
+        case 'expired':
+          tabMatch = cert.status === 'expired' || cert.status === 'Expired';
+          break;
+        case 'renewal':
+          tabMatch = cert.status === 'pending_renewal' || cert.status === 'Renewal';
+          break;
+        case 'revoked':
+          tabMatch = cert.status === 'revoked' || cert.status === 'Revoked';
+          break;
+        default:
+          tabMatch = true;
+          break;
+      }
+      if (!tabMatch) return false;
     }
 
     const searchTerm = filter.search.toLowerCase();
@@ -168,15 +176,26 @@ const Certificates = () => {
     }
 
     // Date filters
-    if (filter.dateFrom && cert.issueDate && new Date(cert.issueDate) < new Date(filter.dateFrom)) {
+    const certDate = cert.issueDate ? new Date(cert.issueDate) : null;
+    if (certDate) {
+      certDate.setHours(0, 0, 0, 0); // Normalize time
+    }
+    
+    if (filter.dateFrom && certDate) {
+      const fromDate = new Date(filter.dateFrom);
+      fromDate.setHours(0, 0, 0, 0);
+      if (certDate < fromDate) return false;
+    }
+    if (filter.dateTo && certDate) {
+      const toDate = new Date(filter.dateTo);
+      toDate.setHours(23, 59, 59, 999);
+      if (certDate > toDate) return false;
+    }
+
+    if (filter.status && cert.status?.toLowerCase() !== filter.status.toLowerCase()) {
       return false;
     }
-    if (filter.dateTo && cert.issueDate && new Date(cert.issueDate) > new Date(filter.dateTo)) {
-      return false;
-    }
-    if (filter.status && cert.status !== filter.status) {
-      return false;
-    }
+    
     return true;
   });
 

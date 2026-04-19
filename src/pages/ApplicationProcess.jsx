@@ -942,7 +942,7 @@ export default function ApplicationProcess() {
               This application is currently with the Shari'a Board. Every board member must sign the logsheet before certification is successful.
             </p>
           </div>
-          <p>Status: <strong>Awaiting Board Signatures</strong></p>
+          <p>Status: <strong>{processData?.shariaBoardApprovedAt ? 'Board Endorsed, Pending Final Success Marker' : 'Awaiting Board Signatures'}</strong></p>
           <div style={{ marginTop: '16px' }}>
             <button className="action-btn-primary sm" onClick={() => navigate('/sharia-board')} style={{ width: 'auto' }}>
               <Award size={16} />

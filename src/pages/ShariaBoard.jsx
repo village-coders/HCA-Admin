@@ -38,6 +38,8 @@ const ShariaBoard = () => {
   // Signature upload state
   const [signatureFile, setSignatureFile] = useState(null);
   const [isUploadingSignature, setIsUploadingSignature] = useState(false);
+  const [uploadName, setUploadName] = useState(user?.signatureName || user?.fullName || '');
+  const [uploadTitle, setUploadTitle] = useState(user?.signatureTitle || "Member, Shari'a Board");
 
   const getToken = () => JSON.parse(localStorage.getItem('accessToken'));
 
@@ -80,6 +82,8 @@ const ShariaBoard = () => {
     setIsUploadingSignature(true);
     const formData = new FormData();
     formData.append('signature', signatureFile);
+    if (uploadName) formData.append('signatureName', uploadName);
+    if (uploadTitle) formData.append('signatureTitle', uploadTitle);
 
     try {
       await axios.post(`${API_BASE_URL}/users/signature`, formData, {
@@ -111,6 +115,40 @@ const ShariaBoard = () => {
       toast.error(error.response?.data?.message || 'Failed to sign logsheet');
     } finally {
       setIsSigning(false);
+    }
+  };
+
+  const handleMarkSuccessful = async (applicationId) => {
+    try {
+      setIsLoading(true);
+      
+      // Step 1: Submit Step 8 (Marks it Approved/Successful)
+      let formData = new FormData();
+      formData.append('step', 8);
+      await axios.patch(`${API_BASE_URL}/applications/${applicationId}/process`, formData, {
+        headers: { 
+          Authorization: `Bearer ${getToken()}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      // Step 2: Submit Step 9 (Confirms for processing, advancing it to Certificate Processing)
+      formData = new FormData();
+      formData.append('step', 9);
+      await axios.patch(`${API_BASE_URL}/applications/${applicationId}/process`, formData, {
+        headers: { 
+          Authorization: `Bearer ${getToken()}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      toast.success('Application marked as successful and confirmed for processing');
+      setIsSignModalOpen(false);
+      fetchLogsheets();
+    } catch (error) {
+      toast.error('Failed to mark application as successful');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -147,9 +185,9 @@ const ShariaBoard = () => {
 
       {/* Signature Setup Section */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-        <div className="flex flex-col md:row items-center justify-between gap-6">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${user?.signatureImage ? 'bg-green-50' : 'bg-amber-50'}`}>
+            <div className={`w-14 h-14 rounded-2xl flex flex-shrink-0 items-center justify-center ${user?.signatureImage ? 'bg-green-50' : 'bg-amber-50'}`}>
               {user?.signatureImage ? <UserCheck className="w-8 h-8 text-green-600" /> : <AlertCircle className="w-8 h-8 text-amber-600" />}
             </div>
             <div>
@@ -160,10 +198,10 @@ const ShariaBoard = () => {
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {user?.signatureImage && (
-              <div className="px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl">
-                <img src={resolveUrl(user.signatureImage)} alt="My Signature" style={{ height: '40px', objectFit: 'contain' }} />
+              <div className="px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl h-10 flex items-center">
+                <img src={resolveUrl(user.signatureImage)} alt="My Signature" className="h-full object-contain" />
               </div>
             )}
             <input 
@@ -175,22 +213,51 @@ const ShariaBoard = () => {
             />
             <label 
               htmlFor="sig-upload"
-              className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer transition-all"
+              className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer transition-all flex items-center h-10"
             >
               {user?.signatureImage ? 'Update Signature' : 'Choose Signature Image'}
             </label>
-            {signatureFile && (
-              <button 
-                onClick={handleUploadSignature}
-                disabled={isUploadingSignature}
-                className="px-4 py-2 bg-[#00853b] text-white rounded-xl text-sm font-semibold hover:bg-[#007032] transition-all flex items-center gap-2"
-              >
-                {isUploadingSignature ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                Upload
-              </button>
-            )}
           </div>
         </div>
+
+        {/* Upload Controls (Moved out of horizontal flex row) */}
+        {signatureFile && (
+          <div className="w-full mt-6 pt-6 border-t border-gray-100 space-y-4">
+            <h4 className="text-sm font-bold text-gray-700">Set Your Endorsement Credentials</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Your Full Name</label>
+                <input 
+                  type="text" 
+                  placeholder="E.g. Sheikh Abdullah"
+                  value={uploadName}
+                  onChange={(e) => setUploadName(e.target.value)}
+                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#00853b] outline-none text-sm transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Your Official Title</label>
+                <input 
+                  type="text" 
+                  placeholder="E.g. Member, Shari'a Board"
+                  value={uploadTitle}
+                  onChange={(e) => setUploadTitle(e.target.value)}
+                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#00853b] outline-none text-sm transition-all"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end pt-2">
+              <button 
+                onClick={handleUploadSignature}
+                disabled={isUploadingSignature || !uploadName || !uploadTitle}
+                className="px-6 py-2.5 bg-[#00853b] text-white rounded-xl text-sm font-semibold hover:bg-[#007032] disabled:bg-gray-300 transition-all flex items-center gap-2 shadow-sm"
+              >
+                {isUploadingSignature ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                {user?.signatureImage ? 'Update Signature & Credentials' : 'Upload Signature & Credentials'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Main Content */}
@@ -379,19 +446,31 @@ const ShariaBoard = () => {
               </div>
             </div>
 
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
               <div className="flex items-center gap-2">
                 <div className={`w-3 h-3 rounded-full ${selectedLogsheet.isFinalized ? 'bg-green-500' : 'bg-amber-500'}`} />
                 <span className="text-sm font-bold text-gray-600">
                   {selectedLogsheet.isFinalized ? 'This certificate is formally endorsed' : 'Awaiting remaining board members'}
                 </span>
               </div>
-              <button 
-                onClick={() => setIsSignModalOpen(false)}
-                className="px-6 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all"
-              >
-                Close
-              </button>
+              <div className="flex gap-2">
+                {selectedLogsheet.isFinalized && (
+                  <button 
+                    onClick={() => handleMarkSuccessful(selectedLogsheet.applicationId?._id || selectedLogsheet.applicationId)}
+                    disabled={isLoading}
+                    className="px-6 py-2 bg-[#00853b] text-white rounded-xl text-sm font-bold hover:bg-[#007032] transition-all flex items-center gap-2"
+                  >
+                    {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                    Mark Application Successful
+                  </button>
+                )}
+                <button 
+                  onClick={() => setIsSignModalOpen(false)}
+                  className="px-6 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
