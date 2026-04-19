@@ -78,11 +78,13 @@ const ShariaBoard = () => {
   };
 
   const handleUploadSignature = async () => {
-    if (!signatureFile) return;
+    if (!signatureFile && !user?.signatureImage) return; // Must have an existing image or a new one
     
     setIsUploadingSignature(true);
     const formData = new FormData();
-    formData.append('signature', signatureFile);
+    if (signatureFile) {
+      formData.append('signature', signatureFile);
+    }
     if (uploadName) formData.append('signatureName', uploadName);
     if (uploadTitle) formData.append('signatureTitle', uploadTitle);
 
