@@ -5,9 +5,11 @@ import { toast } from 'sonner';
 import { 
   ArrowLeft, CheckCircle, Circle, ChevronDown, ChevronUp, 
   Upload, Calendar, Loader2, FileText, Award, XCircle, Download,
-  AlertCircle
+  AlertCircle, Lock
 } from 'lucide-react';
 import './ApplicationProcess.css';
+import { useAuth } from '../hooks/useAuth';
+
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL;
 
@@ -19,10 +21,10 @@ const STEPS = [
   { id: 4, label: 'PAYMENT RECEIVED' },
   { id: 5, label: 'PRODUCT RECEIVED' },
   { id: 6, label: 'AUDIT SESSION', hasSubSteps: true },
-  { id: 7, label: 'APPLICATION SUCCESSFUL FOR CERTIFICATION' },
+  { id: 7, label: "INITIATE SHARI'A LOGSHEET" },
   { id: 8, label: "SHARI'A BOARD REVIEW" },
-  { id: 9, label: 'CERTIFICATE PROCESSING' },
-  { id: 10, label: 'SEND CERTIFICATE' },
+  { id: 9, label: 'APPLICATION SUCCESSFUL' },
+  { id: 10, label: 'ISSUE CERTIFICATE' },
 ];
 
 const AUDIT_SUB_STEPS = [
@@ -103,7 +105,32 @@ export default function ApplicationProcess() {
   const [saving, setSaving] = useState(false);
   const [activeStep, setActiveStep] = useState(null);
   const [auditExpanded, setAuditExpanded] = useState(false);
+  const { user } = useAuth();
+  
+  const hasPrivilege = (priv) => {
+    if (user?.role === 'super admin') return true;
+    return user?.privileges?.includes(priv);
+  };
+
+  const [showLogsheetModal, setShowLogsheetModal] = useState(false);
+  const [logsheetData, setLogsheetData] = useState({
+    companyName: '',
+    companyEmail: '',
+    auditReportFile: null
+  });
+
+  const NoPermissionView = ({ privilege }) => (
+    <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 text-center">
+      <Lock className="w-8 h-8 text-slate-400 mx-auto mb-3" />
+      <h3 className="text-slate-800 font-semibold mb-1">Access Restricted</h3>
+      <p className="text-sm text-slate-500">You need <strong>{privilege}</strong> privileges to perform actions in this step.</p>
+    </div>
+  );
+
   const [activeAuditSubStep, setActiveAuditSubStep] = useState(null);
+
+  const [admins, setAdmins] = useState([]);
+
 
   // Form state
   const [auditDate, setAuditDate] = useState('');
@@ -121,6 +148,13 @@ export default function ApplicationProcess() {
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejecting, setRejecting] = useState(false);
+
+  const resolveUrl = (path) => {
+    if (!path) return '';
+    if (path.startsWith('http')) return path;
+    const cleanPath = path.startsWith('/api') ? path.replace('/api', '') : path;
+    return `${API_BASE_URL}${cleanPath}`;
+  };
   const [appInvoice, setAppInvoice] = useState(null);
   const [appProducts, setAppProducts] = useState([]);
 
@@ -141,6 +175,7 @@ export default function ApplicationProcess() {
         })
       ]);
       const { data } = appRes;
+      setApplication(data); 
       const invoices = invRes.data;
       const currentInvoice = invoices.find(inv => inv.applicationId?._id === id || inv.applicationId === id);
       setAppInvoice(currentInvoice || null);
@@ -149,10 +184,16 @@ export default function ApplicationProcess() {
       const currentProducts = productsData.filter(p => p.applicationId?._id === id || p.applicationId === id);
       setAppProducts(currentProducts);
 
-      setApplication(data);
       if (data.applicationNumber) {
         setCertNumber(data.applicationNumber);
       }
+
+      // Pre-fill logsheet data
+      setLogsheetData(prev => ({
+        ...prev,
+        companyName: data.company?.companyName || '',
+        companyEmail: data.company?.email || ''
+      }));
       
       if (data.processData?.audit) {
         if (data.processData.audit.scheduledDate) setAuditDate(new Date(data.processData.audit.scheduledDate).toISOString().split('T')[0]);
@@ -167,6 +208,18 @@ export default function ApplicationProcess() {
       setLoading(false);
     }
   }, [id]);
+
+  const fetchAdmins = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${API_BASE_URL}/users/admin`, {
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
+      setAdmins(data.users || []);
+    } catch (err) {
+      console.error('Failed to fetch admins:', err);
+    }
+  }, []);
+
 
   const handleDownloadCertificate = async () => {
     try {
@@ -208,15 +261,27 @@ export default function ApplicationProcess() {
   };
 
   useEffect(() => { fetchApplication(); }, [fetchApplication]);
-
+  useEffect(() => { fetchAdmins(); }, [fetchAdmins]);
   const currentStep = Math.max(application?.processStep || 1, 2);
   const processData = application?.processData || {};
   const auditSubStep = processData?.audit?.subStep || 0;
 
+  // Automatically set active step on mount/load
+  useEffect(() => {
+    if (application && !activeStep) {
+      const stepToOpen = STEPS.find(s => s.id === currentStep);
+      if (stepToOpen) setActiveStep(stepToOpen);
+    }
+  }, [application, currentStep, activeStep]);
+
+
   const isStepCompleted = (stepId) => {
-    if (stepId === 1) return true; // Application received is always complete
+    if (stepId === 1) return true; 
     if (stepId < currentStep) return true;
     if (stepId === 6 && currentStep >= 7) return true;
+    if (stepId === 7 && processData?.shariaBoardSentAt) return true;
+    if (stepId === 8 && processData?.certificationApprovedAt) return true;
+    if (stepId === 9 && processData?.processingStartedAt) return true;
     if (stepId === 10 && application?.status === 'Issued') return true;
     return false;
   };
@@ -302,7 +367,16 @@ export default function ApplicationProcess() {
       setShowRejectForm(false);
       setRejectReason('');
       await fetchApplication();
-      setActiveStep(null);
+      setActiveStep(currentStep);
+      
+      // Pre-fill logsheet data
+      if (res.data) {
+        setLogsheetData({
+          companyName: res.data.company?.companyName || '',
+          companyEmail: res.data.company?.email || '',
+          auditReport: res.data.processData?.audit?.auditReportFile || ''
+        });
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to reject application');
     } finally {
@@ -331,6 +405,36 @@ export default function ApplicationProcess() {
       fetchApplication();
     } catch (err) {
       toast.error('Failed to reject product');
+    }
+  };
+
+  const handleCreateLogsheet = async () => {
+    if (!logsheetData.companyName || !logsheetData.companyEmail || !logsheetData.auditReportFile) {
+      toast.error('Please fill all fields');
+      return;
+    }
+
+    setSaving(true);
+    const formData = new FormData();
+    formData.append('applicationId', id);
+    formData.append('companyName', logsheetData.companyName);
+    formData.append('companyEmail', logsheetData.companyEmail);
+    formData.append('auditReport', logsheetData.auditReportFile);
+
+    try {
+      await axios.post(`${API_BASE_URL}/logsheets/create`, formData, {
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${getToken()}`
+        }
+      });
+      toast.success('Logsheet created successfully');
+      setShowLogsheetModal(false);
+      fetchApplication(); // Refresh data
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to create logsheet');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -396,20 +500,27 @@ export default function ApplicationProcess() {
           <p>Review this application and choose to accept or reject it. A rejection requires a written reason.</p>
 
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '20px' }}>
-            <button className="action-btn-primary" onClick={() => { setShowRejectForm(false); submitStep(2); }} disabled={saving}>
-              {saving ? <Loader2 className="spin" size={16} /> : <CheckCircle size={16} />}
-              {saving ? 'Processing...' : 'Accept Application'}
-            </button>
-            <button
-              className="action-btn-primary"
-              style={{ backgroundColor: '#dc2626', borderColor: '#dc2626' }}
-              onClick={() => setShowRejectForm(prev => !prev)}
-              disabled={saving}
-            >
-              <XCircle size={16} />
-              Reject Application
-            </button>
+            {hasPrivilege('Application Officer') ? (
+              <>
+                <button className="action-btn-primary" onClick={() => { setShowRejectForm(false); submitStep(2); }} disabled={saving}>
+                  {saving ? <Loader2 className="spin" size={16} /> : <CheckCircle size={16} />}
+                  {saving ? 'Processing...' : 'Accept Application'}
+                </button>
+                <button
+                  className="action-btn-primary"
+                  style={{ backgroundColor: '#dc2626', borderColor: '#dc2626' }}
+                  onClick={() => setShowRejectForm(prev => !prev)}
+                  disabled={saving}
+                >
+                  <XCircle size={16} />
+                  Reject Application
+                </button>
+              </>
+            ) : (
+              <NoPermissionView privilege="Application Officer" />
+            )}
           </div>
+
 
           {showRejectForm && (
             <div style={{ marginTop: '20px', padding: '16px', background: '#fef2f2', borderRadius: '8px', border: '1px solid #fecaca' }}>
@@ -451,7 +562,7 @@ export default function ApplicationProcess() {
       if (isComplete && processData?.invoiceFile) {
         return (
           <CompletedPanel label="Invoice Sent" timestamp={processData?.invoiceSentAt}>
-            <a href={`${processData.invoiceFile}`} target="_blank" rel="noreferrer" className="file-link">
+            <a href={resolveUrl(processData.invoiceFile)} target="_blank" rel="noreferrer" className="file-link">
               <FileText size={16} /> View Invoice
             </a>
           </CompletedPanel>
@@ -467,11 +578,16 @@ export default function ApplicationProcess() {
             <span>PDF, DOC, DOCX up to 10MB</span>
           </div>
           <input type="file" id="invoice-upload" hidden accept=".pdf,.doc,.docx" onChange={e => setInvoiceFile(e.target.files[0])} />
-          <button className="action-btn-primary" onClick={() => submitStep(3, null, null, invoiceFile)} disabled={saving || !invoiceFile}>
-            {saving ? <Loader2 className="spin" size={16} /> : <Upload size={16} />}
-            {saving ? 'Uploading...' : 'Upload & Send Invoice'}
-          </button>
+          {hasPrivilege('Accountant') ? (
+            <button className="action-btn-primary" onClick={() => submitStep(3, null, null, invoiceFile)} disabled={saving || !invoiceFile}>
+              {saving ? <Loader2 className="spin" size={16} /> : <Upload size={16} />}
+              {saving ? 'Uploading...' : 'Upload & Send Invoice'}
+            </button>
+          ) : (
+            <NoPermissionView privilege="Accountant" />
+          )}
         </div>
+
       );
     }
 
@@ -488,7 +604,7 @@ export default function ApplicationProcess() {
                 <span className="font-semibold text-blue-800">Proof of Payment Uploaded</span>
               </div>
               <p className="text-sm text-blue-700" style={{ margin: 0 }}>The applicant has uploaded a proof of payment document for your review.</p>
-              <a href={appInvoice.proofOfPayment} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium w-fit hover:bg-blue-700 transition" style={{ textDecoration: 'none', marginTop: '8px' }}>
+              <a href={resolveUrl(appInvoice.proofOfPayment)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium w-fit hover:bg-blue-700 transition" style={{ textDecoration: 'none', marginTop: '8px' }}>
                 <Download size={16} /> View Document
               </a>
             </div>
@@ -499,11 +615,16 @@ export default function ApplicationProcess() {
           )}
 
           <p>Confirm that payment has been received from the applicant.</p>
-          <button className="action-btn-primary" onClick={() => submitStep(4)} disabled={saving}>
-            {saving ? <Loader2 className="spin" size={16} /> : <CheckCircle size={16} />}
-            {saving ? 'Processing...' : 'Confirm Payment Received'}
-          </button>
+          {hasPrivilege('Accountant') ? (
+            <button className="action-btn-primary" onClick={() => submitStep(4)} disabled={saving}>
+              {saving ? <Loader2 className="spin" size={16} /> : <CheckCircle size={16} />}
+              {saving ? 'Processing...' : 'Confirm Payment Received'}
+            </button>
+          ) : (
+            <NoPermissionView privilege="Accountant" />
+          )}
         </div>
+
       );
     }
 
@@ -544,39 +665,49 @@ export default function ApplicationProcess() {
                     )}
                     {(!product.status || product.status.toLowerCase() === 'pending') && (
                       <div className="flex items-center gap-2">
-                        <button 
-                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-medium text-xs flex items-center gap-1.5 transition"
-                          onClick={() => handleApproveProduct(product._id)}
-                        >
-                          <CheckCircle size={14} /> Approve
-                        </button>
-                        <button 
-                          className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-medium text-xs flex items-center gap-1.5 transition"
-                          onClick={() => handleRejectProduct(product._id)}
-                        >
-                          <XCircle size={14} /> Reject
-                        </button>
+                        {hasPrivilege('Application Officer') && (
+                          <>
+                            <button 
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-medium text-xs flex items-center gap-1.5 transition"
+                              onClick={() => handleApproveProduct(product._id)}
+                            >
+                              <CheckCircle size={14} /> Approve
+                            </button>
+                            <button 
+                              className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-medium text-xs flex items-center gap-1.5 transition"
+                              onClick={() => handleRejectProduct(product._id)}
+                            >
+                              <XCircle size={14} /> Reject
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
+
                   </div>
                 </div>
               ))
             )}
           </div>
 
-          <button 
-            className="action-btn-primary" 
-            onClick={() => submitStep(5)} 
-            disabled={saving || (appProducts.length > 0 && !allApprovedOrRejected)}
-          >
-            {saving ? <Loader2 className="spin" size={16} /> : <CheckCircle size={16} />}
-            {saving ? 'Processing...' : 'Confirm Forms Received'}
-          </button>
+          {hasPrivilege('Application Officer') ? (
+            <button 
+              className="action-btn-primary" 
+              onClick={() => submitStep(5)} 
+              disabled={saving || (appProducts.length > 0 && !allApprovedOrRejected)}
+            >
+              {saving ? <Loader2 className="spin" size={16} /> : <CheckCircle size={16} />}
+              {saving ? 'Processing...' : 'Confirm Forms Received'}
+            </button>
+          ) : (
+            <NoPermissionView privilege="Application Officer" />
+          )}
           
           {appProducts.length > 0 && !allApprovedOrRejected && (
             <p className="text-xs text-red-600 mt-2 font-medium">Please review (approve/reject) all products before proceeding.</p>
           )}
         </div>
+
       );
     }
 
@@ -594,7 +725,7 @@ export default function ApplicationProcess() {
                 <div key={sub.id} className={`audit-substep ${subCompleted ? 'completed' : subActive ? 'active' : 'pending'} ${!canAccessSub ? 'locked' : ''}`}>
                   <div className="substep-header" onClick={() => canAccessSub && setActiveAuditSubStep(activeAuditSubStep === sub.id ? null : sub.id)}>
                     <div className="substep-indicator">
-                      {subCompleted ? <CheckCircle size={18} color="#22c55e" fill="#22c55e" /> : <Circle size={18} color={subActive ? '#3b82f6' : '#d1d5db'} />}
+                      {subCompleted ? <CheckCircle size={18} color="#22c55e" fill="white" /> : <Circle size={18} color={subActive ? '#3b82f6' : '#d1d5db'} />}
                       <span>{sub.label}</span>
                     </div>
                     {canAccessSub && <ChevronDown size={16} style={{ transform: activeAuditSubStep === sub.id ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />}
@@ -623,10 +754,33 @@ export default function ApplicationProcess() {
                               <label>Audit Time</label>
                               <input type="time" value={auditTime} onChange={e => setAuditTime(e.target.value)} className="form-input" />
                             </div>
+                            <div style={{ gridColumn: '1 / -1' }}>
+                              <label>Select Lead Auditor</label>
+                              <select
+                                className="form-input"
+                                onChange={(e) => {
+                                  const admin = admins.find(a => a._id === e.target.value);
+                                  if (admin) {
+                                    setAuditLeadName(admin.fullName || admin.name || '');
+                                    setAuditLeadEmail(admin.email || '');
+                                    setAuditLeadPhone(admin.contact || '');
+                                  }
+                                }}
+                                defaultValue=""
+                              >
+                                <option value="" disabled>--- Select an Admin (Auto-fills details) ---</option>
+                                {admins.map(admin => (
+                                  <option key={admin._id} value={admin._id}>
+                                    {admin.fullName || admin.name} ({admin.email})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
                             <div>
                               <label>Lead Auditor Name</label>
                               <input type="text" placeholder="Full name" value={auditLeadName} onChange={e => setAuditLeadName(e.target.value)} className="form-input" />
                             </div>
+
                             <div>
                               <label>Lead Auditor Email</label>
                               <input type="email" placeholder="auditor@example.com" value={auditLeadEmail} onChange={e => setAuditLeadEmail(e.target.value)} className="form-input" />
@@ -636,38 +790,48 @@ export default function ApplicationProcess() {
                               <input type="tel" placeholder="+234 000 000 0000" value={auditLeadPhone} onChange={e => setAuditLeadPhone(e.target.value)} className="form-input" />
                             </div>
                           </div>
-                          <button
-                            className="action-btn-primary sm"
-                            onClick={() => {
-                              if (!auditDate || !auditLeadName || !auditLeadEmail || !auditLeadPhone) return;
-                              const payload = JSON.stringify({
-                                date: auditDate,
-                                time: auditTime,
-                                leadAuditorName: auditLeadName,
-                                leadAuditorEmail: auditLeadEmail,
-                                leadAuditorPhone: auditLeadPhone,
-                              });
-                              submitStep(6, 1, payload);
-                            }}
-                            disabled={saving || !auditDate || !auditLeadName || !auditLeadEmail || !auditLeadPhone}
-                          >
-                            {saving ? <Loader2 className="spin" size={14} /> : <Calendar size={14} />}
-                            {subCompleted ? 'Update Audit Schedule' : 'Schedule Audit'}
-                          </button>
+                          {hasPrivilege('Application Officer') ? (
+                            <button
+                              className="action-btn-primary sm"
+                              onClick={() => {
+                                if (!auditDate || !auditLeadName || !auditLeadEmail || !auditLeadPhone) return;
+                                const payload = JSON.stringify({
+                                  date: auditDate,
+                                  time: auditTime,
+                                  leadAuditorName: auditLeadName,
+                                  leadAuditorEmail: auditLeadEmail,
+                                  leadAuditorPhone: auditLeadPhone,
+                                });
+                                submitStep(6, 1, payload);
+                              }}
+                              disabled={saving || !auditDate || !auditLeadName || !auditLeadEmail || !auditLeadPhone}
+                            >
+                              {saving ? <Loader2 className="spin" size={14} /> : <Calendar size={14} />}
+                              {subCompleted ? 'Update Audit Schedule' : 'Schedule Audit'}
+                            </button>
+                          ) : (
+                            <NoPermissionView privilege="Application Officer" />
+                          )}
                         </>
+
                       )}
                       {sub.type === 'confirm' && (
-                        <button className="action-btn-primary sm" onClick={() => submitStep(6, sub.id)} disabled={saving}>
-                          {saving ? <Loader2 className="spin" size={14} /> : <CheckCircle size={14} />}
-                          {sub.id === 2 ? 'Mark as Audited' : sub.id === 4 ? 'Mark NC as Closed' : 'Confirm Audit Report Received'}
-                        </button>
+                        hasPrivilege('Application Officer') ? (
+                          <button className="action-btn-primary sm" onClick={() => submitStep(6, sub.id)} disabled={saving}>
+                            {saving ? <Loader2 className="spin" size={14} /> : <CheckCircle size={14} />}
+                            {sub.id === 2 ? 'Mark as Audited' : sub.id === 4 ? 'Mark NC as Closed' : 'Confirm Audit Report Received'}
+                          </button>
+                        ) : (
+                          <NoPermissionView privilege="Application Officer" />
+                        )
                       )}
+
                       {sub.type === 'display' && (
                         <div className="substep-display">
                           {processData?.audit?.auditReportFile && (
                             <div className="file-info">
                               <p>Audit report uploaded.</p>
-                              <a href={`${processData.audit.auditReportFile}`} target="_blank" rel="noreferrer" className="file-link">
+                              <a href={resolveUrl(processData.audit.auditReportFile)} target="_blank" rel="noreferrer" className="file-link">
                                 <FileText size={16} /> View Client Report
                               </a>
                             </div>
@@ -683,15 +847,20 @@ export default function ApplicationProcess() {
                             accept=".pdf,.doc,.docx"
                             onChange={e => setAuditReportFile(e.target.files[0])}
                           />
-                          <button
-                            className="action-btn-primary sm"
-                            onClick={() => submitStep(6, 5, null, auditReportFile)}
-                            disabled={saving || !auditReportFile}
-                          >
-                            {saving ? <Loader2 className="spin" size={14} /> : <Upload size={14} />}
-                            {processData?.audit?.auditReportFile ? 'Update' : 'Upload'} Audit Report
-                          </button>
+                          {hasPrivilege('Application Officer') ? (
+                            <button
+                              className="action-btn-primary sm"
+                              onClick={() => submitStep(6, 5, null, auditReportFile)}
+                              disabled={saving || !auditReportFile}
+                            >
+                              {saving ? <Loader2 className="spin" size={14} /> : <Upload size={14} />}
+                              {processData?.audit?.auditReportFile ? 'Update' : 'Upload'} Audit Report
+                            </button>
+                          ) : (
+                            <NoPermissionView privilege="Application Officer" />
+                          )}
                         </div>
+
                       )}
                       {sub.type === 'upload' && sub.id === 3 && (
                         <>
@@ -706,15 +875,20 @@ export default function ApplicationProcess() {
                             accept=".pdf,.doc,.docx"
                             onChange={e => setNcReportFile(e.target.files[0])}
                           />
-                          <button
-                            className="action-btn-primary sm"
-                            onClick={() => submitStep(6, 3, null, ncReportFile)}
-                            disabled={saving || !ncReportFile}
-                          >
-                            {saving ? <Loader2 className="spin" size={14} /> : <Upload size={14} />}
-                            Upload NC Report
-                          </button>
+                          {hasPrivilege('Application Officer') ? (
+                            <button
+                              className="action-btn-primary sm"
+                              onClick={() => submitStep(6, 3, null, ncReportFile)}
+                              disabled={saving || !ncReportFile}
+                            >
+                              {saving ? <Loader2 className="spin" size={14} /> : <Upload size={14} />}
+                              Upload NC Report
+                            </button>
+                          ) : (
+                            <NoPermissionView privilege="Application Officer" />
+                          )}
                         </>
+
                       )}
                     </div>
                   )}
@@ -739,49 +913,66 @@ export default function ApplicationProcess() {
     }
 
     if (step.id === 7) {
-      if (isComplete) return <CompletedPanel label="Application Successful for Certification" timestamp={processData?.certificationApprovedAt} />;
+      if (processData?.shariaBoardSentAt) return <CompletedPanel label="Logsheet Created" timestamp={processData?.shariaBoardSentAt} />;
       return (
         <div className="action-panel">
-          <h2>Confirm Certification Approval</h2>
-          <p>Confirm that the application has been successfully reviewed and approved for Halal certification.</p>
-          <button className="action-btn-primary" onClick={() => submitStep(7)} disabled={saving}>
-            {saving ? <Loader2 className="spin" size={16} /> : <Award size={16} />}
-            {saving ? 'Processing...' : 'Confirm Approval for Certification'}
-          </button>
+          <h2>Initiate Shari'a Logsheet</h2>
+          <p>Create a formal logsheet to be sent to the Shari'a Board for endorsement.</p>
+          {hasPrivilege('Application Officer') ? (
+            <button className="action-btn-primary" onClick={() => setShowLogsheetModal(true)} disabled={saving}>
+              <FileText size={16} />
+              Create Logsheet
+            </button>
+          ) : (
+            <NoPermissionView privilege="Application Officer" />
+          )}
         </div>
       );
     }
 
     if (step.id === 8) {
-      if (isComplete) return <CompletedPanel label="Sent to Shari'a Board" timestamp={processData?.shariaBoardSentAt} />;
+      const isComplete = application?.processStep > 8;
+      if (isComplete) return <CompletedPanel label="Shari'a Board Endorsed" timestamp={processData?.certificationApprovedAt} />;
       return (
         <div className="action-panel">
           <h2>Shari'a Board Review</h2>
           <div className="mb-6 bg-amber-50 p-4 rounded-xl border border-amber-100 flex gap-3">
             <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
             <p className="text-xs text-amber-800 leading-relaxed">
-              Applications sent to the Shari'a Board will be listed in the dedicated <strong>Shari'a Board</strong> page for formal endorsement.
+              This application is currently with the Shari'a Board. Every board member must sign the logsheet before certification is successful.
             </p>
           </div>
-          <p>Proceed to send this application for Shari'a Board formal review.</p>
-          <button className="action-btn-primary" onClick={() => submitStep(8)} disabled={saving}>
-            {saving ? <Loader2 className="spin" size={16} /> : <Award size={16} />}
-            {saving ? 'Processing...' : "Send to Shari'a Board"}
-          </button>
+          <p>Status: <strong>Awaiting Board Signatures</strong></p>
+          <div style={{ marginTop: '16px' }}>
+            <button className="action-btn-primary sm" onClick={() => navigate('/sharia-board')} style={{ width: 'auto' }}>
+              <Award size={16} />
+              Go to Shari'a Board Page
+            </button>
+          </div>
         </div>
       );
     }
 
     if (step.id === 9) {
-      if (isComplete) return <CompletedPanel label="Certificate Processing Started" timestamp={processData?.processingStartedAt} />;
+      if (application?.processStep > 9) return <CompletedPanel label="Application Successful" timestamp={processData?.certificationApprovedAt} />;
       return (
         <div className="action-panel">
-          <h2>Certificate Processing</h2>
-          <p>Begin processing the Halal certificate for this application.</p>
-          <button className="action-btn-primary" onClick={() => submitStep(9)} disabled={saving}>
-            {saving ? <Loader2 className="spin" size={16} /> : <Loader2 size={16} />}
-            {saving ? 'Starting...' : 'Start Certificate Processing'}
-          </button>
+          <h2>Application Successful</h2>
+          <div className="mb-6 bg-green-50 p-4 rounded-xl border border-green-100 flex gap-3">
+            <CheckCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-green-800 leading-relaxed">
+              The Shari'a Board has endorsed this application. You can now proceed to issue the certificate.
+            </p>
+          </div>
+          <p>Approval received on: <strong>{processData?.certificationApprovedAt ? new Date(processData.certificationApprovedAt).toLocaleDateString() : 'N/A'}</strong></p>
+          {hasPrivilege('Application Officer') ? (
+            <button className="action-btn-primary" onClick={() => submitStep(9)} disabled={saving}>
+              {saving ? <Loader2 className="spin" size={16} /> : <Award size={16} />}
+              {saving ? 'Processing...' : 'Confirm for Processing'}
+            </button>
+          ) : (
+            <NoPermissionView privilege="Application Officer" />
+          )}
         </div>
       );
     }
@@ -821,6 +1012,7 @@ export default function ApplicationProcess() {
                     onChange={e => setCertNumber(e.target.value)} 
                     placeholder="Enter certificate number"
                     className="form-input"
+                    disabled={!hasPrivilege('Certificate Officer')}
                   />
                 </div>
                 <div>
@@ -832,6 +1024,7 @@ export default function ApplicationProcess() {
                     value={certExpiryDate} 
                     onChange={e => setCertExpiryDate(e.target.value)} 
                     className="form-input"
+                    disabled={!hasPrivilege('Certificate Officer')}
                   />
                 </div>
               </div>
@@ -841,7 +1034,7 @@ export default function ApplicationProcess() {
               <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px', display: 'block' }}>
                 Certificate Document (Final PDF)
               </label>
-              <div className="upload-area" onClick={() => document.getElementById('cert-upload').click()} style={{ minHeight: '120px' }}>
+              <div className="upload-area" onClick={() => hasPrivilege('Certificate Officer') && document.getElementById('cert-upload').click()} style={{ minHeight: '120px', cursor: hasPrivilege('Certificate Officer') ? 'pointer' : 'not-allowed' }}>
                 <Upload size={24} color="#9ca3af" />
                 <p style={{ fontSize: '13px', margin: '8px 0' }}>{certFile ? certFile.name : 'Click to select certificate file'}</p>
                 <span style={{ fontSize: '11px', color: '#6b7280' }}>Only PDF files supported</span>
@@ -856,16 +1049,23 @@ export default function ApplicationProcess() {
             </div>
           </div>
 
-          <button 
-            className="action-btn-primary success" 
-            onClick={handleIssueCertificate} 
-            disabled={saving || !certFile || !certExpiryDate || !certNumber}
-            style={{ marginTop: '24px', width: '100%', maxWidth: '300px', marginInline: 'auto' }}
-          >
-            {saving ? <Loader2 className="spin" size={16} /> : <Award size={16} />}
-            {saving ? 'Issuing Certificate...' : 'Complete Issue Certificate'}
-          </button>
+          {hasPrivilege('Certificate Officer') ? (
+            <button 
+              className="action-btn-primary success" 
+              onClick={handleIssueCertificate} 
+              disabled={saving || !certFile || !certExpiryDate || !certNumber}
+              style={{ marginTop: '24px', width: '100%', maxWidth: '300px', marginInline: 'auto' }}
+            >
+              {saving ? <Loader2 className="spin" size={16} /> : <Award size={16} />}
+              {saving ? 'Issuing Certificate...' : 'Complete Issue Certificate'}
+            </button>
+          ) : (
+            <div style={{ marginTop: '24px' }}>
+              <NoPermissionView privilege="Certificate Officer" />
+            </div>
+          )}
         </div>
+
       );
     }
 
@@ -928,6 +1128,72 @@ export default function ApplicationProcess() {
 
       {/* Action Panel */}
       {renderActionPanel()}
+
+      {/* Logsheet Modal */}
+      {showLogsheetModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[9999]" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 9999 }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', width: '100%', maxWidth: '512px', overflow: 'hidden' }}>
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center" style={{ padding: '24px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Create Shari'a Logsheet</h3>
+              <button onClick={() => setShowLogsheetModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}><XCircle size={20} /></button>
+            </div>
+            
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '6px' }}>Company Name</label>
+                <input 
+                  type="text" 
+                  value={logsheetData.companyName} 
+                  onChange={e => setLogsheetData({...logsheetData, companyName: e.target.value})}
+                  className="form-input"
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #d1d5db' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '6px' }}>Company Email</label>
+                <input 
+                  type="email" 
+                  value={logsheetData.companyEmail} 
+                  onChange={e => setLogsheetData({...logsheetData, companyEmail: e.target.value})}
+                  className="form-input"
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #d1d5db' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '6px' }}>Audit Report (PDF/Doc)</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <input 
+                    type="file" 
+                    onChange={e => setLogsheetData({...logsheetData, auditReportFile: e.target.files[0]})}
+                    accept=".pdf,.doc,.docx"
+                    style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '8px' }}
+                  />
+                  {logsheetData.auditReportFile && <p className="text-xs text-green-600">Selected: {logsheetData.auditReportFile.name}</p>}
+                </div>
+              </div>
+
+              <div style={{ marginTop: '12px', display: 'flex', gap: '12px' }}>
+                <button 
+                  className="action-btn-primary" 
+                  onClick={handleCreateLogsheet}
+                  disabled={saving}
+                  style={{ flex: 1 }}
+                >
+                  {saving ? 'Creating...' : 'Confirm & Send to Board'}
+                </button>
+                <button 
+                  onClick={() => setShowLogsheetModal(false)}
+                  style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #d1d5db', background: 'white', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -950,7 +1216,7 @@ function CompletedPanel({ label, timestamp, children }) {
 function getStatusColor(status) {
   const map = {
     'Submitted': '#4361ee', 'Accepted': '#16a34a', 'Issued': '#16a34a',
-    'Rejected': '#dc2626', "With Shari'a Board": '#f59e0b', 'Renewal': '#f59e0b'
+    'Successful': '#16a34a', 'Rejected': '#dc2626', "With Shari'a Board": '#f59e0b', 'Renewal': '#f59e0b'
   };
   return map[status] || '#6b7280';
 }

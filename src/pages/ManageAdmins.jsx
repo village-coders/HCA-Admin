@@ -13,8 +13,12 @@ import {
 } from "lucide-react";
 import { SyncLoader } from "react-spinners";
 import axios from "axios";
+import { useAuth } from "../hooks/useAuth";
+
 
 const ManageAdmins = () => {
+  const { user: currentUser } = useAuth();
+
   const [admins, setAdmins] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,7 +33,17 @@ const ManageAdmins = () => {
     password: "",
     contact: "",
     role: "admin",
+    privileges: ["Viewer"],
   });
+
+  const PRIVILEGE_OPTIONS = [
+    "Viewer",
+    "Application Officer",
+    "Accountant",
+    "Certificate Officer",
+    "Shari'a Board",
+  ];
+
   
   // 🔹 FETCH ADMINS (SAFE)
   const fetchAdmins = async (signal) => {
@@ -60,6 +74,7 @@ const ManageAdmins = () => {
         email: admin.email || "—",
         contact: admin.contact || "—",
         role: admin.role || "admin",
+        privileges: admin.privileges || ["Viewer"],
         addedDate: admin.createdAt
           ? new Date(admin.createdAt).toISOString().split("T")[0]
           : "—",
@@ -111,6 +126,7 @@ const ManageAdmins = () => {
           password: newAdmin.password,
           contact: newAdmin.contact,
           role: newAdmin.role,
+          privileges: newAdmin.privileges,
         }),
       });
 
@@ -128,8 +144,10 @@ const ManageAdmins = () => {
         email: "",
         password: "",
         contact: "",
-        role: "Admin",
+        role: "admin",
+        privileges: ["Viewer"],
       });
+
 
       fetchAdmins(); // refresh list
     } catch (err) {
@@ -149,18 +167,37 @@ const ManageAdmins = () => {
       )
     : [];
 
-  const handleToggleStatus = (id) => {
-    setAdmins((prev) =>
-      prev.map((admin) =>
-        admin.id === id
-          ? {
-              ...admin,
-              status: admin.status === "Active" ? "Inactive" : "Active",
-            }
-          : admin
-      )
-    );
+  const handleToggleStatus = async (id) => {
+    try {
+      const admin = admins.find(a => a.id === id);
+      if (!admin) return;
+
+      const newStatus = admin.status === "Active" ? false : true;
+      const token = JSON.parse(localStorage.getItem("accessToken"));
+
+      const res = await axios.put(`${import.meta.env.VITE_BASE_URL}/users/admin/${id}`, 
+        { isActive: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (res.data.status === "success") {
+        setAdmins((prev) =>
+          prev.map((admin) =>
+            admin.id === id
+              ? { ...admin, status: newStatus ? "Active" : "Inactive" }
+              : admin
+          )
+        );
+        toast.success(`Admin status updated to ${newStatus ? 'Active' : 'Inactive'}`);
+      } else {
+        toast.error(res.data.message || "Failed to update status");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || "Failed to update status");
+    }
   };
+
 
   const handleDeleteAdmin = async(id) => {
     if (window.confirm("Are you sure you want to delete this admin?")) {
@@ -309,7 +346,32 @@ const ManageAdmins = () => {
                   <option value="super admin">Super Admin</option>
                 </select>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Privileges (Select one or more)
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {PRIVILEGE_OPTIONS.map((priv) => (
+                    <label key={priv} className="flex items-center space-x-2 text-sm text-gray-600 cursor-pointer p-2 border rounded-lg hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        className="rounded text-[#00853b] focus:ring-[#00853b]"
+                        checked={newAdmin.privileges.includes(priv)}
+                        onChange={(e) => {
+                          const updatedPrivs = e.target.checked
+                            ? [...newAdmin.privileges, priv]
+                            : newAdmin.privileges.filter((p) => p !== priv);
+                          setNewAdmin({ ...newAdmin, privileges: updatedPrivs.length > 0 ? updatedPrivs : ["Viewer"] });
+                        }}
+                      />
+                      <span>{priv}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
+
             <div className="flex justify-end space-x-3 mt-8">
               <button
                 onClick={() => {
@@ -371,8 +433,12 @@ const ManageAdmins = () => {
                   Added Date
                 </th>
                 <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">
+                  Privileges
+                </th>
+                <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">
                   Status
                 </th>
+
                 <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">
                   Actions
                 </th>
@@ -435,6 +501,17 @@ const ManageAdmins = () => {
                   </td>
 
                   <td className="p-4">
+                    <div className="flex flex-wrap gap-1">
+                      {admin.privileges.map((p) => (
+                        <span key={p} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded-md border border-gray-200">
+                          {p}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+
+                  <td className="p-4">
+
                     <button
                       onClick={() => handleToggleStatus(admin.id)}
                       className={`px-3 py-1 text-xs rounded-full cursor-pointer ${
@@ -462,14 +539,16 @@ const ManageAdmins = () => {
                           password: "",
                           contact: admin.contact,
                           role: admin.role,
+                          privileges: admin.privileges,
                         });
+
                         setShowAddForm(true);
                       }}
                       className="p-1.5 hover:bg-gray-100 rounded-lg cursor-pointer"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
-                    {admin.role !== "super admin" && (
+                    {(currentUser?.role === "super admin" && admin.id !== currentUser._id) && (
                       <button
                         onClick={() => handleDeleteAdmin(admin.id)}
                         className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg cursor-pointer"
@@ -478,6 +557,7 @@ const ManageAdmins = () => {
                       </button>
                     )}
                   </td>
+
                 </tr>
               ))}
             </tbody>
