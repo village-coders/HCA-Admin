@@ -40,6 +40,7 @@ const ShariaBoard = () => {
   const [isUploadingSignature, setIsUploadingSignature] = useState(false);
   const [uploadName, setUploadName] = useState(user?.signatureName || user?.fullName || '');
   const [uploadTitle, setUploadTitle] = useState(user?.signatureTitle || "Member, Shari'a Board");
+  const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
 
   const getToken = () => JSON.parse(localStorage.getItem('accessToken'));
 
@@ -93,6 +94,7 @@ const ShariaBoard = () => {
         }
       });
       toast.success('Signature uploaded successfully');
+      setIsSetupModalOpen(false);
       setSignatureFile(null);
       fetchUser(); // Refresh user context to get new signature URL
     } catch (error) {
@@ -204,60 +206,20 @@ const ShariaBoard = () => {
                 <img src={resolveUrl(user.signatureImage)} alt="My Signature" className="h-full object-contain" />
               </div>
             )}
-            <input 
-              type="file" 
-              id="sig-upload" 
-              hidden 
-              accept="image/png" 
-              onChange={e => setSignatureFile(e.target.files[0])}
-            />
-            <label 
-              htmlFor="sig-upload"
-              className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer transition-all flex items-center h-10"
+            <button 
+              onClick={() => {
+                setUploadName(user?.signatureName || user?.fullName || '');
+                setUploadTitle(user?.signatureTitle || "Member, Shari'a Board");
+                setSignatureFile(null);
+                setIsSetupModalOpen(true);
+              }}
+              className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer transition-all flex items-center h-10 gap-2"
             >
-              {user?.signatureImage ? 'Update Signature' : 'Choose Signature Image'}
-            </label>
+              <UserCheck className="w-4 h-4" />
+              {user?.signatureImage ? 'Update Signature' : 'Setup Signature'}
+            </button>
           </div>
         </div>
-
-        {/* Upload Controls (Moved out of horizontal flex row) */}
-        {signatureFile && (
-          <div className="w-full mt-6 pt-6 border-t border-gray-100 space-y-4">
-            <h4 className="text-sm font-bold text-gray-700">Set Your Endorsement Credentials</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Your Full Name</label>
-                <input 
-                  type="text" 
-                  placeholder="E.g. Sheikh Abdullah"
-                  value={uploadName}
-                  onChange={(e) => setUploadName(e.target.value)}
-                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#00853b] outline-none text-sm transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Your Official Title</label>
-                <input 
-                  type="text" 
-                  placeholder="E.g. Member, Shari'a Board"
-                  value={uploadTitle}
-                  onChange={(e) => setUploadTitle(e.target.value)}
-                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#00853b] outline-none text-sm transition-all"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end pt-2">
-              <button 
-                onClick={handleUploadSignature}
-                disabled={isUploadingSignature || !uploadName || !uploadTitle}
-                className="px-6 py-2.5 bg-[#00853b] text-white rounded-xl text-sm font-semibold hover:bg-[#007032] disabled:bg-gray-300 transition-all flex items-center gap-2 shadow-sm"
-              >
-                {isUploadingSignature ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                {user?.signatureImage ? 'Update Signature & Credentials' : 'Upload Signature & Credentials'}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Main Content */}
@@ -409,6 +371,7 @@ const ShariaBoard = () => {
                         <img src={resolveUrl(sig.signatureImage)} alt="Signature" style={{ maxHeight: '100%', objectFit: 'contain' }} />
                       </div>
                       <p className="font-bold text-sm text-gray-900">{sig.user?.fullName}</p>
+                      <p className="font-bold text-sm text-gray-900">{sig.user?.title}</p>
                       <p className="text-[10px] text-gray-400">{new Date(sig.signedAt).toLocaleString()}</p>
                     </div>
                   ))}
@@ -471,6 +434,85 @@ const ShariaBoard = () => {
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Setup Signature Modal */}
+      {isSetupModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center text-black">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <UserCheck className="text-[#00853b]" />
+                {user?.signatureImage ? 'Update Signature setup' : 'Signature Setup'}
+              </h2>
+              <button 
+                onClick={() => setIsSetupModalOpen(false)}
+                className="p-2 hover:bg-gray-100 rounded-xl text-gray-400"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6 text-black">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Your Full Name</label>
+                <input 
+                  type="text" 
+                  placeholder="E.g. Sheikh Abdullah"
+                  value={uploadName}
+                  onChange={(e) => setUploadName(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#00853b] outline-none text-sm transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Your Official Title</label>
+                <input 
+                  type="text" 
+                  placeholder="E.g. Member, Shari'a Board"
+                  value={uploadTitle}
+                  onChange={(e) => setUploadTitle(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#00853b] outline-none text-sm transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Digital Signature Image (PNG)</label>
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="file" 
+                    id="sig-upload-modal" 
+                    hidden 
+                    accept="image/png" 
+                    onChange={e => setSignatureFile(e.target.files[0])}
+                  />
+                  <label 
+                    htmlFor="sig-upload-modal"
+                    className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 cursor-pointer transition-all flex items-center gap-2 w-full justify-center"
+                  >
+                    <Upload className="w-4 h-4" />
+                    {signatureFile ? signatureFile.name : (user?.signatureImage ? 'Choose new transparent PNG...' : 'Choose transparent PNG...')}
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+              <button 
+                onClick={() => setIsSetupModalOpen(false)}
+                className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleUploadSignature}
+                disabled={isUploadingSignature || !uploadName || !uploadTitle || (!user?.signatureImage && !signatureFile)}
+                className="px-6 py-2 bg-[#00853b] text-white rounded-xl text-sm font-bold hover:bg-[#007032] transition-all flex items-center gap-2 disabled:bg-gray-300 shadow-sm shadow-[#00853b]/20"
+              >
+                {isUploadingSignature ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                Save Credentials
+              </button>
             </div>
           </div>
         </div>
