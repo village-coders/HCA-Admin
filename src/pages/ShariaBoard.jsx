@@ -370,8 +370,8 @@ const ShariaBoard = () => {
                       <div className="h-16 flex items-center justify-center mb-3">
                         <img src={resolveUrl(sig.signatureImage)} alt="Signature" style={{ maxHeight: '100%', objectFit: 'contain' }} />
                       </div>
-                      <p className="font-bold text-sm text-gray-900">{sig.user?.fullName}</p>
-                      <p className="font-bold text-sm text-gray-900">{sig.user?.title}</p>
+                      <p className="font-bold text-sm text-gray-900 mb-0.5">{sig.signerName || sig.user?.fullName}</p>
+                      <p className="text-xs font-semibold text-gray-500 mb-1">{sig.signerTitle || "Member, Shari'a Board"}</p>
                       <p className="text-[10px] text-gray-400">{new Date(sig.signedAt).toLocaleString()}</p>
                     </div>
                   ))}
