@@ -628,14 +628,20 @@ const AllProvider = ({ children }) => {
       // If we have the certificate in state, check if it's an external link
       const cert = certificates.find(c => (c.id === certificateId || c._id === certificateId));
       if (cert && cert.pdfPath && cert.pdfPath.startsWith('http') && !cert.pdfPath.includes('/api/files/')) {
-        window.open(cert.pdfPath, '_blank');
+        const viewUrl = cert.pdfPath.startsWith('http') ? cert.pdfPath : `${baseUrl}${cert.pdfPath}`;
+        window.open(viewUrl, '_blank');
         toast.info("Opening external certificate link...");
         return null; // Return null to indicate no blob to handle
       }
 
-      const response = await fetch(cert.pdfPath);
+      const downloadUrl = cert.pdfPath.startsWith('http') ? cert.pdfPath : `${baseUrl}${cert.pdfPath}`;
+      const response = await fetch(downloadUrl, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
-      const blob = response.blob()
+      if (!response.ok) throw new Error("Failed to fetch certificate");
+
+      const blob = await response.blob()
       
       // The backend should return a proper PDF file
       return blob;
@@ -1135,7 +1141,8 @@ const AllProvider = ({ children }) => {
     isLoading,
     setIsLoading,
     errors,
-    setErrors
+    setErrors,
+    baseUrl
   };
 
   return (

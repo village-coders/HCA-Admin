@@ -57,7 +57,8 @@ const Certificates = () => {
     downloadCertificate,
     companies,
     products,
-    applications
+    applications,
+    baseUrl
   } = useAll();
 
   // Fetch certificates on component mount
@@ -351,8 +352,15 @@ const Certificates = () => {
         cert.id === certId || cert._id === certId
       );
       
-      // Use certificate number or ID for filename
-      const fileName = `certificate_${certificate?.certificateNumber || certId}.pdf`;
+      // Use certificate number or ID for filename with correct extension
+      if (certificate?.pdfPath) {
+        const viewUrl = certificate.pdfPath.startsWith('http') ? certificate.pdfPath : `${baseUrl}${certificate.pdfPath}`;
+        window.open(viewUrl, '_blank', 'noopener,noreferrer');
+      }
+
+      const mimeExt = blob.type.split('/')[1] || 'pdf';
+      const ext = mimeExt === 'jpeg' ? 'jpg' : mimeExt;
+      const fileName = `certificate_${certificate?.certificateNumber || certId}.${ext}`;
       link.href = url;
       link.download = fileName;
       
@@ -383,11 +391,16 @@ const Certificates = () => {
         return;
       }
       
+      const token = JSON.parse(localStorage.getItem("accessToken"));
+      const downloadUrl = certificate.labelPath.startsWith('http') ? certificate.labelPath : `${baseUrl}${certificate.labelPath}`;
+
       toast.loading("Downloading label...", { id: "download-label" });
       
-      window.open(certificate.labelPath, '_blank', 'noopener,noreferrer');
+      window.open(downloadUrl, '_blank', 'noopener,noreferrer');
 
-      const response = await fetch(certificate.labelPath);
+      const response = await fetch(downloadUrl, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (!response.ok) throw new Error("Failed to fetch file");
       
       const blob = await response.blob();
@@ -395,9 +408,8 @@ const Certificates = () => {
       const link = document.createElement('a');
       link.href = url;
       
-      let ext = 'pdf';
-      if (certificate.labelPath.endsWith('.png')) ext = 'png';
-      else if (certificate.labelPath.endsWith('.jpg') || certificate.labelPath.endsWith('.jpeg')) ext = 'jpg';
+      const mimeExt = blob.type.split('/')[1] || 'png';
+      const ext = mimeExt === 'jpeg' ? 'jpg' : mimeExt;
       
       link.setAttribute('download', `Label_${certificate.certificateNumber || 'certificate'}.${ext}`);
       

@@ -28,7 +28,8 @@ const Invoices = () => {
     fetchCompanies,
     issueInvoice,
     createInvoice,
-    approvePayment
+    approvePayment,
+    baseUrl
   } = useAll();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -485,7 +486,10 @@ const Invoices = () => {
                         </div>
                       )}
                       <button
-                        onClick={() => window.open(selectedInvoice.proofOfPayment, '_blank')}
+                        onClick={() => {
+                          const url = selectedInvoice.proofOfPayment.startsWith('http') ? selectedInvoice.proofOfPayment : `${baseUrl}${selectedInvoice.proofOfPayment}`;
+                          window.open(url, '_blank');
+                        }}
                         className="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-all flex items-center gap-2"
                       >
                         <Search className="w-4 h-4" />

@@ -37,7 +37,8 @@ const Audits = () => {
     completeAudit,
     uploadAuditReport,
     sendCorrectionReminder,
-    resendAuditCorrection
+    resendAuditCorrection,
+    baseUrl
   } = useAll();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -342,12 +343,18 @@ const Audits = () => {
                             audit.auditReport && {
                               label: 'View Audit Report',
                               icon: ExternalLink,
-                              onClick: () => window.open(audit.auditReport, '_blank')
+                              onClick: () => {
+                                const url = audit.auditReport.startsWith('http') ? audit.auditReport : `${baseUrl}${audit.auditReport}`;
+                                window.open(url, '_blank');
+                              }
                             },
                             audit.ncReport && {
                               label: 'View NC Report',
                               icon: ExternalLink,
-                              onClick: () => window.open(audit.ncReport, '_blank')
+                              onClick: () => {
+                                const url = audit.ncReport.startsWith('http') ? audit.ncReport : `${baseUrl}${audit.ncReport}`;
+                                window.open(url, '_blank');
+                              }
                             }
                           ].filter(Boolean)} 
                         />
@@ -748,7 +755,10 @@ const Audits = () => {
                       </div>
                       {selectedAudit.auditReport && (
                         <button 
-                          onClick={() => window.open(selectedAudit.auditReport, '_blank')}
+                          onClick={() => {
+                            const url = selectedAudit.auditReport.startsWith('http') ? selectedAudit.auditReport : `${baseUrl}${selectedAudit.auditReport}`;
+                            window.open(url, '_blank');
+                          }}
                           className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors flex items-center gap-1.5"
                         >
                           <Eye className="w-3.5 h-3.5" />
@@ -769,7 +779,10 @@ const Audits = () => {
                       </div>
                       {selectedAudit.ncReport && (
                         <button 
-                          onClick={() => window.open(selectedAudit.ncReport, '_blank')}
+                          onClick={() => {
+                            const url = selectedAudit.ncReport.startsWith('http') ? selectedAudit.ncReport : `${baseUrl}${selectedAudit.ncReport}`;
+                            window.open(url, '_blank');
+                          }}
                           className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-colors flex items-center gap-1.5"
                         >
                           <Eye className="w-3.5 h-3.5" />

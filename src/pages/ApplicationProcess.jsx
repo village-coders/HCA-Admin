@@ -235,18 +235,17 @@ export default function ApplicationProcess() {
         return;
       }
 
-      // If pdfPath is an external URL, open it directly in a new tab
-      if (cert.pdfPath && cert.pdfPath.startsWith('http') && !cert.pdfPath.includes('/api/files/')) {
-        window.open(cert.pdfPath, '_blank');
-        toast.success("Opening certificate in new tab...");
-        return;
-      }
+      const downloadUrl = cert.pdfPath.startsWith('http') ? cert.pdfPath : `${API_BASE_URL}${cert.pdfPath.startsWith('/api') ? cert.pdfPath.replace('/api', '') : cert.pdfPath}`;
+      
+      toast.loading("Downloading certificate...", { id: "download-cert" });
+      window.open(downloadUrl, '_blank', 'noopener,noreferrer');
 
-      window.open(cert.pdfPath, '_blank')
-      const response = await fetch(cert.pdfPath);
+      const response = await fetch(downloadUrl, {
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
+      if (!response.ok) throw new Error("Failed to fetch file");
 
-      const blob = response.blob()
-
+      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -255,9 +254,43 @@ export default function ApplicationProcess() {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      toast.success("Certificate downloaded", { id: "download-cert" });
     } catch (err) {
       console.error(err);
-      toast.error('Failed to download certificate');
+      toast.error('Failed to download certificate', { id: "download-cert" });
+    }
+  };
+
+  const handleDownloadLabel = async () => {
+    try {
+      if (!processData?.labelFile) {
+        toast.error('Label file not found');
+        return;
+      }
+
+      const downloadUrl = resolveUrl(processData.labelFile);
+      
+      toast.loading("Downloading label order...", { id: "download-label" });
+      window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+
+      const response = await fetch(downloadUrl, {
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
+      if (!response.ok) throw new Error("Failed to fetch file");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `LabelOrder_${application.applicationNumber}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Label order downloaded", { id: "download-label" });
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to download label order', { id: "download-label" });
     }
   };
 
@@ -996,16 +1029,14 @@ export default function ApplicationProcess() {
                 Download Issued Certificate
               </button>
               {processData?.labelFile && (
-                <a 
-                  href={resolveUrl(processData.labelFile)} 
-                  target="_blank" 
-                  rel="noreferrer" 
-                  className="action-btn-secondary"
-                  style={{ width: 'auto', padding: '10px 24px', display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', background: '#f3f4f6', color: '#374151', borderRadius: '8px', fontWeight: 500 }}
+                <button 
+                  className="action-btn-secondary" 
+                  onClick={handleDownloadLabel}
+                  style={{ width: 'auto', padding: '10px 24px', display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', background: '#f3f4f6', color: '#374151', borderRadius: '8px', fontWeight: 500, border: '1px solid #d1d5db', cursor: 'pointer' }}
                 >
                   <Download size={18} />
-                  View Product Label
-                </a>
+                  Download Label Order
+                </button>
               )}
             </div>
           </CompletedPanel>
@@ -1049,18 +1080,18 @@ export default function ApplicationProcess() {
             
             <div className="details-card" style={{ padding: '20px' }}>
               <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px', display: 'block' }}>
-                Certificate Document (Final PDF)
+                Certificate Document (Final PDF or Image)
               </label>
               <div className="upload-area" onClick={() => hasPrivilege('Certificate Officer') && document.getElementById('cert-upload').click()} style={{ minHeight: '120px', cursor: hasPrivilege('Certificate Officer') ? 'pointer' : 'not-allowed' }}>
                 <Upload size={24} color="#9ca3af" />
                 <p style={{ fontSize: '13px', margin: '8px 0' }}>{certFile ? certFile.name : 'Click to select certificate file'}</p>
-                <span style={{ fontSize: '11px', color: '#6b7280' }}>Only PDF files supported</span>
+                <span style={{ fontSize: '11px', color: '#6b7280' }}>PDF, PNG, JPG files supported</span>
               </div>
               <input 
                 type="file" 
                 id="cert-upload" 
                 hidden 
-                accept=".pdf" 
+                accept=".pdf,.png,.jpg,.jpeg" 
                 onChange={e => setCertFile(e.target.files[0])} 
               />
             </div>
