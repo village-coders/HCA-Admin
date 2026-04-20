@@ -20,7 +20,8 @@ import {
   Info,
   Mail,
   Phone,
-  Globe
+  Globe,
+  Tag
 } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
 import { toast } from 'sonner';
@@ -370,6 +371,47 @@ const Certificates = () => {
       console.error("Download error:", error);
       toast.dismiss("download");
       toast.error("Failed to download certificate");
+    }
+  };
+
+  // Handle Download Label
+  const handleDownloadLabel = async (certId) => {
+    try {
+      const certificate = certificates.find(cert => cert.id === certId || cert._id === certId);
+      if (!certificate || !certificate.labelPath) {
+        toast.error("No label found for this certificate");
+        return;
+      }
+      
+      toast.loading("Downloading label...", { id: "download-label" });
+      
+      window.open(certificate.labelPath, '_blank', 'noopener,noreferrer');
+
+      const response = await fetch(certificate.labelPath);
+      if (!response.ok) throw new Error("Failed to fetch file");
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      let ext = 'pdf';
+      if (certificate.labelPath.endsWith('.png')) ext = 'png';
+      else if (certificate.labelPath.endsWith('.jpg') || certificate.labelPath.endsWith('.jpeg')) ext = 'jpg';
+      
+      link.setAttribute('download', `Label_${certificate.certificateNumber || 'certificate'}.${ext}`);
+      
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.dismiss("download-label");
+      toast.success("Label downloaded!");
+    } catch (err) {
+      console.error("Error downloading label:", err);
+      toast.dismiss("download-label");
+      toast.error("Failed to download label.");
     }
   };
 
@@ -726,6 +768,15 @@ const Certificates = () => {
                   <Download className="w-4 h-4 mr-2" />
                   Download Certificate
                 </button>
+                {selectedCertificate?.labelPath && (
+                  <button 
+                    onClick={() => handleDownloadLabel(certId)}
+                    className="px-4 py-2 bg-gray-200 cursor-pointer text-gray-800 rounded-lg hover:bg-gray-300 transition-colors duration-200 flex items-center"
+                  >
+                    <Tag className="w-4 h-4 mr-2" />
+                    Download Label
+                  </button>
+                )}
               </div>
               <div className="flex items-center space-x-3">
                 <button
@@ -1033,6 +1084,11 @@ const Certificates = () => {
                                     label: 'Download Certificate',
                                     icon: Download,
                                     onClick: () => handleDownloadCertificate(certId)
+                                  },
+                                  cert.labelPath && {
+                                    label: 'Download Label',
+                                    icon: Tag,
+                                    onClick: () => handleDownloadLabel(certId)
                                   }
                                 ].filter(Boolean)}
                               />
