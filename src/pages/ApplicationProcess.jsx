@@ -145,7 +145,7 @@ export default function ApplicationProcess() {
   const [certNumber, setCertNumber] = useState('');
   const [certExpiryDate, setCertExpiryDate] = useState('');
   const [certFile, setCertFile] = useState(null);
-  const [certLabelFile, setCertLabelFile] = useState(null);
+  const [certLabelFiles, setCertLabelFiles] = useState([]);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejecting, setRejecting] = useState(false);
@@ -261,14 +261,19 @@ export default function ApplicationProcess() {
     }
   };
 
-  const handleDownloadLabel = async () => {
+  const handleDownloadLabel = async (indexOrPath) => {
     try {
-      if (!processData?.labelFile) {
-        toast.error('Label file not found');
-        return;
+      let downloadUrl;
+      if (typeof indexOrPath === 'number') {
+        const paths = application.processData?.labelFiles || [];
+        if (!paths[indexOrPath]) {
+          toast.error('Label file not found');
+          return;
+        }
+        downloadUrl = resolveUrl(paths[indexOrPath]);
+      } else {
+        downloadUrl = resolveUrl(indexOrPath);
       }
-
-      const downloadUrl = resolveUrl(processData.labelFile);
       
       toast.loading("Downloading label order...", { id: "download-label" });
       window.open(downloadUrl, '_blank', 'noopener,noreferrer');
@@ -282,7 +287,7 @@ export default function ApplicationProcess() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `LabelOrder_${application.applicationNumber}.pdf`);
+      link.setAttribute('download', `LabelOrder_${application.applicationNumber}_${typeof indexOrPath === 'number' ? indexOrPath + 1 : 'file'}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -349,8 +354,8 @@ export default function ApplicationProcess() {
       
       // Append additional body fields (like certNumber, expiryDate)
       Object.keys(additionalBody).forEach(key => {
-        if (key === 'labelFile' && additionalBody[key]) {
-          formData.append('label', additionalBody[key]);
+        if (key === 'labelFiles' && Array.isArray(additionalBody[key])) {
+          additionalBody[key].forEach(f => formData.append('label', f));
         } else {
           formData.append(key, additionalBody[key]);
         }
@@ -385,7 +390,7 @@ export default function ApplicationProcess() {
       toast.error('Please provide certificate file, number and expiry date');
       return;
     }
-    await submitStep(10, null, null, certFile, { certNumber, expiryDate: certExpiryDate, labelFile: certLabelFile });
+    await submitStep(10, null, null, certFile, { certNumber, expiryDate: certExpiryDate, labelFiles: certLabelFiles });
   };
 
   // Reject application
@@ -1028,16 +1033,17 @@ export default function ApplicationProcess() {
                 <Download size={18} />
                 Download Issued Certificate
               </button>
-              {processData?.labelFile && (
+              {application.processData?.labelFiles?.map((lp, idx) => (
                 <button 
+                  key={idx}
                   className="action-btn-secondary" 
-                  onClick={handleDownloadLabel}
+                  onClick={() => handleDownloadLabel(idx)}
                   style={{ width: 'auto', padding: '10px 24px', display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', background: '#f3f4f6', color: '#374151', borderRadius: '8px', fontWeight: 500, border: '1px solid #d1d5db', cursor: 'pointer' }}
                 >
                   <Download size={18} />
-                  Download Label Order
+                  Download Label Order {idx + 1}
                 </button>
-              )}
+              ))}
             </div>
           </CompletedPanel>
         );
@@ -1102,15 +1108,20 @@ export default function ApplicationProcess() {
               </label>
               <div className="upload-area" onClick={() => hasPrivilege('Certificate Officer') && document.getElementById('label-upload').click()} style={{ minHeight: '120px', cursor: hasPrivilege('Certificate Officer') ? 'pointer' : 'not-allowed' }}>
                 <Upload size={24} color="#9ca3af" />
-                <p style={{ fontSize: '13px', margin: '8px 0' }}>{certLabelFile ? certLabelFile.name : 'Click to select label file'}</p>
-                <span style={{ fontSize: '11px', color: '#6b7280' }}>PDF, PNG, JPG files supported</span>
+                <p style={{ fontSize: '13px', margin: '8px 0' }}>
+                    {certLabelFiles.length > 0 
+                      ? `${certLabelFiles.length} label file(s) selected` 
+                      : 'Click to select label file(s)'}
+                </p>
+                <span style={{ fontSize: '11px', color: '#6b7280' }}>PDF, PNG, JPG files supported (Select multiple if needed)</span>
               </div>
               <input 
                 type="file" 
                 id="label-upload" 
                 hidden 
+                multiple
                 accept=".pdf,.png,.jpg,.jpeg" 
-                onChange={e => setCertLabelFile(e.target.files[0])} 
+                onChange={e => setCertLabelFiles(Array.from(e.target.files))} 
               />
             </div>
           </div>
