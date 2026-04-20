@@ -145,6 +145,7 @@ export default function ApplicationProcess() {
   const [certNumber, setCertNumber] = useState('');
   const [certExpiryDate, setCertExpiryDate] = useState('');
   const [certFile, setCertFile] = useState(null);
+  const [certLabelFile, setCertLabelFile] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejecting, setRejecting] = useState(false);
@@ -315,7 +316,11 @@ export default function ApplicationProcess() {
       
       // Append additional body fields (like certNumber, expiryDate)
       Object.keys(additionalBody).forEach(key => {
-        formData.append(key, additionalBody[key]);
+        if (key === 'labelFile' && additionalBody[key]) {
+          formData.append('label', additionalBody[key]);
+        } else {
+          formData.append(key, additionalBody[key]);
+        }
       });
 
       const { data } = await axios.patch(
@@ -347,7 +352,7 @@ export default function ApplicationProcess() {
       toast.error('Please provide certificate file, number and expiry date');
       return;
     }
-    await submitStep(10, null, null, certFile, { certNumber, expiryDate: certExpiryDate });
+    await submitStep(10, null, null, certFile, { certNumber, expiryDate: certExpiryDate, labelFile: certLabelFile });
   };
 
   // Reject application
@@ -981,7 +986,7 @@ export default function ApplicationProcess() {
       if (application?.status === 'Issued') {
         return (
           <CompletedPanel label="Certificate Issued" timestamp={processData?.issuedAt}>
-            <div style={{ marginTop: '16px' }}>
+            <div style={{ marginTop: '16px', display: 'flex', gap: '12px' }}>
               <button 
                 className="action-btn-primary" 
                 onClick={handleDownloadCertificate}
@@ -990,6 +995,18 @@ export default function ApplicationProcess() {
                 <Download size={18} />
                 Download Issued Certificate
               </button>
+              {processData?.labelFile && (
+                <a 
+                  href={resolveUrl(processData.labelFile)} 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="action-btn-secondary"
+                  style={{ width: 'auto', padding: '10px 24px', display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', background: '#f3f4f6', color: '#374151', borderRadius: '8px', fontWeight: 500 }}
+                >
+                  <Download size={18} />
+                  View Product Label
+                </a>
+              )}
             </div>
           </CompletedPanel>
         );
@@ -1045,6 +1062,24 @@ export default function ApplicationProcess() {
                 hidden 
                 accept=".pdf" 
                 onChange={e => setCertFile(e.target.files[0])} 
+              />
+            </div>
+            
+            <div className="details-card" style={{ padding: '20px' }}>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px', display: 'block' }}>
+                Product Label (Optional)
+              </label>
+              <div className="upload-area" onClick={() => hasPrivilege('Certificate Officer') && document.getElementById('label-upload').click()} style={{ minHeight: '120px', cursor: hasPrivilege('Certificate Officer') ? 'pointer' : 'not-allowed' }}>
+                <Upload size={24} color="#9ca3af" />
+                <p style={{ fontSize: '13px', margin: '8px 0' }}>{certLabelFile ? certLabelFile.name : 'Click to select label file'}</p>
+                <span style={{ fontSize: '11px', color: '#6b7280' }}>PDF, PNG, JPG files supported</span>
+              </div>
+              <input 
+                type="file" 
+                id="label-upload" 
+                hidden 
+                accept=".pdf,.png,.jpg,.jpeg" 
+                onChange={e => setCertLabelFile(e.target.files[0])} 
               />
             </div>
           </div>
