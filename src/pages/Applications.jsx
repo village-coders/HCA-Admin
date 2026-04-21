@@ -59,6 +59,7 @@ const Applications = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [activeDetailTab, setActiveDetailTab] = useState('overview');
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   // Reset pagination when filter or tab changes
   useEffect(() => {

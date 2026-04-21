@@ -47,10 +47,26 @@ const Companies = () => {
     }
   };
 
+  // Get company stats (calculated dynamically)
+  const getCompanyStats = (registrationNo) => {
+    if (!registrationNo) return { totalApps: 0, approvedApps: 0, totalProds: 0, approvedProds: 0 };
+    
+    const companyApps = applications?.filter(a => a.companyId === registrationNo) || [];
+    const companyProds = products?.filter(p => p.companyId === registrationNo) || [];
+    
+    return {
+      totalApps: companyApps.length,
+      approvedApps: companyApps.filter(a => ['Issued', 'Accepted', 'Successful'].includes(a.status)).length,
+      totalProds: companyProds.length,
+      approvedProds: companyProds.filter(p => p.status === 'approved' || p.status === 'Approved' || p.status === 'registered').length
+    };
+  };
+
   // Get approval rate
   const getApprovalRate = (company) => {
-    if (!company.totalProducts || company.totalProducts === 0) return 0;
-    return Math.round((company.approvedProducts / company.totalProducts) * 100);
+    const stats = getCompanyStats(company.registrationNo);
+    if (!stats.totalProds || stats.totalProds === 0) return 0;
+    return Math.round((stats.approvedProds / stats.totalProds) * 100);
   };
 
   // Filter companies
@@ -91,9 +107,18 @@ const Companies = () => {
   const getTabCounts = () => {
     return {
       all: companies.length,
-      'non-approved': companies.filter(c => c.approvedProducts === 0 || !c.approvedProducts).length,
-      lists: companies.filter(c => c.approvedProducts > 0).length,
-      applications: companies.filter(c => c.totalApplications > 0).length,
+      'non-approved': companies.filter(c => {
+         const stats = getCompanyStats(c.registrationNo);
+         return stats.approvedProds === 0;
+      }).length,
+      lists: companies.filter(c => {
+         const stats = getCompanyStats(c.registrationNo);
+         return stats.approvedProds > 0;
+      }).length,
+      applications: companies.filter(c => {
+         const stats = getCompanyStats(c.registrationNo);
+         return stats.totalApps > 0;
+      }).length,
     };
   };
 
@@ -111,8 +136,7 @@ const Companies = () => {
     if (!selectedCompany) return null;
 
     // Get company specific products and applications if they are loaded in AllProvider
-    const companyProducts = products?.filter(p => p.companyId === selectedCompany.registrationNo) || [];
-    const companyApps = applications?.filter(a => a.companyId === selectedCompany.registrationNo) || [];
+    const stats = getCompanyStats(selectedCompany.registrationNo);
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -220,20 +244,20 @@ const Companies = () => {
                     <h3 className="text-lg font-semibold text-gray-900">Certification Overview</h3>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-                    <div className="p-3 bg-white rounded-xl border border-gray-200">
-                      <p className="text-2xl font-bold text-gray-900">{selectedCompany.totalApplications || 0}</p>
+                    <div className="p-3 bg-white rounded-xl border border-gray-200 shadow-sm">
+                      <p className="text-2xl font-bold text-gray-900">{stats.totalApps}</p>
                       <p className="text-xs text-gray-500 uppercase tracking-wider mt-1">Total Apps</p>
                     </div>
-                    <div className="p-3 bg-white rounded-xl border border-gray-200">
-                      <p className="text-2xl font-bold text-[#00853b]">{selectedCompany.approvedApplications || 0}</p>
+                    <div className="p-3 bg-white rounded-xl border border-gray-200 shadow-sm">
+                      <p className="text-2xl font-bold text-[#00853b]">{stats.approvedApps}</p>
                       <p className="text-xs text-gray-500 uppercase tracking-wider mt-1">Approved Apps</p>
                     </div>
-                    <div className="p-3 bg-white rounded-xl border border-gray-200">
-                      <p className="text-2xl font-bold text-gray-900">{selectedCompany.totalProducts || 0}</p>
+                    <div className="p-3 bg-white rounded-xl border border-gray-200 shadow-sm">
+                      <p className="text-2xl font-bold text-gray-900">{stats.totalProds}</p>
                       <p className="text-xs text-gray-500 uppercase tracking-wider mt-1">Total Products</p>
                     </div>
-                    <div className="p-3 bg-white rounded-xl border border-gray-200">
-                      <p className="text-2xl font-bold text-[#00853b]">{selectedCompany.approvedProducts || 0}</p>
+                    <div className="p-3 bg-white rounded-xl border border-gray-200 shadow-sm">
+                      <p className="text-2xl font-bold text-[#00853b]">{stats.approvedProds}</p>
                       <p className="text-xs text-gray-500 uppercase tracking-wider mt-1">Approved Products</p>
                     </div>
                   </div>
@@ -264,7 +288,7 @@ const Companies = () => {
           <div>
             <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Companies</h1>
             <p className="text-gray-600 mt-1">
-              {companies.length} registered companies • {companies.filter(c => c.approvedProducts > 0).length} with approved products
+              {companies.length} registered companies • {companies.filter(c => getCompanyStats(c.registrationNo).approvedProds > 0).length} with approved products
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -400,16 +424,21 @@ const Companies = () => {
                         </div>
                       </td>
                       <td className="p-4">
-                        <div className="flex items-center justify-center gap-4">
-                          <div className="text-center" title="Applications (Approved / Total)">
-                            <div className="text-sm font-semibold text-gray-900">{company.approvedApplications || 0}/{company.totalApplications || 0}</div>
-                            <div className="text-[10px] text-gray-500 uppercase">Apps</div>
-                          </div>
-                          <div className="text-center" title="Products (Approved / Total)">
-                            <div className="text-sm font-semibold text-[#00853b]">{company.approvedProducts || 0}/{company.totalProducts || 0}</div>
-                            <div className="text-[10px] text-gray-500 uppercase">Products</div>
-                          </div>
-                        </div>
+                        {(() => {
+                           const stats = getCompanyStats(company.registrationNo);
+                           return (
+                             <div className="flex items-center justify-center gap-4">
+                               <div className="text-center" title="Applications (Approved / Total)">
+                                 <div className="text-sm font-semibold text-gray-900">{stats.approvedApps}/{stats.totalApps}</div>
+                                 <div className="text-[10px] text-gray-500 uppercase">Apps</div>
+                               </div>
+                               <div className="text-center" title="Products (Approved / Total)">
+                                 <div className="text-sm font-semibold text-[#00853b]">{stats.approvedProds}/{stats.totalProds}</div>
+                                 <div className="text-[10px] text-gray-500 uppercase">Products</div>
+                               </div>
+                             </div>
+                           );
+                        })()}
                       </td>
                       <td className="p-4">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
