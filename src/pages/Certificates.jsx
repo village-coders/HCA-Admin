@@ -383,16 +383,24 @@ const Certificates = () => {
   };
 
   // Handle Download Label
-  const handleDownloadLabel = async (certId) => {
+  const handleDownloadLabel = async (certId, specificPath = null) => {
     try {
       const certificate = certificates.find(cert => cert.id === certId || cert._id === certId);
-      if (!certificate || !certificate.labelPath) {
+      if (!certificate) {
+        toast.error("Certificate not found");
+        return;
+      }
+
+      // Support both old labelPath and new labelPaths
+      const targetPath = specificPath || certificate.labelPath || (certificate.labelPaths && certificate.labelPaths[0]);
+      
+      if (!targetPath) {
         toast.error("No label found for this certificate");
         return;
       }
       
       const token = JSON.parse(localStorage.getItem("accessToken"));
-      const downloadUrl = certificate.labelPath.startsWith('http') ? certificate.labelPath : `${baseUrl}${certificate.labelPath}`;
+      const downloadUrl = targetPath.startsWith('http') ? targetPath : `${baseUrl}${targetPath}`;
 
       toast.loading("Downloading label...", { id: "download-label" });
       
@@ -780,14 +788,54 @@ const Certificates = () => {
                   <Download className="w-4 h-4 mr-2" />
                   Download Certificate
                 </button>
-                {selectedCertificate?.labelPath && (
-                  <button 
-                    onClick={() => handleDownloadLabel(certId)}
-                    className="px-4 py-2 bg-gray-200 cursor-pointer text-gray-800 rounded-lg hover:bg-gray-300 transition-colors duration-200 flex items-center"
-                  >
-                    <Tag className="w-4 h-4 mr-2" />
-                    Download Label
-                  </button>
+                {/* Handle multiple labels (array) */}
+                {selectedCertificate?.labelPaths?.length > 0 ? (
+                  selectedCertificate.labelPaths.map((path, index) => (
+                    <div key={index} className="detail-item full-width" style={{ marginTop: index === 0 ? '20px' : '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '8px', borderRadius: '8px' }}>
+                            <Tag size={18} color="#0ea5e9" />
+                          </div>
+                          <div>
+                            <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Label Order {selectedCertificate.labelPaths.length > 1 ? index + 1 : ''}</p>
+                            <p style={{ margin: 0, fontWeight: 500, fontSize: '14px', color: '#1e293b' }}>Product Labeling Guidelines</p>
+                          </div>
+                        </div>
+                        <button 
+                          className="download-btn-small" 
+                          onClick={() => handleDownloadLabel(selectedCertificate._id, path)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+                        >
+                          <Download size={14} /> Download
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  /* Backward compatibility for single labelPath */
+                  selectedCertificate?.labelPath && (
+                    <div className="detail-item full-width" style={{ marginTop: '20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '8px', borderRadius: '8px' }}>
+                            <Tag size={18} color="#0ea5e9" />
+                          </div>
+                          <div>
+                            <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Technical Document</p>
+                            <p style={{ margin: 0, fontWeight: 500, fontSize: '14px', color: '#1e293b' }}>Product Labeling Guidelines</p>
+                          </div>
+                        </div>
+                        <button 
+                          className="download-btn-small" 
+                          onClick={() => handleDownloadLabel(selectedCertificate._id, selectedCertificate.labelPath)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+                        >
+                          <Download size={14} /> Download
+                        </button>
+                      </div>
+                    </div>
+                  )
                 )}
               </div>
               <div className="flex items-center space-x-3">
@@ -1097,10 +1145,10 @@ const Certificates = () => {
                                     icon: Download,
                                     onClick: () => handleDownloadCertificate(certId)
                                   },
-                                  cert.labelPath && {
+                                  (cert.labelPath || (cert.labelPaths && cert.labelPaths.length > 0)) && {
                                     label: 'Download Label',
                                     icon: Tag,
-                                    onClick: () => handleDownloadLabel(certId)
+                                    onClick: () => handleDownloadLabel(cert._id, cert.labelPaths ? cert.labelPaths[0] : cert.labelPath)
                                   }
                                 ].filter(Boolean)}
                               />
