@@ -56,15 +56,14 @@ const Applications = () => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedApplications, setSelectedApplications] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [selectedApplication, setSelectedApplication] = useState(null);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
-  const [isIssuing, setIsIssuing] = useState(false);
-  const [isAcceptingId, setIsAcceptingId] = useState(null);
-  const [isRejectingId, setIsRejectingId] = useState(null);
-  const [isDeletingId, setIsDeletingId] = useState(null);
-  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const [activeDetailTab, setActiveDetailTab] = useState('overview');
+
+  // Reset pagination when filter or tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, activeTab]);
 
   const { 
     applications, 
@@ -128,6 +127,9 @@ const Applications = () => {
     }
     return true;
   });
+
+  const totalPages = Math.ceil(filteredApplications.length / itemsPerPage) || 1;
+  const paginatedApplications = filteredApplications.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   // Format date
   const formatDate = (dateString) => {
@@ -1311,8 +1313,8 @@ const Applications = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredApplications.length > 0 ? (
-                  filteredApplications.map((app) => {
+                {paginatedApplications.length > 0 ? (
+                  paginatedApplications.map((app) => {
                     const appId = app.id || app._id;
                     const statusConfig = getStatusConfig(app.status);
                     const StatusIcon = statusConfig.icon;
@@ -1397,18 +1399,29 @@ const Applications = () => {
             <div className="px-6 py-4 border-t border-gray-200">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="text-sm text-gray-600">
-                  Showing <span className="font-medium">{filteredApplications.length}</span> of{' '}
-                  <span className="font-medium">{applications.length}</span> applications
+                  Showing <span className="font-medium">{Math.min(filteredApplications.length, (currentPage - 1) * itemsPerPage + 1)}-{Math.min(filteredApplications.length, currentPage * itemsPerPage)}</span> of{' '}
+                  <span className="font-medium">{filteredApplications.length}</span> applications
                 </div>
                 <div className="flex items-center space-x-2">
-                  <div className="flex items-center space-x-2">
-                    <button className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200">
-                      Previous
-                    </button>
-                    <button className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200">
-                      Next
-                    </button>
-                  </div>
+                  {totalPages > 1 && (
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 bg-white border border-gray-300 shadow-sm rounded-lg transition-colors duration-200 disabled:opacity-50"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-sm text-gray-600 px-2">Page {currentPage} of {totalPages}</span>
+                      <button 
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 bg-white border border-gray-300 shadow-sm rounded-lg transition-colors duration-200 disabled:opacity-50"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
