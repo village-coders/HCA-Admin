@@ -144,7 +144,7 @@ export default function ApplicationProcess() {
 
   const [certNumber, setCertNumber] = useState('');
   const [certExpiryDate, setCertExpiryDate] = useState('');
-  const [certFile, setCertFile] = useState(null);
+  const [certFiles, setCertFiles] = useState([]);
   const [certLabelFiles, setCertLabelFiles] = useState([]);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
@@ -222,7 +222,7 @@ export default function ApplicationProcess() {
   }, []);
 
 
-  const handleDownloadCertificate = async () => {
+  const handleDownloadCertificate = async (certPath = null) => {
     try {
       const { data: certs } = await axios.get(`${API_BASE_URL}/certificates?applicationId=${id}`, {
         headers: { Authorization: `Bearer ${getToken()}` }
@@ -235,26 +235,38 @@ export default function ApplicationProcess() {
         return;
       }
 
-      const downloadUrl = cert.pdfPath.startsWith('http') ? cert.pdfPath : `${API_BASE_URL}${cert.pdfPath.startsWith('/api') ? cert.pdfPath.replace('/api', '') : cert.pdfPath}`;
+      const pathsToDownload = certPath ? [certPath] : (cert.pdfPaths || [cert.pdfPath]);
       
-      toast.loading("Downloading certificate...", { id: "download-cert" });
-      window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+      if (pathsToDownload.length === 0) {
+        toast.error('No certificate files found');
+        return;
+      }
 
-      const response = await fetch(downloadUrl, {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
-      if (!response.ok) throw new Error("Failed to fetch file");
+      toast.loading(`Downloading certificate${pathsToDownload.length > 1 ? 's' : ''}...`, { id: "download-cert" });
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `Certificate_${application.applicationNumber}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success("Certificate downloaded", { id: "download-cert" });
+      for (let i = 0; i < pathsToDownload.length; i++) {
+        const path = pathsToDownload[i];
+        const downloadUrl = path.startsWith('http') ? path : `${API_BASE_URL}${path.startsWith('/api') ? path.replace('/api', '') : path}`;
+        
+        window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+
+        const response = await fetch(downloadUrl, {
+          headers: { Authorization: `Bearer ${getToken()}` }
+        });
+        if (!response.ok) throw new Error("Failed to fetch file");
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const filename = `Certificate_${application.applicationNumber}${pathsToDownload.length > 1 ? `_${i + 1}` : ''}.pdf`;
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      }
+      toast.success("Download started", { id: "download-cert" });
     } catch (err) {
       console.error(err);
       toast.error('Failed to download certificate', { id: "download-cert" });
@@ -350,7 +362,13 @@ export default function ApplicationProcess() {
       formData.append('step', stepId);
       if (subStep) formData.append('subStep', subStep);
       if (extraData) formData.append('data', extraData);
-      if (file) formData.append('file', file);
+      if (file) {
+        if (Array.isArray(file)) {
+          file.forEach(f => formData.append('file', f));
+        } else {
+          formData.append('file', file);
+        }
+      }
       
       // Append additional body fields (like certNumber, expiryDate)
       Object.keys(additionalBody).forEach(key => {
@@ -386,11 +404,11 @@ export default function ApplicationProcess() {
 
   // Improved: manual certificate issuance
   const handleIssueCertificate = async () => {
-    if (!certFile || !certExpiryDate || !certNumber) {
-      toast.error('Please provide certificate file, number and expiry date');
+    if (certFiles.length === 0 || !certExpiryDate || !certNumber) {
+      toast.error('Please provide certificate files, number and expiry date');
       return;
     }
-    await submitStep(10, null, null, certFile, { certNumber, expiryDate: certExpiryDate, labelFiles: certLabelFiles });
+    await submitStep(10, null, null, certFiles, { certNumber, expiryDate: certExpiryDate, labelFiles: certLabelFiles });
   };
 
   // Reject application
@@ -1024,18 +1042,21 @@ export default function ApplicationProcess() {
       if (application?.status === 'Issued') {
         return (
           <CompletedPanel label="Certificate Issued" timestamp={processData?.issuedAt}>
-            <div style={{ marginTop: '16px', display: 'flex', gap: '12px' }}>
-              <button 
-                className="action-btn-primary" 
-                onClick={handleDownloadCertificate}
-                style={{ width: 'auto', padding: '10px 24px' }}
-              >
-                <Download size={18} />
-                Download Issued Certificate
-              </button>
+            <div style={{ marginTop: '16px', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+              {(application.processData?.certificateFiles || []).map((cp, idx) => (
+                <button 
+                  key={`cert-${idx}`}
+                  className="action-btn-primary" 
+                  onClick={() => handleDownloadCertificate(cp)}
+                  style={{ width: 'auto', padding: '10px 24px' }}
+                >
+                  <Download size={18} />
+                  Download Certificate {application.processData?.certificateFiles?.length > 1 ? idx + 1 : ''}
+                </button>
+              ))}
               {application.processData?.labelFiles?.map((lp, idx) => (
                 <button 
-                  key={idx}
+                  key={`label-${idx}`}
                   className="action-btn-secondary" 
                   onClick={() => handleDownloadLabel(idx)}
                   style={{ width: 'auto', padding: '10px 24px', display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', background: '#f3f4f6', color: '#374151', borderRadius: '8px', fontWeight: 500, border: '1px solid #d1d5db', cursor: 'pointer' }}
@@ -1090,15 +1111,29 @@ export default function ApplicationProcess() {
               </label>
               <div className="upload-area" onClick={() => hasPrivilege('Certificate Officer') && document.getElementById('cert-upload').click()} style={{ minHeight: '120px', cursor: hasPrivilege('Certificate Officer') ? 'pointer' : 'not-allowed' }}>
                 <Upload size={24} color="#9ca3af" />
-                <p style={{ fontSize: '13px', margin: '8px 0' }}>{certFile ? certFile.name : 'Click to select certificate file'}</p>
-                <span style={{ fontSize: '11px', color: '#6b7280' }}>PDF, PNG, JPG files supported</span>
+                <p style={{ fontSize: '13px', margin: '8px 0' }}>
+                  {certFiles.length > 0 
+                    ? `${certFiles.length} file(s) selected` 
+                    : 'Click to select certificate file(s)'}
+                </p>
+                {certFiles.length > 0 && (
+                  <div style={{ fontSize: '11px', color: '#1e40af', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '5px' }}>
+                    {certFiles.map((f, i) => <span key={i} className="bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{f.name}</span>)}
+                  </div>
+                )}
+                <span style={{ fontSize: '11px', color: '#6b7280' }}>PDF, PNG, JPG files supported (Can select multiple)</span>
               </div>
               <input 
                 type="file" 
                 id="cert-upload" 
                 hidden 
+                multiple
                 accept=".pdf,.png,.jpg,.jpeg" 
-                onChange={e => setCertFile(e.target.files[0])} 
+                onChange={e => {
+                  if (e.target.files) {
+                    setCertFiles(Array.from(e.target.files));
+                  }
+                }}
               />
             </div>
             

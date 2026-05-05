@@ -60,6 +60,8 @@ const Applications = () => {
   const itemsPerPage = 10;
   const [activeDetailTab, setActiveDetailTab] = useState('overview');
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
   // Reset pagination when filter or tab changes
   useEffect(() => {
@@ -477,6 +479,15 @@ const Applications = () => {
   const ViewApplicationModal = () => {
     if (!selectedApplication) return null;
 
+    const baseUrl = import.meta.env.VITE_BASE_URL || 'http://localhost:5000/api';
+    const getDocumentUrl = (path) => {
+      if (!path) return '#';
+      if (path.startsWith('http')) return path;
+      if (path.startsWith('/api/')) return `${baseUrl.replace('/api', '')}${path}`;
+      if (path.startsWith('/files/')) return `${baseUrl.replace('/api', '')}/api${path}`;
+      return `${baseUrl.replace('/api', '')}/api/files/${path}`;
+    };
+
     const statusConfig = getStatusConfig(selectedApplication.status);
     const StatusIcon = statusConfig.icon;
     const typeConfig = getTypeConfig(selectedApplication.applicationType);
@@ -484,6 +495,7 @@ const Applications = () => {
 
     const detailTabs = [
       { id: 'overview', label: 'Overview', icon: Info },
+      { id: 'documents', label: 'Documents', icon: File },
       { id: 'halal-history', label: 'Halal History', icon: Award },
       { id: 'product-composition', label: 'Product Composition', icon: Package },
       { id: 'facilities', label: 'Facilities', icon: Factory },
@@ -568,13 +580,13 @@ const Applications = () => {
                       <div>
                         <p className="text-sm text-gray-600">Company Registration No.</p>
                         <p className="font-medium text-gray-900">
-                          {selectedApplication.company.registrationNo || 'N/A'}
+                          {selectedApplication.company?.registrationNo || 'N/A'}
                         </p>
                       </div>
                       <div className="col-span-2">
                         <p className="text-sm text-gray-600">Address</p>
                         <p className="font-medium text-gray-900">
-                          {selectedApplication.company.address || 'N/A'}
+                          {selectedApplication.company?.address || 'N/A'}
                         </p>
                       </div>
                     </div>
@@ -751,6 +763,47 @@ const Applications = () => {
                           </p>
                         </div>
                       )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Documents Tab */}
+              {activeDetailTab === 'documents' && (
+                <div className="space-y-6">
+                  <div className="bg-gray-50 rounded-lg p-5">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Supporting Documents</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[
+                        { label: 'MANCAP Certificate', field: 'mancapDocument', compulsory: false },
+                        { label: 'NAFDAC Certificate', field: 'nafdacDocument', compulsory: false },
+                        { label: 'CAC Document', field: 'cacDocument', compulsory: true },
+                        { label: 'Company Profile', field: 'companyProfileDocument', compulsory: true },
+                        { label: 'Raw Materials List', field: 'rawMaterialsDocument', compulsory: false },
+                      ].map((doc, index) => (
+                        <div key={index} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-5 h-5 text-gray-400" />
+                              <span className="font-medium text-gray-900">{doc.label}</span>
+                              {doc.compulsory && <span className="text-xs text-red-500 font-medium">*</span>}
+                            </div>
+                            <span className="text-xs text-gray-500 mt-1 block">
+                              {selectedApplication[doc.field] ? 'Document provided' : 'Not provided'}
+                            </span>
+                          </div>
+                          {selectedApplication[doc.field] && (
+                            <a 
+                              href={getDocumentUrl(selectedApplication[doc.field])} 
+                              target="_blank" 
+                              rel="noreferrer"
+                              className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md text-sm font-medium transition-colors"
+                            >
+                              View
+                            </a>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -1089,7 +1142,7 @@ const Applications = () => {
                           <p className="text-sm text-gray-500">Document uploaded by the lead auditor after completion.</p>
                         </div>
                         <a 
-                          href={`${selectedApplication.processData.audit.auditReportFile}`} 
+                          href={getDocumentUrl(selectedApplication.processData.audit.auditReportFile)} 
                           target="_blank" 
                           rel="noreferrer"
                           className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium rounded-lg text-sm transition-colors"
@@ -1330,7 +1383,7 @@ const Applications = () => {
                               
                             </div> */}
                             {app.company?.email && (
-                              <div className="text-xs text-gray-500">{app.company.email}</div>
+                              <div className="text-xs text-gray-500">{app.company?.email}</div>
                             )}
                           </div>
                         </td>

@@ -332,53 +332,75 @@ const Certificates = () => {
   };
 
   // Handle Download Certificate
-  const handleDownloadCertificate = async (certId) => {
+  const handleDownloadCertificate = async (certId, specificPath = null) => {
     try {
       toast.loading("Downloading certificate...", { id: "download" });
       
-      // Use the downloadCertificate function from your hook
-      const blob = await downloadCertificate(certId);
-      
-      if (!blob) {
-        throw new Error("No certificate data received");
-      }
-      
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      
-      // Get certificate for filename
       const certificate = certificates.find(cert => 
         cert.id === certId || cert._id === certId
       );
-      
-      // Use certificate number or ID for filename with correct extension
-      if (certificate?.pdfPath) {
-        const viewUrl = certificate.pdfPath.startsWith('http') ? certificate.pdfPath : `${baseUrl}${certificate.pdfPath}`;
-        window.open(viewUrl, '_blank', 'noopener,noreferrer');
+
+      if (!certificate) {
+        throw new Error("Certificate not found");
       }
 
-      const mimeExt = blob.type.split('/')[1] || 'pdf';
-      const ext = mimeExt === 'jpeg' ? 'jpg' : mimeExt;
-      const fileName = `certificate_${certificate?.certificateNumber || certId}.${ext}`;
-      link.href = url;
-      link.download = fileName;
+      // If specificPath is provided, use it. Otherwise use pdfPaths array or pdfPath string.
+      const pathsToDownload = specificPath ? [specificPath] : (certificate.pdfPaths?.length > 0 ? certificate.pdfPaths : [certificate.pdfPath]);
       
-      // Trigger download
-      document.body.appendChild(link);
-      link.click();
-      
-      // Cleanup
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      if (!pathsToDownload[0] && !specificPath) {
+        throw new Error("No certificate path available");
+      }
+
+      const token = JSON.parse(localStorage.getItem("accessToken"));
+
+      for (let i = 0; i < pathsToDownload.length; i++) {
+        let path = pathsToDownload[i];
+        if (!path) continue;
+
+        // Ensure path starts with /api/files if it's just /files/
+        if (path.startsWith('/files/')) {
+          path = '/api' + path;
+        }
+
+        const downloadUrl = path.startsWith('http') ? path : `${baseUrl}${path.startsWith('/api') ? path.replace('/api', '') : path}`;
+        
+        // Open in new tab
+        window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+
+        // Force download
+        const response = await fetch(downloadUrl, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error("Failed to fetch file");
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        
+        // Determine extension
+        let ext = 'pdf';
+        if (blob.type) {
+          const mimeExt = blob.type.split('/')[1];
+          if (mimeExt === 'jpeg') ext = 'jpg';
+          else if (mimeExt && mimeExt !== 'octet-stream') ext = mimeExt;
+        }
+
+        const fileName = `certificate_${certificate.certificateNumber || certId}${pathsToDownload.length > 1 ? `_${i + 1}` : ''}.${ext}`;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }
       
       toast.dismiss("download");
-      toast.success("Certificate downloaded!");
+      toast.success("Download started!");
       
     } catch (error) {
       console.error("Download error:", error);
       toast.dismiss("download");
-      toast.error("Failed to download certificate");
+      toast.error(error.message || "Failed to download certificate");
     }
   };
 
@@ -778,70 +800,119 @@ const Certificates = () => {
           </div>
 
           {/* Modal Footer */}
-          <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <button 
-                  onClick={() => handleDownloadCertificate(certId)}
-                  className="px-4 py-2 bg-[#00853b] cursor-pointer text-white rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Download Certificate
-                </button>
-                {/* Handle multiple labels (array) */}
-                {selectedCertificate?.labelPaths?.length > 0 ? (
-                  selectedCertificate.labelPaths.map((path, index) => (
-                    <div key={index} className="detail-item full-width" style={{ marginTop: index === 0 ? '20px' : '10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '8px', borderRadius: '8px' }}>
-                            <Tag size={18} color="#0ea5e9" />
+          <div className="border-t border-gray-200 px-6 py-6 bg-gray-50">
+            <div className="space-y-6">
+              {/* Certificate Files Section */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                  <FileText className="w-4 h-4 mr-2" />
+                  Certificate Documents
+                </h4>
+                <div className="grid grid-cols-1 gap-3">
+                  {selectedCertificate?.pdfPaths?.length > 0 ? (
+                    selectedCertificate.pdfPaths.map((path, index) => (
+                      <div key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                        <div className="flex items-center space-x-3">
+                          <div className="p-2 bg-green-50 rounded-md">
+                            <Award className="w-4 h-4 text-green-600" />
                           </div>
                           <div>
-                            <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Label Order {selectedCertificate.labelPaths.length > 1 ? index + 1 : ''}</p>
-                            <p style={{ margin: 0, fontWeight: 500, fontSize: '14px', color: '#1e293b' }}>Product Labeling Guidelines</p>
+                            <p className="text-sm font-medium text-gray-900">Certificate Part {selectedCertificate.pdfPaths.length > 1 ? index + 1 : ''}</p>
+                            <p className="text-xs text-gray-500">Official Certification PDF</p>
                           </div>
                         </div>
                         <button 
-                          className="download-btn-small" 
-                          onClick={() => handleDownloadLabel(selectedCertificate._id, path)}
-                          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+                          onClick={() => handleDownloadCertificate(certId, path)}
+                          className="flex items-center space-x-1 px-3 py-1.5 bg-[#00853b] text-white text-xs font-medium rounded-md hover:bg-green-700 transition-colors cursor-pointer"
                         >
-                          <Download size={14} /> Download
+                          <Download className="w-3.5 h-3.5 mr-1" />
+                          Download
                         </button>
                       </div>
-                    </div>
-                  ))
-                ) : (
-                  /* Backward compatibility for single labelPath */
-                  selectedCertificate?.labelPath && (
-                    <div className="detail-item full-width" style={{ marginTop: '20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '8px', borderRadius: '8px' }}>
-                            <Tag size={18} color="#0ea5e9" />
-                          </div>
-                          <div>
-                            <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Technical Document</p>
-                            <p style={{ margin: 0, fontWeight: 500, fontSize: '14px', color: '#1e293b' }}>Product Labeling Guidelines</p>
-                          </div>
+                    ))
+                  ) : (
+                    /* Fallback for single path */
+                    <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-green-50 rounded-md">
+                          <Award className="w-4 h-4 text-green-600" />
                         </div>
-                        <button 
-                          className="download-btn-small" 
-                          onClick={() => handleDownloadLabel(selectedCertificate._id, selectedCertificate.labelPath)}
-                          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
-                        >
-                          <Download size={14} /> Download
-                        </button>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Certificate Document</p>
+                          <p className="text-xs text-gray-500">Official Certification PDF</p>
+                        </div>
                       </div>
+                      <button 
+                        onClick={() => handleDownloadCertificate(certId)}
+                        className="flex items-center space-x-1 px-3 py-1.5 bg-[#00853b] text-white text-xs font-medium rounded-md hover:bg-green-700 transition-colors cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5 mr-1" />
+                        Download
+                      </button>
                     </div>
-                  )
-                )}
+                  )}
+                </div>
               </div>
-              <div className="flex items-center space-x-3">
+
+              {/* Labels Section */}
+              {((selectedCertificate?.labelPaths?.length > 0) || selectedCertificate?.labelPath) && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                    <Tag className="w-4 h-4 mr-2" />
+                    Product Labels
+                  </h4>
+                  <div className="grid grid-cols-1 gap-3">
+                    {selectedCertificate?.labelPaths?.length > 0 ? (
+                      selectedCertificate.labelPaths.map((path, index) => (
+                        <div key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                          <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-blue-50 rounded-md">
+                              <Tag className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">Label Part {selectedCertificate.labelPaths.length > 1 ? index + 1 : ''}</p>
+                              <p className="text-xs text-gray-500">Approved labeling guidelines</p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => handleDownloadLabel(certId, path)}
+                            className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-md hover:bg-blue-700 transition-colors cursor-pointer"
+                          >
+                            <Download className="w-3.5 h-3.5 mr-1" />
+                            Download
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      selectedCertificate?.labelPath && (
+                        <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                          <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-blue-50 rounded-md">
+                              <Tag className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">Label Document</p>
+                              <p className="text-xs text-gray-500">Approved labeling guidelines</p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => handleDownloadLabel(certId)}
+                            className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-md hover:bg-blue-700 transition-colors cursor-pointer"
+                          >
+                            <Download className="w-3.5 h-3.5 mr-1" />
+                            Download
+                          </button>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end">
                 <button
                   onClick={closeModal}
-                  className="px-4 py-2 cursor-pointer text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg font-medium transition-colors duration-200"
+                  className="px-6 py-2 cursor-pointer text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg font-semibold transition-colors duration-200 border border-gray-300 shadow-sm"
                 >
                   Close
                 </button>
@@ -1072,7 +1143,7 @@ const Certificates = () => {
                     <tr>
                       <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Certificate</th>
                       <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                      {/* <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th> */}
                       <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                       <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue Date</th>
                       <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expiry Date</th>
@@ -1086,7 +1157,8 @@ const Certificates = () => {
                         const statusConfig = getStatusConfig(cert.status);
                         const expiryStatus = getExpiryStatus(cert.expiryDate, cert.status);
                         const StatusIcon = statusConfig.icon;
-                        const companyName = getCompanyNameFromCert(cert);
+                        // const companyName = getCompanyNameFromCert(cert);
+                        const companyName = cert?.companyName;
                         const productName = cert.product?.name || getProductName(cert.productId);
 
                         return (
@@ -1104,14 +1176,14 @@ const Certificates = () => {
                                 {companyName}
                               </div>
                             </td>
-                            <td className="p-4">
+                            {/* <td className="p-4">
                               <div className="text-sm font-medium text-gray-900">
                                 {productName}
                               </div>
                               {cert.standard && (
                                 <div className="text-xs text-gray-500">{cert.standard}</div>
                               )}
-                            </td>
+                            </td> */}
                             <td className="p-4">
                               <div className="flex flex-col gap-1">
                                 <span className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full ${statusConfig.bg} ${statusConfig.text}`}>
@@ -1143,7 +1215,7 @@ const Certificates = () => {
                                   {
                                     label: 'Download Certificate',
                                     icon: Download,
-                                    onClick: () => handleDownloadCertificate(certId)
+                                    onClick: () => handleDownloadCertificate(cert._id)
                                   },
                                   (cert.labelPath || (cert.labelPaths && cert.labelPaths.length > 0)) && {
                                     label: 'Download Label',

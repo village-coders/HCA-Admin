@@ -627,14 +627,31 @@ const AllProvider = ({ children }) => {
     try {
       // If we have the certificate in state, check if it's an external link
       const cert = certificates.find(c => (c.id === certificateId || c._id === certificateId));
-      if (cert && cert.pdfPath && cert.pdfPath.startsWith('http') && !cert.pdfPath.includes('/api/files/')) {
-        const viewUrl = cert.pdfPath.startsWith('http') ? cert.pdfPath : `${baseUrl}${cert.pdfPath}`;
-        window.open(viewUrl, '_blank');
-        toast.info("Opening external certificate link...");
-        return null; // Return null to indicate no blob to handle
+      
+      if (!cert) {
+        throw new Error("Certificate record not found");
       }
 
-      const downloadUrl = cert.pdfPath.startsWith('http') ? cert.pdfPath : `${baseUrl}${cert.pdfPath}`;
+      // Support both old pdfPath and new pdfPaths array
+      let targetPath = cert.pdfPath || (cert.pdfPaths && cert.pdfPaths[0]);
+
+      if (!targetPath) {
+        throw new Error("Certificate file path not found");
+      }
+
+      if (targetPath.startsWith('http') && !targetPath.includes('/api/files/')) {
+        window.open(targetPath, '_blank');
+        toast.info("Opening external certificate link...");
+        return null; 
+      }
+
+      // Ensure path starts with /api/files if it's just /files/
+      if (targetPath.startsWith('/files/')) {
+        targetPath = '/api' + targetPath;
+      }
+
+      const downloadUrl = targetPath.startsWith('http') ? targetPath : `${baseUrl}${targetPath.startsWith('/api') ? targetPath.replace('/api', '') : targetPath}`;
+      
       const response = await fetch(downloadUrl, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -642,8 +659,6 @@ const AllProvider = ({ children }) => {
       if (!response.ok) throw new Error("Failed to fetch certificate");
 
       const blob = await response.blob()
-      
-      // The backend should return a proper PDF file
       return blob;
       
     } catch (error) {
