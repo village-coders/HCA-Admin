@@ -14,7 +14,8 @@ import {
   UserCheck,
   ShieldCheck,
   AlertCircle,
-  X
+  X,
+  Lock
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -26,6 +27,11 @@ const API_BASE_URL = import.meta.env.VITE_BASE_URL;
 const ShariaBoard = () => {
   const navigate = useNavigate();
   const { user, fetchUser } = useAuth();
+  
+  const hasPrivilege = (priv) => {
+    if (user?.role === 'super admin') return true;
+    return user?.privileges?.includes(priv);
+  };
   
   const [logsheets, setLogsheets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -208,18 +214,25 @@ const ShariaBoard = () => {
                 <img src={resolveUrl(user.signatureImage)} alt="My Signature" className="h-full object-contain" />
               </div>
             )}
-            <button 
-              onClick={() => {
-                setUploadName(user?.signatureName || user?.fullName || '');
-                setUploadTitle(user?.signatureTitle || "Member, Shari'a Board");
-                setSignatureFile(null);
-                setIsSetupModalOpen(true);
-              }}
-              className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer transition-all flex items-center h-10 gap-2"
-            >
-              <UserCheck className="w-4 h-4" />
-              {user?.signatureImage ? 'Update Signature' : 'Setup Signature'}
-            </button>
+            {hasPrivilege("Shari'a Board") ? (
+              <button 
+                onClick={() => {
+                  setUploadName(user?.signatureName || user?.fullName || '');
+                  setUploadTitle(user?.signatureTitle || "Member, Shari'a Board");
+                  setSignatureFile(null);
+                  setIsSetupModalOpen(true);
+                }}
+                className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer transition-all flex items-center h-10 gap-2"
+              >
+                <UserCheck className="w-4 h-4" />
+                {user?.signatureImage ? 'Update Signature' : 'Setup Signature'}
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-gray-400">
+                <Lock className="w-3.5 h-3.5" />
+                Board Member Only
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -379,34 +392,39 @@ const ShariaBoard = () => {
                   ))}
                   
                   {/* Empty slots or current user sign button */}
-                  {!hasSigned(selectedLogsheet) && !selectedLogsheet.isFinalized && (
-                    <div className="bg-gray-50 p-6 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-4">
-                      {user?.signatureImage ? (
-                        <>
-                          <p className="text-xs font-semibold text-gray-400">Ready to provide endorsement</p>
-                          <button 
-                            onClick={() => handleSignLogsheet(selectedLogsheet._id)}
-                            disabled={isSigning}
-                            className="w-full py-3 bg-[#00853b] text-white rounded-xl font-bold shadow-lg shadow-[#00853b]/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
-                          >
-                            {isSigning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
-                            Sign Logsheet
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <AlertCircle className="w-8 h-8 text-amber-500 opacity-50" />
-                          <p className="text-xs text-center text-gray-500">You must upload your signature image first.</p>
-                          <button 
-                            onClick={() => setIsSignModalOpen(false)}
-                            className="text-xs font-bold text-[#00853b] hover:underline"
-                          >
-                            Go Upload Now
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
+                    {!hasSigned(selectedLogsheet) && !selectedLogsheet.isFinalized && (
+                      <div className="bg-gray-50 p-6 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-4">
+                        {!hasPrivilege("Shari'a Board") ? (
+                          <>
+                            <Lock className="w-8 h-8 text-slate-300" />
+                            <p className="text-xs text-center text-slate-400">Authorized Shari'a Board members only.</p>
+                          </>
+                        ) : user?.signatureImage ? (
+                          <>
+                            <p className="text-xs font-semibold text-gray-400">Ready to provide endorsement</p>
+                            <button 
+                              onClick={() => handleSignLogsheet(selectedLogsheet._id)}
+                              disabled={isSigning}
+                              className="w-full py-3 bg-[#00853b] text-white rounded-xl font-bold shadow-lg shadow-[#00853b]/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+                            >
+                              {isSigning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
+                              Sign Logsheet
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle className="w-8 h-8 text-amber-500 opacity-50" />
+                            <p className="text-xs text-center text-gray-500">You must upload your signature image first.</p>
+                            <button 
+                              onClick={() => setIsSignModalOpen(false)}
+                              className="text-xs font-bold text-[#00853b] hover:underline"
+                            >
+                              Go Upload Now
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
                 </div>
               </div>
             </div>
@@ -420,14 +438,21 @@ const ShariaBoard = () => {
               </div>
               <div className="flex gap-2">
                 {selectedLogsheet.isFinalized && (
-                  <button 
-                    onClick={() => handleMarkSuccessful(selectedLogsheet.applicationId?._id || selectedLogsheet.applicationId)}
-                    disabled={isLoading}
-                    className="px-6 py-2 bg-[#00853b] text-white rounded-xl text-sm font-bold hover:bg-[#007032] transition-all flex items-center gap-2"
-                  >
-                    {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-                    Mark Application Successful
-                  </button>
+                  hasPrivilege("Audit Manager") || hasPrivilege("Shari'a Board") ? (
+                    <button 
+                      onClick={() => handleMarkSuccessful(selectedLogsheet.applicationId?._id || selectedLogsheet.applicationId)}
+                      disabled={isLoading}
+                      className="px-6 py-2 bg-[#00853b] text-white rounded-xl text-sm font-bold hover:bg-[#007032] transition-all flex items-center gap-2"
+                    >
+                      {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                      Mark Application Successful
+                    </button>
+                  ) : (
+                    <div className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-400 flex items-center gap-2">
+                      <Lock className="w-3.5 h-3.5" />
+                      Awaiting Completion
+                    </div>
+                  )
                 )}
                 <button 
                   onClick={() => setIsSignModalOpen(false)}

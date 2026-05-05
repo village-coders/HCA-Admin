@@ -38,11 +38,18 @@ import {
   Activity
 } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
+import { useAuth } from '../hooks/useAuth';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import TableActions from '../components/TableActions';
+import { Lock } from 'lucide-react';
 
 const Applications = () => {
+  const { user } = useAuth();
+  const hasPrivilege = (priv) => {
+    if (user?.role === 'super admin') return true;
+    return user?.privileges?.includes(priv);
+  };
   const navigate = useNavigate();
   const controller = new AbortController()
   const [filter, setFilter] = useState({
@@ -62,6 +69,7 @@ const Applications = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [companySuggestions, setCompanySuggestions] = useState([]);
 
   // Reset pagination when filter or tab changes
   useEffect(() => {
@@ -77,7 +85,8 @@ const Applications = () => {
     rejectApplication,
     deleteApplication,
     getApplicationById,
-    addCertificate
+    addCertificate,
+    companies
   } = useAll();
 
   // Fetch applications on component mount
@@ -92,6 +101,24 @@ const Applications = () => {
     setIsRefreshing(true);
     await fetchApplications();
     setIsRefreshing(false);
+  };
+
+  // Handle company search suggestions
+  useEffect(() => {
+    if (filter.company.trim()) {
+      const suggestions = companies.filter(c => 
+        (c.companyName?.toLowerCase().includes(filter.company.toLowerCase()) ||
+         c.name?.toLowerCase().includes(filter.company.toLowerCase()))
+      ).slice(0, 5);
+      setCompanySuggestions(suggestions);
+    } else {
+      setCompanySuggestions([]);
+    }
+  }, [filter.company, companies]);
+
+  const handleCompanySuggestionClick = (companyName) => {
+    setFilter({ ...filter, company: companyName });
+    setCompanySuggestions([]);
   };
 
   // Filter applications
@@ -1254,7 +1281,7 @@ const Applications = () => {
         
         <div className={`${isFilterOpen ? 'block' : 'hidden lg:block'}`}>
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-            <div>
+            <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-2">Company</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -1266,6 +1293,23 @@ const Applications = () => {
                   onChange={(e) => setFilter({ ...filter, company: e.target.value })}
                   disabled={isLoading}
                 />
+                {companySuggestions.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {companySuggestions.map((company) => (
+                      <button
+                        key={company._id || company.id}
+                        type="button"
+                        className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 border-b last:border-0 border-gray-100"
+                        onClick={() => handleCompanySuggestionClick(company.companyName || company.name)}
+                      >
+                        <div className="font-medium">{company.companyName || company.name}</div>
+                        {company.registrationNo && (
+                          <div className="text-xs text-gray-500">Reg: {company.registrationNo}</div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             

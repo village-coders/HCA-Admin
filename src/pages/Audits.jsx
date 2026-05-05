@@ -22,10 +22,17 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
+import { useAuth } from '../hooks/useAuth';
 import { toast } from 'sonner';
 import TableActions from '../components/TableActions';
+import { Lock } from 'lucide-react';
 
 const Audits = () => {
+  const { user } = useAuth();
+  const hasPrivilege = (priv) => {
+    if (user?.role === 'super admin') return true;
+    return user?.privileges?.includes(priv);
+  };
   const { 
     audits, 
     applications, 
@@ -323,22 +330,48 @@ const Audits = () => {
                             (audit.status === 'Accepted' || audit.status === 'Correction Needed') && {
                               label: 'Upload Audit Report',
                               icon: FileText,
-                              onClick: () => { setSelectedAudit(audit); setIsReportModalOpen(true); }
+                              onClick: () => { 
+                                if (!hasPrivilege('Audit Manager')) {
+                                  toast.error('Only Audit Managers can upload reports');
+                                  return;
+                                }
+                                setSelectedAudit(audit); 
+                                setIsReportModalOpen(true); 
+                              }
                             },
                             (audit.status === 'Accepted' || audit.status === 'Correction Needed') && {
                               label: 'Flag Non Conformant',
                               icon: AlertTriangle,
-                              onClick: () => { setSelectedAudit(audit); setIsCorrectionModalOpen(true); }
+                              onClick: () => { 
+                                if (!hasPrivilege('Audit Manager')) {
+                                  toast.error('Only Audit Managers can flag findings');
+                                  return;
+                                }
+                                setSelectedAudit(audit); 
+                                setIsCorrectionModalOpen(true); 
+                              }
                             },
                             (audit.status === 'Accepted' || audit.status === 'Correction Needed') && {
                               label: 'Mark Complete',
                               icon: CheckCircle,
-                              onClick: () => handleComplete(audit._id)
+                              onClick: () => {
+                                if (!hasPrivilege('Audit Manager')) {
+                                  toast.error('Only Audit Managers can mark as complete');
+                                  return;
+                                }
+                                handleComplete(audit._id);
+                              }
                             },
                             audit.status === 'Correction Needed' && {
                               label: 'Send Reminder',
                               icon: RefreshCw,
-                              onClick: () => handleSendReminder(audit._id)
+                              onClick: () => {
+                                if (!hasPrivilege('Audit Manager')) {
+                                  toast.error('Only Audit Managers can send reminders');
+                                  return;
+                                }
+                                handleSendReminder(audit._id);
+                              }
                             },
                             audit.auditReport && {
                               label: 'View Audit Report',

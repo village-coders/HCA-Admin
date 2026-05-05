@@ -15,11 +15,12 @@ import {
   MessageCircleIcon,
   Receipt,
   CalendarCheck,
-  FolderOpen
+  FolderOpen,
+  Mail
 } from 'lucide-react';
 
 import { useAuth } from '../hooks/useAuth'
-import {useNavigate} from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 
 const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -42,6 +43,7 @@ const Sidebar = () => {
     { path: '/invoices', icon: Receipt, label: 'Invoices' },
     { path: '/audits', icon: CalendarCheck, label: 'Audits' },
     { path: '/sharia-board', icon: Award, label: "Shari'a Board" },
+    { path: '/bulk-email', icon: Mail, label: 'Bulk Email' },
     ...(user?.role === "super admin"
       ? [{ path: '/manage-admins', icon: Users, label: 'Manage Admin' }]
       : []),

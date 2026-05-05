@@ -24,10 +24,17 @@ import {
   Tag
 } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
+import { useAuth } from '../hooks/useAuth';
 import { toast } from 'sonner';
 import TableActions from '../components/TableActions';
+import { Lock } from 'lucide-react';
 
 const Certificates = () => {
+  const { user } = useAuth();
+  const hasPrivilege = (priv) => {
+    if (user?.role === 'super admin') return true;
+    return user?.privileges?.includes(priv);
+  };
   const controller = new AbortController()
   const [filter, setFilter] = useState({
     search: '',

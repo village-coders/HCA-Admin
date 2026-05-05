@@ -16,10 +16,17 @@ import {
   Upload
 } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
+import { useAuth } from '../hooks/useAuth';
 import { toast } from 'sonner';
 import TableActions from '../components/TableActions';
+import { Lock } from 'lucide-react';
 
 const Invoices = () => {
+  const { user } = useAuth();
+  const hasPrivilege = (priv) => {
+    if (user?.role === 'super admin') return true;
+    return user?.privileges?.includes(priv);
+  };
   const { 
     invoices,
     companies, 
@@ -151,13 +158,20 @@ const Invoices = () => {
           <p className="text-gray-500 mt-1">Manage and track all companies payments</p>
         </div>
         <div className="flex items-center gap-3">
-          <button 
-            onClick={handleOpenCreateModal}
-            className="px-4 py-2.5 bg-[#00853b] text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm font-medium flex items-center gap-2"
-          >
-            <Send className="w-4 h-4" />
-            Create Invoice
-          </button>
+          {hasPrivilege('Accountant') ? (
+            <button 
+              onClick={handleOpenCreateModal}
+              className="px-4 py-2.5 bg-[#00853b] text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm font-medium flex items-center gap-2"
+            >
+              <Send className="w-4 h-4" />
+              Create Invoice
+            </button>
+          ) : (
+            <div className="px-4 py-2.5 bg-gray-100 text-gray-400 rounded-lg flex items-center gap-2 text-sm font-medium">
+              <Lock className="w-4 h-4" />
+              Accountant Only
+            </div>
+          )}
           <button 
             onClick={handleRefresh}
             className="p-2.5 bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 rounded-lg shadow-sm transition-all duration-200 disabled:opacity-50"
@@ -286,7 +300,13 @@ const Invoices = () => {
                           invoice.status === 'Waiting for admin approval' && {
                             label: 'Review Proof of Payment',
                             icon: Search,
-                            onClick: () => handleOpenProofModal(invoice)
+                            onClick: () => {
+                              if (!hasPrivilege('Accountant')) {
+                                toast.error('Only accountants can approve payments');
+                                return;
+                              }
+                              handleOpenProofModal(invoice);
+                            }
                           },
                           invoice.status === 'Paid' && {
                             label: 'View Payment Details',
@@ -510,19 +530,26 @@ const Invoices = () => {
                 >
                   Cancel
                 </button>
-                <button 
-                  type="button"
-                  onClick={() => handleApprovePayment(selectedInvoice._id)}
-                  disabled={isApprovingId === selectedInvoice._id}
-                  className="flex-1 px-4 py-2.5 bg-[#00853b] text-white rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {isApprovingId === selectedInvoice._id ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <CheckCircle className="w-4 h-4" />
-                  )}
-                  Approve Payment
-                </button>
+                {hasPrivilege('Accountant') ? (
+                  <button 
+                    type="button"
+                    onClick={() => handleApprovePayment(selectedInvoice._id)}
+                    disabled={isApprovingId === selectedInvoice._id}
+                    className="flex-1 px-4 py-2.5 bg-[#00853b] text-white rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isApprovingId === selectedInvoice._id ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-4 h-4" />
+                    )}
+                    Approve Payment
+                  </button>
+                ) : (
+                  <div className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-400 rounded-lg flex items-center justify-center gap-2 text-sm font-medium">
+                    <Lock className="w-4 h-4" />
+                    Accountant Only
+                  </div>
+                )}
               </div>
             </div>
           </div>

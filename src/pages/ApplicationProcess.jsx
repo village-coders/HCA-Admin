@@ -851,7 +851,7 @@ export default function ApplicationProcess() {
                               <input type="tel" placeholder="+234 000 000 0000" value={auditLeadPhone} onChange={e => setAuditLeadPhone(e.target.value)} className="form-input" />
                             </div>
                           </div>
-                          {hasPrivilege('Application Officer') ? (
+                          {hasPrivilege('Audit Manager') ? (
                             <button
                               className="action-btn-primary sm"
                               onClick={() => {
@@ -871,19 +871,19 @@ export default function ApplicationProcess() {
                               {subCompleted ? 'Update Audit Schedule' : 'Schedule Audit'}
                             </button>
                           ) : (
-                            <NoPermissionView privilege="Application Officer" />
+                            <NoPermissionView privilege="Audit Manager" />
                           )}
                         </>
 
                       )}
                       {sub.type === 'confirm' && (
-                        hasPrivilege('Application Officer') ? (
+                        hasPrivilege('Audit Manager') ? (
                           <button className="action-btn-primary sm" onClick={() => submitStep(6, sub.id)} disabled={saving}>
                             {saving ? <Loader2 className="spin" size={14} /> : <CheckCircle size={14} />}
                             {sub.id === 2 ? 'Mark as Audited' : sub.id === 4 ? 'Mark NC as Closed' : 'Confirm Audit Report Received'}
                           </button>
                         ) : (
-                          <NoPermissionView privilege="Application Officer" />
+                          <NoPermissionView privilege="Audit Manager" />
                         )
                       )}
 
@@ -908,7 +908,7 @@ export default function ApplicationProcess() {
                             accept=".pdf,.doc,.docx"
                             onChange={e => setAuditReportFile(e.target.files[0])}
                           />
-                          {hasPrivilege('Application Officer') ? (
+                          {hasPrivilege('Audit Manager') ? (
                             <button
                               className="action-btn-primary sm"
                               onClick={() => submitStep(6, 5, null, auditReportFile)}
@@ -918,7 +918,7 @@ export default function ApplicationProcess() {
                               {processData?.audit?.auditReportFile ? 'Update' : 'Upload'} Audit Report
                             </button>
                           ) : (
-                            <NoPermissionView privilege="Application Officer" />
+                            <NoPermissionView privilege="Audit Manager" />
                           )}
                         </div>
 
@@ -936,7 +936,7 @@ export default function ApplicationProcess() {
                             accept=".pdf,.doc,.docx"
                             onChange={e => setNcReportFile(e.target.files[0])}
                           />
-                          {hasPrivilege('Application Officer') ? (
+                          {hasPrivilege('Audit Manager') ? (
                             <button
                               className="action-btn-primary sm"
                               onClick={() => submitStep(6, 3, null, ncReportFile)}
@@ -946,7 +946,7 @@ export default function ApplicationProcess() {
                               Upload NC Report
                             </button>
                           ) : (
-                            <NoPermissionView privilege="Application Officer" />
+                            <NoPermissionView privilege="Audit Manager" />
                           )}
                         </>
 
@@ -979,13 +979,13 @@ export default function ApplicationProcess() {
         <div className="action-panel">
           <h2>Initiate Shari'a Logsheet</h2>
           <p>Create a formal logsheet to be sent to the Shari'a Board for endorsement.</p>
-          {hasPrivilege('Application Officer') ? (
+          {hasPrivilege('Audit Manager') ? (
             <button className="action-btn-primary" onClick={() => setShowLogsheetModal(true)} disabled={saving}>
               <FileText size={16} />
               Create Logsheet
             </button>
           ) : (
-            <NoPermissionView privilege="Application Officer" />
+            <NoPermissionView privilege="Audit Manager" />
           )}
         </div>
       );
@@ -1026,13 +1026,13 @@ export default function ApplicationProcess() {
             </p>
           </div>
           <p>Approval received on: <strong>{processData?.certificationApprovedAt ? new Date(processData.certificationApprovedAt).toLocaleDateString() : 'N/A'}</strong></p>
-          {hasPrivilege('Application Officer') ? (
+          {hasPrivilege('Audit Manager') ? (
             <button className="action-btn-primary" onClick={() => submitStep(9)} disabled={saving}>
               {saving ? <Loader2 className="spin" size={16} /> : <Award size={16} />}
               {saving ? 'Processing...' : 'Confirm for Processing'}
             </button>
           ) : (
-            <NoPermissionView privilege="Application Officer" />
+            <NoPermissionView privilege="Audit Manager" />
           )}
         </div>
       );

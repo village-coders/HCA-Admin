@@ -129,7 +129,7 @@ const AllProvider = ({ children }) => {
 
     setIsLoading(true);
     try {
-      const res = await axios.get(`${baseUrl}/users?role=company`, {
+      const res = await axios.get(`${baseUrl}/users?role=company&isUnderCompany=false`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 

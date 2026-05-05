@@ -20,10 +20,17 @@ import {
   Trash2
 } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
+import { useAuth } from '../hooks/useAuth';
 import { toast } from 'sonner';
 import TableActions from '../components/TableActions';
+import { Lock } from 'lucide-react';
 
 const Products = () => {
+  const { user } = useAuth();
+  const hasPrivilege = (priv) => {
+    if (user?.role === 'super admin') return true;
+    return user?.privileges?.includes(priv);
+  };
   const controller = new AbortController()
   const [filter, setFilter] = useState({
     name: '',
@@ -52,6 +59,7 @@ const Products = () => {
   const [isDeletingId, setIsDeletingId] = useState(null);
   const [isBulkApproving, setIsBulkApproving] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [companySuggestions, setCompanySuggestions] = useState([]);
 
   const { 
     products, 
@@ -77,6 +85,24 @@ const Products = () => {
     setIsRefreshing(true);
     await fetchProducts();
     setIsRefreshing(false);
+  };
+
+  // Handle company search suggestions
+  useEffect(() => {
+    if (filter.company.trim()) {
+      const suggestions = companies.filter(c => 
+        (c.companyName?.toLowerCase().includes(filter.company.toLowerCase()) ||
+         c.name?.toLowerCase().includes(filter.company.toLowerCase()))
+      ).slice(0, 5);
+      setCompanySuggestions(suggestions);
+    } else {
+      setCompanySuggestions([]);
+    }
+  }, [filter.company, companies]);
+
+  const handleCompanySuggestionClick = (companyName) => {
+    setFilter({ ...filter, company: companyName });
+    setCompanySuggestions([]);
   };
 
   // Filter products
@@ -629,7 +655,7 @@ const Products = () => {
           <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                {selectedProduct.status?.toLowerCase() === 'requested' && (
+                {hasPrivilege('Application Officer') && (
                   <>
                     <button
                       onClick={() => handleApproveProduct(productId)}
@@ -650,6 +676,13 @@ const Products = () => {
                   </>
                 )}
                 <button
+                  onClick={() => {
+                    if (!hasPrivilege('Application Officer')) {
+                      toast.error('Only Application Officers can edit products');
+                      return;
+                    }
+                    // Edit logic
+                  }}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors duration-200 flex items-center"
                 >
                   <Edit className="w-4 h-4 mr-2" />
@@ -664,7 +697,13 @@ const Products = () => {
                   Close
                 </button>
                 <button
-                  onClick={() => handleDeleteProduct(productId)}
+                  onClick={() => {
+                    if (!hasPrivilege('Application Officer')) {
+                      toast.error('Only Application Officers can delete products');
+                      return;
+                    }
+                    handleDeleteProduct(productId);
+                  }}
                   disabled={isDeletingId === productId}
                   className="px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
                 >
@@ -765,7 +804,7 @@ const Products = () => {
               </div>
             </div>
             
-            <div>
+            <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-2">Company</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -777,6 +816,23 @@ const Products = () => {
                   onChange={(e) => setFilter({ ...filter, company: e.target.value })}
                   disabled={isLoading}
                 />
+                {companySuggestions.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {companySuggestions.map((company) => (
+                      <button
+                        key={company._id || company.id}
+                        type="button"
+                        className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 border-b last:border-0 border-gray-100"
+                        onClick={() => handleCompanySuggestionClick(company.companyName || company.name)}
+                      >
+                        <div className="font-medium">{company.companyName || company.name}</div>
+                        {company.registrationNo && (
+                          <div className="text-xs text-gray-500">Reg: {company.registrationNo}</div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             

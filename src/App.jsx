@@ -17,6 +17,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import ApplicationProcess from "./pages/ApplicationProcess";
 import ShariaBoard from "./pages/ShariaBoard";
+import BulkEmail from "./pages/BulkEmail";
 
 import AuthProvider from "./contexts/AuthProvider";
 import AllProvider from "./contexts/AllProvider";
@@ -50,6 +51,7 @@ function App() {
                 <Route path="/documents" element={<Documents />} />
                 <Route path="/applications/:id/process" element={<ApplicationProcess />} />
                 <Route path="/sharia-board" element={<ShariaBoard />} />
+                <Route path="/bulk-email" element={<BulkEmail />} />
                 <Route path="/message" element={<AdminMessages />} />
                 <Route path="/socket-message" element={<Messages />} />
               </Route>

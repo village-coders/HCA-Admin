@@ -40,8 +40,9 @@ const ManageAdmins = () => {
     "Viewer",
     "Application Officer",
     "Accountant",
-    "Certificate Officer",
+    "Audit Manager",
     "Shari'a Board",
+    "Certificate Officer",
   ];
 
   

@@ -13,7 +13,7 @@ const Companies = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
  
-  const { fetchCompanies, companies, isLoading, errors, products, applications } = useAll();
+  const { fetchCompanies, fetchProducts, fetchCertificates, fetchApplications, companies, isLoading, errors, products, applications } = useAll();
 
   // Reset pagination when search or tab changes
   useEffect(() => {
@@ -29,7 +29,12 @@ const Companies = () => {
   // Handle refresh
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchCompanies();
+    await Promise.all([
+      fetchCompanies(),
+      fetchProducts(),
+      fetchCertificates(),
+      fetchApplications()
+    ]);
     setIsRefreshing(false);
   };
 
@@ -51,8 +56,9 @@ const Companies = () => {
   const getCompanyStats = (registrationNo) => {
     if (!registrationNo) return { totalApps: 0, approvedApps: 0, totalProds: 0, approvedProds: 0 };
     
-    const companyApps = applications?.filter(a => a.companyId === registrationNo) || [];
-    const companyProds = products?.filter(p => p.companyId === registrationNo) || [];
+    const regLower = registrationNo.toLowerCase();
+    const companyApps = applications?.filter(a => a.companyId?.toLowerCase() === regLower) || [];
+    const companyProds = products?.filter(p => p.companyId?.toLowerCase() === regLower) || [];
     
     return {
       totalApps: companyApps.length,
@@ -74,21 +80,23 @@ const Companies = () => {
     // Search filter
     if (searchTerm && 
         !company.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !company.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) &&
         !company.registrationNo?.toLowerCase().includes(searchTerm.toLowerCase()) &&
         !company.email?.toLowerCase().includes(searchTerm.toLowerCase()))  {
       return false;
     }
 
     // Tab filter
+    const stats = getCompanyStats(company.registrationNo);
     switch (activeTab) {
       case 'all':
         return true;
       case 'non-approved':
-        return company.approvedProducts === 0 || !company.approvedProducts;
+        return stats.approvedProds === 0;
       case 'lists':
-        return company.approvedProducts > 0;
+        return stats.approvedProds > 0;
       case 'applications':
-        return company.totalApplications > 0;
+        return stats.totalApps > 0;
       default:
         return true;
     }
