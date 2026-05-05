@@ -1165,7 +1165,7 @@ export default function ApplicationProcess() {
             <button 
               className="action-btn-primary success" 
               onClick={handleIssueCertificate} 
-              disabled={saving || !certFile || !certExpiryDate || !certNumber}
+              disabled={saving || !certFiles || !certExpiryDate || !certNumber}
               style={{ marginTop: '24px', width: '100%', maxWidth: '300px', marginInline: 'auto' }}
             >
               {saving ? <Loader2 className="spin" size={16} /> : <Award size={16} />}
