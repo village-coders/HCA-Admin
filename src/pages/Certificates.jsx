@@ -1149,6 +1149,7 @@ const Certificates = () => {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Certificate</th>
+                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
                       <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
                       {/* <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th> */}
                       <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -1176,6 +1177,11 @@ const Certificates = () => {
                                 <div className="text-sm text-gray-600">
                                   {cert.certificateType || 'Standard Certificate'}
                                 </div>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {cert.branchId?.branchName || 'N/A'}
                               </div>
                             </td>
                             <td className="p-4">

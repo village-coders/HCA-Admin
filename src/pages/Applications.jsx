@@ -618,6 +618,34 @@ const Applications = () => {
                       </div>
                     </div>
                   </div>
+ 
+                  {/* Branch Information */}
+                  <div className="bg-gray-50 rounded-lg p-5">
+                    <div className="flex items-center mb-4">
+                      <MapPin className="w-5 h-5 text-gray-500 mr-2" />
+                      <h3 className="text-lg font-semibold text-gray-900">Branch Information</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-600">Branch Name</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedApplication.branchId?.branchName || 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Branch Contact</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedApplication.branchId?.contactName || 'N/A'}
+                        </p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-sm text-gray-600">Branch Address</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedApplication.branchId?.address || 'N/A'}, {selectedApplication.branchId?.city || 'N/A'}, {selectedApplication.branchId?.state || 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Applicant Information */}
                   <div className="bg-gray-50 rounded-lg p-5">
@@ -1403,6 +1431,7 @@ const Applications = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Application ID</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -1429,6 +1458,11 @@ const Applications = () => {
                             {app.company?.email && (
                               <div className="text-xs text-gray-500">{app.company?.email}</div>
                             )}
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="text-sm font-medium text-gray-900">
+                            {app.branchId?.branchName || 'N/A'}
                           </div>
                         </td>
                         <td className="p-4">
