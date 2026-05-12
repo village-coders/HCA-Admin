@@ -16,7 +16,7 @@ export default function Login() {
   const handleSubmit = async(e) => {
     e.preventDefault();
 
-    const formData = {email, password}
+    const formData = {email: email.toLowerCase(), password}
 
     try {
       await signin(formData, navigate)

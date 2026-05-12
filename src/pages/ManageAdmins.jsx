@@ -123,7 +123,7 @@ const ManageAdmins = () => {
         },
         body: JSON.stringify({
           fullName: newAdmin.name,
-          email: newAdmin.email,
+          email: newAdmin.email.toLowerCase(),
           password: newAdmin.password,
           contact: newAdmin.contact,
           role: newAdmin.role,
