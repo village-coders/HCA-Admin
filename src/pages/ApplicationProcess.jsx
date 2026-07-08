@@ -1194,6 +1194,7 @@ export default function ApplicationProcess() {
                                 </div>
                               )}
                             </div>
+                          ) : (
                             <button className="action-btn-primary sm" onClick={() => setConfirmModal({
                               open: true,
                               title: 'Confirm Audit Completed',
