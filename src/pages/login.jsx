@@ -1,0 +1,99 @@
+import { useState } from "react";
+import { FiEye, FiEyeOff } from "react-icons/fi";
+import { useAuth } from "../hooks/useAuth";
+import { useNavigate, Link } from "react-router-dom";
+import logo from '../assets/hcaLogo1.png'
+import { PulseLoader } from "react-spinners";
+
+
+export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const { signin, signingIn } = useAuth()
+  const navigate = useNavigate()
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const formData = { email: email.toLowerCase(), password }
+
+    try {
+      await signin(formData, navigate)
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const year = new Date().getFullYear();
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-200 via-gray-200 to-green-500 px-4">
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 space-y-6">
+        <div className="flex flex-col items-center">
+          <img
+            src={logo}
+            alt="HDI Logo"
+            className="w-20 h-full mb-3"
+            loading="lazy"
+          />
+          <h1 className="text-3xl font-bold text-gray-800 text-center">HDI Admin Portal</h1>
+          <p className="text-gray-500 mt-1 text-center">
+            Enter Your Credentials To Proceed to Your Dashboard
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5 mt-4">
+          <div>
+            <label className="block text-gray-700 mb-1">Email</label>
+            <input
+              type="email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+              required
+            />
+          </div>
+
+          <div className="relative">
+            <label className="block text-gray-700 mb-1">Password</label>
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition pr-12"
+              required
+            />
+
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-8.25 translate-y-1/2 text-gray-500 hover:text-gray-700"
+            >
+              {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+            </button>
+          </div>
+
+          <div className="flex justify-end pt-1">
+            <Link to="/forgot-password" title="Click to reset password" className="text-green-600 hover:text-green-700 text-sm font-medium hover:underline transition-colors pb-3">
+              Forgot Password?
+            </Link>
+          </div>
+
+          <button
+            type="submit"
+            className="w-full bg-green-600 hover:bg-green-700 cursor-pointer text-white py-3 rounded-xl font-semibold shadow-md transition"
+          >
+            {signingIn ? <PulseLoader color="white" /> : "Login"}
+          </button>
+        </form>
+
+        <div className="text-center text-gray-500 text-sm mt-4">
+          &copy; {year} HDI Admin. All rights reserved.
+        </div>
+      </div>
+    </div>
+  );
+}

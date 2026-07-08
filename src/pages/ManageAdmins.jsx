@@ -1,0 +1,590 @@
+import { useEffect, useState } from "react";
+import { toast } from 'sonner'
+import {
+  Search,
+  UserPlus,
+  Mail,
+  Phone,
+  Shield,
+  Trash2,
+  Edit2,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
+import { SyncLoader } from "react-spinners";
+import axios from "axios";
+import { useAuth } from "../hooks/useAuth";
+
+
+const ManageAdmins = () => {
+  const { user: currentUser } = useAuth();
+
+  const [admins, setAdmins] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  
+  const [editingAdmin, setEditingAdmin] = useState(null); // NEW: track editing admin
+
+  const [newAdmin, setNewAdmin] = useState({
+    name: "",
+    email: "",
+    password: "",
+    contact: "",
+    role: "admin",
+    privileges: ["Viewer"],
+  });
+
+  const PRIVILEGE_OPTIONS = [
+    "Viewer",
+    "Application Officer",
+    "Accountant",
+    "Audit Manager",
+    "Shari'a Board",
+    "Certificate Officer",
+  ];
+
+  
+  // 🔹 FETCH ADMINS (SAFE)
+  const fetchAdmins = async (signal) => {
+    try {
+      setLoading(true);
+      const token = JSON.parse(localStorage.getItem("accessToken"))
+      const res = await fetch(
+        `${import.meta.env.VITE_BASE_URL}/users/admin`,{
+          headers: {
+            Authorization: `Bearer ${token}`
+          },
+          signal,
+        }
+      );
+      const data = await res.json();
+      
+      const adminsArray = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data?.users)
+        ? data.users
+        : [];
+        
+      const formattedAdmins = adminsArray.map((admin) => ({
+        id: admin._id,
+        name: admin.fullName || admin.name || "N/A",
+        email: admin.email || "—",
+        contact: admin.contact || "—",
+        role: admin.role || "admin",
+        privileges: admin.privileges || ["Viewer"],
+        addedDate: admin.createdAt
+          ? new Date(admin.createdAt).toISOString().split("T")[0]
+          : "—",
+        status: admin.isActive ? "Active" : "Inactive",
+      }));
+
+      setAdmins(formattedAdmins);
+    } catch (err) {
+      console.error("Failed to fetch admins:", err);
+      setAdmins([]); // 🚨 never allow non-array
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  useEffect(() => {
+    const controller = new AbortController()
+    fetchAdmins(controller.signal);
+    return () => controller.abort()
+  }, []);
+
+  // 🔹 ADD / EDIT ADMIN (API)
+  const handleAddAdmin = async () => {
+    if (!newAdmin.name || !newAdmin.email || !newAdmin.contact) {
+      toast.warning("All fields are required");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      const token = JSON.parse(localStorage.getItem("accessToken"));
+
+      const url = editingAdmin
+        ? `${import.meta.env.VITE_BASE_URL}/users/admin/${editingAdmin.id}` // PUT endpoint for edit
+        : `${import.meta.env.VITE_BASE_URL}/users/admin`;            // POST endpoint for new
+
+      const method = editingAdmin ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          fullName: newAdmin.name,
+          email: newAdmin.email.toLowerCase(),
+          password: newAdmin.password,
+          contact: newAdmin.contact,
+          role: newAdmin.role,
+          privileges: newAdmin.privileges,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message);
+
+      toast.success(data.message);
+
+      // Reset form
+      setShowAddForm(false);
+      setEditingAdmin(null);
+      setNewAdmin({
+        name: "",
+        email: "",
+        password: "",
+        contact: "",
+        role: "admin",
+        privileges: ["Viewer"],
+      });
+
+
+      fetchAdmins(); // refresh list
+    } catch (err) {
+      console.log(err);
+      toast.error(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // 🔹 SEARCH FILTER (SAFE)
+  const filteredAdmins = Array.isArray(admins)
+    ? admins.filter(
+        (admin) =>
+          admin.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          admin.email.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : [];
+
+  const handleToggleStatus = async (id) => {
+    try {
+      const admin = admins.find(a => a.id === id);
+      if (!admin) return;
+
+      const newStatus = admin.status === "Active" ? false : true;
+      const token = JSON.parse(localStorage.getItem("accessToken"));
+
+      const res = await axios.put(`${import.meta.env.VITE_BASE_URL}/users/admin/${id}`, 
+        { isActive: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (res.data.status === "success") {
+        setAdmins((prev) =>
+          prev.map((admin) =>
+            admin.id === id
+              ? { ...admin, status: newStatus ? "Active" : "Inactive" }
+              : admin
+          )
+        );
+        toast.success(`Admin status updated to ${newStatus ? 'Active' : 'Inactive'}`);
+      } else {
+        toast.error(res.data.message || "Failed to update status");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || "Failed to update status");
+    }
+  };
+
+
+  const handleDeleteAdmin = async(id) => {
+    if (window.confirm("Are you sure you want to delete this admin?")) {
+      try {
+        const res = await axios.delete(
+          `${import.meta.env.VITE_BASE_URL}/users/admin/${id}`,{
+          headers: {
+            Authorization: `Bearer ${JSON.parse(localStorage.getItem("accessToken"))}`,
+          },
+        });
+
+        const data = res.data
+        if(data.status === "success"){
+          toast.success(data.message)
+          fetchAdmins();
+        }else{
+          toast.error(data.message)
+        }
+      
+      } catch (error) {
+        console.log(error)
+      }
+    }
+  };
+
+  const getRoleColor = (role) => {
+    switch (role) {
+      case "super admin":
+        return "bg-purple-100 text-purple-800";
+      case "admin":
+        return "bg-blue-100 text-blue-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  return (
+    <div className="p-4 lg:p-8 pt-20 lg:pt-8 ">
+      {/* Header */}
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
+            Manage Admins
+          </h1>
+          <p className="text-gray-600 mt-1">Add and manage admin users</p>
+        </div>
+
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="px-4 py-2.5 bg-[#00853b] text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 inline-flex items-center justify-center cursor-pointer"
+        >
+          <UserPlus className="w-5 h-5 mr-2" />
+          Add New Admin
+        </button>
+      </div>
+
+      {/* Add / Edit Admin Form Modal */}
+      {showAddForm && (
+        <div className="fixed inset-0 bg-gradient-to-br from-green-200 via-gray-200 to-green-500 bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-900">
+                {editingAdmin ? "Edit Admin" : "Add New Admin"}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowAddForm(false);
+                  setEditingAdmin(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-lg"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b]"
+                  value={newAdmin.name}
+                  onChange={(e) =>
+                    setNewAdmin({ ...newAdmin, name: e.target.value })
+                  }
+                  placeholder="Enter full name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b]"
+                  value={newAdmin.email}
+                  onChange={(e) =>
+                    setNewAdmin({ ...newAdmin, email: e.target.value })
+                  }
+                  placeholder="Enter email address"
+                />
+              </div>
+              {!editingAdmin && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b]"
+                    value={newAdmin.password}
+                    onChange={(e) =>
+                      setNewAdmin({ ...newAdmin, password: e.target.value })
+                    }
+                    placeholder="Enter Password"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b]"
+                  value={newAdmin.contact}
+                  onChange={(e) =>
+                    setNewAdmin({ ...newAdmin, contact: e.target.value })
+                  }
+                  placeholder="Enter phone number"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Role
+                </label>
+                <select
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b]"
+                  value={newAdmin.role}
+                  onChange={(e) =>
+                    setNewAdmin({ ...newAdmin, role: e.target.value })
+                  }
+                >
+                  <option value="admin">Admin</option>
+                  <option value="super admin">Super Admin</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Privileges (Select one or more)
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {PRIVILEGE_OPTIONS.map((priv) => (
+                    <label key={priv} className="flex items-center space-x-2 text-sm text-gray-600 cursor-pointer p-2 border rounded-lg hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        className="rounded text-[#00853b] focus:ring-[#00853b]"
+                        checked={newAdmin.privileges.includes(priv)}
+                        onChange={(e) => {
+                          const updatedPrivs = e.target.checked
+                            ? [...newAdmin.privileges, priv]
+                            : newAdmin.privileges.filter((p) => p !== priv);
+                          setNewAdmin({ ...newAdmin, privileges: updatedPrivs.length > 0 ? updatedPrivs : ["Viewer"] });
+                        }}
+                      />
+                      <span>{priv}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-8">
+              <button
+                onClick={() => {
+                  setShowAddForm(false);
+                  setEditingAdmin(null);
+                }}
+                className="px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 cursor-pointer"
+              >
+                Cancel
+              </button>
+             <button
+                onClick={handleAddAdmin}
+                disabled={submitting}
+                className="px-6 py-2 bg-[#00853b] text-white rounded-lg hover:bg-green-700 cursor-pointer"
+              >
+                {submitting ? (
+                  <p>{editingAdmin ? "Updating Admin..." : "Adding Admin..."}</p>
+                ) : editingAdmin ? (
+                  "Update Admin"
+                ) : (
+                  "Add Admin"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Search */}
+      <div className="bg-white rounded-xl shadow-sm border p-6 mb-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search admins by name or email..."
+            className="pl-10 w-full rounded-lg border px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-[#00853b]"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">
+                  Admin
+                </th>
+                <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">
+                  Contact
+                </th>
+                <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">
+                  Role
+                </th>
+                <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">
+                  Added Date
+                </th>
+                <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">
+                  Privileges
+                </th>
+                <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">
+                  Status
+                </th>
+
+                <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y">
+              {loading && (
+                <tr>
+                  <td colSpan="6" className="p-6 text-center text-gray-500">
+                    Loading admins...
+                  </td>
+                </tr>
+              )}
+
+              {!loading && filteredAdmins.length === 0 && (
+                <tr>
+                  <td colSpan="6" className="p-6 text-center text-gray-500">
+                    No admins found
+                  </td>
+                </tr>
+              )}
+
+              {filteredAdmins.map((admin) => (
+                <tr key={admin.id} className="hover:bg-gray-50">
+                  <td className="p-4 flex items-center">
+                    <div className="w-10 h-10 rounded-full bg-[#00853b]/10 flex items-center justify-center">
+                      <span className="font-bold text-[#00853b]">
+                        {admin.name.charAt(0)}
+                      </span>
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium">{admin.name}</p>
+                      <p className="text-xs text-gray-500">ID: #{admin.id}</p>
+                    </div>
+                  </td>
+
+                  <td className="p-4 space-y-1">
+                    <div className="flex items-center text-sm">
+                      <Mail className="w-4 h-4 mr-2 text-gray-400" />
+                      {admin.email}
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <Phone className="w-4 h-4 mr-2 text-gray-400" />
+                      {admin.contact}
+                    </div>
+                  </td>
+
+                  <td className="p-4">
+                    <span
+                      className={`px-3 py-1 text-xs rounded-full ${getRoleColor(admin.role)}`}
+                    >
+                      <Shield className="inline w-3 h-3 mr-1" />
+                      {admin.role}
+                    </span>
+                  </td>
+
+                  <td className="p-4 text-sm text-gray-500">
+                    {admin.addedDate}
+                  </td>
+
+                  <td className="p-4">
+                    <div className="flex flex-wrap gap-1">
+                      {admin.privileges.map((p) => (
+                        <span key={p} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded-md border border-gray-200">
+                          {p}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+
+                  <td className="p-4">
+
+                    <button
+                      onClick={() => handleToggleStatus(admin.id)}
+                      className={`px-3 py-1 text-xs rounded-full cursor-pointer ${
+                        admin.status === "Active"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {admin?.status?.toLowerCase() === "active" ? (
+                        <CheckCircle className="inline w-3 h-3 mr-1" />
+                      ) : (
+                        <XCircle className="inline w-3 h-3 mr-1" />
+                      )}
+                      {admin.status}
+                    </button>
+                  </td>
+
+                  <td className="p-4 flex space-x-2">
+                    <button
+                      onClick={() => {
+                        setEditingAdmin(admin);
+                        setNewAdmin({
+                          name: admin.name,
+                          email: admin.email,
+                          password: "",
+                          contact: admin.contact,
+                          role: admin.role,
+                          privileges: admin.privileges,
+                        });
+
+                        setShowAddForm(true);
+                      }}
+                      className="p-1.5 hover:bg-gray-100 rounded-lg cursor-pointer"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    {(currentUser?.role === "super admin" && admin.id !== currentUser._id) && (
+                      <button
+                        onClick={() => handleDeleteAdmin(admin.id)}
+                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </td>
+
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="text-sm text-gray-600">
+              Showing{" "}
+              <span className="font-medium">{filteredAdmins.length}</span> of{" "}
+              <span className="font-medium">{admins.length}</span> admins
+            </div>
+            <div className="flex items-center space-x-2">
+              <button className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200">
+                Previous
+              </button>
+              <button className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200">
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ManageAdmins;
