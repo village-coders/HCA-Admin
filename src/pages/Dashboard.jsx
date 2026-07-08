@@ -193,9 +193,9 @@ const Dashboard = () => {
       // Count applications by category/type
       const applicationsByCategory = applications.reduce((acc, app) => {
         const category = app.category?.toLowerCase() || '';
-        if (category === 'renewal application' || category === 'renewal') {
+        if (category.includes('renewal')) {
           acc.renewal++;
-        } else {
+        } else if (category.includes('initial')) {
           acc.newApp++;
         }
         return acc;

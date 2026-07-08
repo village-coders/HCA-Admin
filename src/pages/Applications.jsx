@@ -95,7 +95,8 @@ const Applications = () => {
     deleteApplication,
     getApplicationById,
     addCertificate,
-    companies
+    companies,
+    approveProduct
   } = useAll();
 
   // Fetch applications on component mount
@@ -545,6 +546,36 @@ const Applications = () => {
     const StatusIcon = statusConfig.icon;
     const typeConfig = getTypeConfig(selectedApplication.applicationType);
     const appId = selectedApplication.id || selectedApplication._id;
+
+    const [isAcknowledging, setIsAcknowledging] = useState(false);
+
+    const handleAcknowledgeAllProducts = async () => {
+      const pendingProducts = selectedAppProducts.filter(
+        p => p.status === 'requested' || p.status === 'Requested' || p.status === 'pending' || p.status === 'Pending'
+      );
+      if (pendingProducts.length === 0) {
+        toast.info("No pending products to acknowledge.");
+        return;
+      }
+      setIsAcknowledging(true);
+      try {
+        const approvePromises = pendingProducts.map(p => approveProduct(p._id || p.id));
+        await Promise.all(approvePromises);
+        toast.success(`${pendingProducts.length} products acknowledged successfully!`);
+        // Update local state to show them as acknowledged
+        setSelectedAppProducts(prev => prev.map(p => {
+          if (pendingProducts.find(pending => (pending._id || pending.id) === (p._id || p.id))) {
+            return { ...p, status: 'acknowledged' };
+          }
+          return p;
+        }));
+      } catch (err) {
+        toast.error("Failed to acknowledge some products");
+        console.error(err);
+      } finally {
+        setIsAcknowledging(false);
+      }
+    };
 
     const detailTabs = [
       { id: 'overview', label: 'Overview', icon: Info },
@@ -1242,7 +1273,18 @@ const Applications = () => {
               {activeDetailTab === 'products' && (
                 <div className="space-y-6">
                   <div className="bg-gray-50 rounded-lg p-5">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Products Under This Application</h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">Products Under This Application</h3>
+                      {selectedAppProducts.some(p => p.status === 'requested' || p.status === 'Requested' || p.status === 'pending' || p.status === 'Pending') && hasPrivilege('Application Officer') && (
+                        <button
+                          onClick={handleAcknowledgeAllProducts}
+                          disabled={isAcknowledging}
+                          className="px-3 py-1.5 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+                        >
+                          {isAcknowledging ? 'Acknowledging...' : 'Acknowledge All Products'}
+                        </button>
+                      )}
+                    </div>
                     {selectedAppProducts.length > 0 ? (
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
