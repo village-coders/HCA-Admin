@@ -52,12 +52,14 @@ const Audits = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isCorrectionModalOpen, setIsCorrectionModalOpen] = useState(false);
+  const [isCounterProposalModalOpen, setIsCounterProposalModalOpen] = useState(false);
   const [selectedAudit, setSelectedAudit] = useState(null);
   const [correctionIssue, setCorrectionIssue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportFile, setReportFile] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [finalizingDate, setFinalizingDate] = useState(false);
 
   const [scheduleForm, setScheduleForm] = useState({
     applicationId: '',
@@ -186,6 +188,29 @@ const Audits = () => {
       if (result.success) {
         toast.success('Audit marked as completed');
       }
+    }
+  };
+
+  const handleFinalizeAuditDate = async (audit, pd) => {
+    if (!window.confirm(`Finalize the audit date as ${new Date(pd.date).toLocaleDateString()} at ${pd.fromTime || pd.time || 'N/A'}?`)) return;
+    setFinalizingDate(true);
+    try {
+      const token = JSON.parse(localStorage.getItem('accessToken'));
+      const axios = (await import('axios')).default;
+      await axios.put(`${baseUrl}/audits/${audit._id}/respond`, {
+        status: 'Accepted',
+        chosenDate: pd.date,
+        chosenTime: pd.fromTime || pd.time,
+        chosenToDate: pd.toDate || pd.date
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      toast.success('Audit date concluded successfully!');
+      setIsCounterProposalModalOpen(false);
+      setIsViewModalOpen(false);
+      await fetchAudits();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to finalize date');
+    } finally {
+      setFinalizingDate(false);
     }
   };
 
@@ -332,6 +357,11 @@ const Audits = () => {
                             {
                               label: 'View Details',
                               icon: Eye,
+                              onClick: () => { setSelectedAudit(audit); setIsViewModalOpen(true); }
+                            },
+                            (audit.status === 'Counter Proposed') && {
+                              label: 'Respond to Counter Proposal',
+                              icon: Calendar,
                               onClick: () => { setSelectedAudit(audit); setIsViewModalOpen(true); }
                             },
                             (audit.status === 'Accepted' || audit.status === 'Audited' || audit.status === 'Correction Needed' || audit.status === 'NC Flagged') && {
@@ -763,6 +793,54 @@ const Audits = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Counter Proposals Section */}
+                {(selectedAudit.status === 'Counter Proposed' || selectedAudit.status === 'Proposed') && selectedAudit.proposedDates?.length > 0 && (
+                  <div className="md:col-span-2">
+                    <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">
+                      {selectedAudit.status === 'Counter Proposed' ? '⚠️ Client Counter-Proposals — Choose One to Finalize' : 'Proposed Date Options'}
+                    </h4>
+                    <div className="flex flex-col gap-3">
+                      {selectedAudit.proposedDates.map((pd, idx) => (
+                        <div key={idx} style={{
+                          padding: '14px 16px',
+                          border: pd.isCounter ? '2px solid #f59e0b' : '1px solid #e2e8f0',
+                          borderRadius: '10px',
+                          background: pd.isCounter ? '#fffbeb' : '#f8fafc',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: '12px',
+                          flexWrap: 'wrap'
+                        }}>
+                          <div>
+                            <span style={{ fontWeight: 700, fontSize: '14px', display: 'block', color: '#1e293b' }}>
+                              Option #{idx + 1}: {new Date(pd.date).toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+                              {pd.toDate && pd.date !== pd.toDate ? ` — ${new Date(pd.toDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}` : ''}
+                            </span>
+                            <span style={{ fontSize: '13px', color: '#475569' }}>
+                              {pd.fromTime ? `At ${pd.fromTime}` : pd.time ? `At ${pd.time}` : 'Time TBD'}
+                            </span>
+                            {pd.isCounter && (
+                              <span style={{ fontSize: '11px', color: '#d97706', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                                ⚠️ Client Proposed Alternative
+                              </span>
+                            )}
+                          </div>
+                          {hasPrivilege('Audit Manager') && selectedAudit.status === 'Counter Proposed' && (
+                            <button
+                              onClick={() => handleFinalizeAuditDate(selectedAudit, pd)}
+                              disabled={finalizingDate}
+                              style={{ background: '#00853b', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: finalizingDate ? 'not-allowed' : 'pointer', opacity: finalizingDate ? 0.7 : 1, whiteSpace: 'nowrap' }}
+                            >
+                              {finalizingDate ? 'Finalizing...' : 'Finalize This Date'}
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Rejection Info (If applicable) */}
                 {selectedAudit.status === 'Rejected' && selectedAudit.rejectReason && (
