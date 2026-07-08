@@ -920,7 +920,7 @@ export default function ApplicationProcess() {
                           )}
 
                           {/* Phase 2: Dates are proposed / client countered */}
-                          {(processData?.audit?.status === 'Proposed' || processData?.audit?.status === 'Counter Proposed') && (
+                          {((processData?.audit?.status === 'Proposed' || processData?.audit?.status === 'Counter Proposed') || (!['Date Concluded', 'Scheduled'].includes(processData?.audit?.status) && processData?.audit?.proposedDates?.length > 0)) && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                               <p className="text-sm font-semibold text-slate-700">
                                 {processData?.audit?.status === 'Proposed'
