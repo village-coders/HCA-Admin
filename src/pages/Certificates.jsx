@@ -429,7 +429,7 @@ const Certificates = () => {
       }
       
       const token = JSON.parse(localStorage.getItem("accessToken"));
-      const downloadUrl = targetPath.startsWith('http') ? targetPath : `${baseUrl}${targetPath}`;
+      const downloadUrl = targetPath.startsWith('http') ? targetPath : `${baseUrl.replace(/\/api$/, '')}${targetPath.startsWith('/api') ? targetPath : '/api' + targetPath}`;
 
       toast.loading("Downloading label...", { id: "download-label" });
       

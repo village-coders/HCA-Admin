@@ -525,7 +525,7 @@ const Invoices = () => {
                       )}
                       <button
                         onClick={() => {
-                          const url = selectedInvoice.proofOfPayment.startsWith('http') ? selectedInvoice.proofOfPayment : `${baseUrl}${selectedInvoice.proofOfPayment}`;
+                          const url = selectedInvoice.proofOfPayment.startsWith('http') ? selectedInvoice.proofOfPayment : `${baseUrl.replace(/\/api$/, '')}${selectedInvoice.proofOfPayment.startsWith('/api') ? selectedInvoice.proofOfPayment : '/api' + selectedInvoice.proofOfPayment}`;
                           window.open(url, '_blank');
                         }}
                         className="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-all flex items-center gap-2"

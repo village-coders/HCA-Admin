@@ -384,7 +384,7 @@ const Audits = () => {
                               label: 'View Audit Report',
                               icon: ExternalLink,
                               onClick: () => {
-                                const url = audit.auditReport.startsWith('http') ? audit.auditReport : `${baseUrl}${audit.auditReport}`;
+                                const url = audit.auditReport.startsWith('http') ? audit.auditReport : `${baseUrl.replace(/\/api$/, '')}${audit.auditReport.startsWith('/api') ? audit.auditReport : '/api' + audit.auditReport}`;
                                 window.open(url, '_blank');
                               }
                             },
@@ -392,7 +392,7 @@ const Audits = () => {
                               label: 'View NC Report',
                               icon: ExternalLink,
                               onClick: () => {
-                                const url = audit.ncReport.startsWith('http') ? audit.ncReport : `${baseUrl}${audit.ncReport}`;
+                                const url = audit.ncReport.startsWith('http') ? audit.ncReport : `${baseUrl.replace(/\/api$/, '')}${audit.ncReport.startsWith('/api') ? audit.ncReport : '/api' + audit.ncReport}`;
                                 window.open(url, '_blank');
                               }
                             }
@@ -796,7 +796,7 @@ const Audits = () => {
                       {selectedAudit.auditReport && (
                         <button 
                           onClick={() => {
-                            const url = selectedAudit.auditReport.startsWith('http') ? selectedAudit.auditReport : `${baseUrl}${selectedAudit.auditReport}`;
+                            const url = selectedAudit.auditReport.startsWith('http') ? selectedAudit.auditReport : `${baseUrl.replace(/\/api$/, '')}${selectedAudit.auditReport.startsWith('/api') ? selectedAudit.auditReport : '/api' + selectedAudit.auditReport}`;
                             window.open(url, '_blank');
                           }}
                           className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors flex items-center gap-1.5"
@@ -820,7 +820,7 @@ const Audits = () => {
                       {selectedAudit.ncReport && (
                         <button 
                           onClick={() => {
-                            const url = selectedAudit.ncReport.startsWith('http') ? selectedAudit.ncReport : `${baseUrl}${selectedAudit.ncReport}`;
+                            const url = selectedAudit.ncReport.startsWith('http') ? selectedAudit.ncReport : `${baseUrl.replace(/\/api$/, '')}${selectedAudit.ncReport.startsWith('/api') ? selectedAudit.ncReport : '/api' + selectedAudit.ncReport}`;
                             window.open(url, '_blank');
                           }}
                           className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-colors flex items-center gap-1.5"
