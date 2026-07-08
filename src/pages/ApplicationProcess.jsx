@@ -33,7 +33,6 @@ const AUDIT_SUB_STEPS = [
   { id: 4, label: 'NC Report (Upload)', type: 'upload' },
   { id: 5, label: 'NC Report Closed', type: 'confirm' },
   { id: 6, label: 'Audit Report Submitted', type: 'display' },
-  { id: 7, label: 'Confirm Audit Report Received', type: 'confirm' },
 ];
 
 
@@ -1195,17 +1194,14 @@ export default function ApplicationProcess() {
                                 </div>
                               )}
                             </div>
-                          ) : (
                             <button className="action-btn-primary sm" onClick={() => setConfirmModal({
                               open: true,
-                              title: sub.id === 3 ? 'Confirm Audit Completed' : 'Confirm Audit Report Received',
-                              message: sub.id === 3
-                                ? 'Are you sure you want to mark this audit session as Audited? This will advance the certification process.'
-                                : 'Are you sure you want to confirm receipt of the audit report? This will advance the process.',
+                              title: 'Confirm Audit Completed',
+                              message: 'Are you sure you want to mark this audit session as Audited? This will advance the certification process.',
                               onConfirm: () => { setConfirmModal({ open: false }); submitStep(6, sub.id); }
                             })} disabled={saving}>
                               {saving ? <Loader2 className="spin" size={14} /> : <CheckCircle size={14} />}
-                              {sub.id === 3 ? 'Mark as Audited' : 'Confirm Audit Report Received'}
+                              Mark as Audited
                             </button>
                           )
                         ) : (
