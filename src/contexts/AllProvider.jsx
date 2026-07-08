@@ -650,7 +650,7 @@ const AllProvider = ({ children }) => {
         targetPath = '/api' + targetPath;
       }
 
-      const downloadUrl = targetPath.startsWith('http') ? targetPath : `${baseUrl}${targetPath.startsWith('/api') ? targetPath.replace('/api', '') : targetPath}`;
+      const downloadUrl = targetPath.startsWith('http') ? targetPath : `${baseUrl.replace(/\/api$/, '')}${targetPath.startsWith('/api') ? targetPath : '/api' + targetPath}`;
       
       const response = await fetch(downloadUrl, {
         headers: { Authorization: `Bearer ${token}` }

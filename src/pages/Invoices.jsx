@@ -299,7 +299,21 @@ const Invoices = () => {
                           invoice.invoiceFile && {
                             label: 'View Invoice',
                             icon: Receipt,
-                            onClick: () => window.open(invoice.invoiceFile.startsWith('http') ? invoice.invoiceFile : `${import.meta.env.VITE_BASE_URL}${invoice.invoiceFile}`, '_blank')
+                            onClick: () => {
+                              const base = import.meta.env.VITE_BASE_URL || '';
+                              const filePath = invoice.invoiceFile;
+                              let url;
+                              if (filePath.startsWith('http')) {
+                                url = filePath;
+                              } else if (filePath.startsWith('/api/')) {
+                                url = `${base.replace(/\/api$/, '')}${filePath}`;
+                              } else if (filePath.startsWith('/files/')) {
+                                url = `${base}${filePath}`;
+                              } else {
+                                url = `${base}/files/${filePath}`;
+                              }
+                              window.open(url, '_blank');
+                            }
                           },
                           invoice.status === 'Processing' && {
                             label: 'Review Proof of Payment',

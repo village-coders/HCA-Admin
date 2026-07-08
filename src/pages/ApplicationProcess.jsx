@@ -13,8 +13,8 @@ import { useAuth } from '../hooks/useAuth';
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL;
 
-// The 9 main process steps
-const STEPS = [
+// The 9 main process steps (step 1 label becomes dynamic based on category)
+const BASE_STEPS = [
   { id: 1, label: 'APPLICATION RECEIVED' },
   { id: 2, label: 'APPLICATION ACCEPTED' },
   { id: 4, label: 'INVOICE SENT' },
@@ -36,9 +36,6 @@ const AUDIT_SUB_STEPS = [
   { id: 7, label: 'Confirm Audit Report Received', type: 'confirm' },
 ];
 
-// Split steps into rows (5 + 4)
-const ROW_ONE = STEPS.slice(0, 5);
-const ROW_TWO = STEPS.slice(5, 10);
 
 function StepBar({ step, currentStep, isCompleted, isActive, onClick }) {
   return (
@@ -106,6 +103,15 @@ export default function ApplicationProcess() {
   const [activeStep, setActiveStep] = useState(null);
   const [auditExpanded, setAuditExpanded] = useState(false);
   const { user } = useAuth();
+
+  // Dynamic steps: step 1 label changes based on application category
+  const isRenewal = application?.category?.toLowerCase()?.includes('renewal');
+  const STEPS = BASE_STEPS.map(s =>
+    s.id === 1 ? { ...s, label: isRenewal ? 'RENEWAL APPLICATION' : 'APPLICATION RECEIVED' } : s
+  );
+  const ROW_ONE = STEPS.slice(0, 5);
+  const ROW_TWO = STEPS.slice(5, 10);
+
 
   const hasPrivilege = (priv) => {
     if (user?.role === 'super admin') return true;
@@ -583,7 +589,7 @@ export default function ApplicationProcess() {
       return (
         <div className="action-panel">
           <h2 style={{ textAlign: 'center', fontWeight: 700, fontSize: '20px', marginBottom: '24px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-            APPLICATION RECEIVED
+            {isRenewal ? 'RENEWAL APPLICATION' : 'APPLICATION RECEIVED'}
           </h2>
           <div className="details-grid">
             <div className="details-card">

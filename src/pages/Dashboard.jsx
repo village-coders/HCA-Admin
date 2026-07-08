@@ -157,6 +157,8 @@ const Dashboard = () => {
     pendingCertificates: 0,
     expiredCertificates: 0,
     pendingApplications: 0,
+    newApplications: 0,
+    renewalApplications: 0,
     approvedApplications: 0,
     rejectedApplications: 0,
     recentApplications: [],
@@ -179,7 +181,6 @@ const Dashboard = () => {
         else if (status === 'expired') acc.expired++;
         return acc;
       }, { active: 0, pending: 0, expired: 0 });
-
       // Count applications by status
       const applicationStats = applications.reduce((acc, app) => {
         const status = app.status?.toLowerCase();
@@ -189,6 +190,16 @@ const Dashboard = () => {
         else if (status === 'draft') acc.draft++;
         return acc;
       }, { approved: 0, pending: 0, rejected: 0, draft: 0 });
+      // Count applications by category/type
+      const applicationsByCategory = applications.reduce((acc, app) => {
+        const category = app.category?.toLowerCase() || '';
+        if (category === 'renewal application' || category === 'renewal') {
+          acc.renewal++;
+        } else {
+          acc.newApp++;
+        }
+        return acc;
+      }, { renewal: 0, newApp: 0 });
 
       // Get recent applications (mix of applications and certificates)
       const recentApps = [...applications, ...products, ...certificates]
@@ -242,6 +253,8 @@ const Dashboard = () => {
         pendingCertificates: certificateStats.pending,
         expiredCertificates: certificateStats.expired,
         pendingApplications: applicationStats.pending,
+        newApplications: applicationsByCategory.newApp,
+        renewalApplications: applicationsByCategory.renewal,
         approvedApplications: applicationStats.approved,
         rejectedApplications: applicationStats.rejected,
         recentApplications: recentApps,
@@ -272,12 +285,12 @@ const Dashboard = () => {
       onClick: () => navigate('/applications', { state: { activeTab: 'all' } })
     },
     { 
-      title: 'Pending Applications', 
-      value: dashboardStats.pendingApplications.toString(), 
-      change: calculateTrend(dashboardStats.pendingApplications, Math.max(dashboardStats.pendingApplications - 2, 0)), 
-      icon: Clock, 
+      title: 'New Application', 
+      value: dashboardStats.newApplications.toString(), 
+      change: calculateTrend(dashboardStats.newApplications, Math.max(dashboardStats.newApplications - 2, 0)), 
+      icon: FileText, 
       color: 'bg-yellow-500',
-      trend: dashboardStats.pendingApplications > (dashboardStats.pendingApplications - 2) ? 'up' : 'down',
+      trend: dashboardStats.newApplications > (dashboardStats.newApplications - 2) ? 'up' : 'down',
       onClick: () => navigate('/applications', { state: { activeTab: 'pending' } })
     },
     { 
@@ -290,13 +303,13 @@ const Dashboard = () => {
       onClick: () => navigate('/certificates')
     },
     { 
-      title: 'Total Products', 
-      value: dashboardStats.totalProducts.toLocaleString(), 
-      change: calculateTrend(dashboardStats.totalProducts, Math.max(dashboardStats.totalProducts - 2, 0)), 
-      icon: Package, 
+      title: 'Renewal Application', 
+      value: dashboardStats.renewalApplications.toString(), 
+      change: calculateTrend(dashboardStats.renewalApplications, Math.max(dashboardStats.renewalApplications - 2, 0)), 
+      icon: RefreshCw, 
       color: 'bg-[#00853b]',
-      trend: dashboardStats.totalProducts > (dashboardStats.totalProducts - 2) ? 'up' : 'down',
-      onClick: () => navigate('/products')
+      trend: dashboardStats.renewalApplications > (dashboardStats.renewalApplications - 2) ? 'up' : 'down',
+      onClick: () => navigate('/applications', { state: { activeTab: 'renewal' } })
     },
   ];
 
