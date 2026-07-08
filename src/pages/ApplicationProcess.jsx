@@ -166,6 +166,7 @@ export default function ApplicationProcess() {
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejecting, setRejecting] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ open: false, title: '', message: '', onConfirm: null });
 
   const resolveUrl = (path) => {
     if (!path) return '';
@@ -1109,7 +1110,15 @@ export default function ApplicationProcess() {
                                     if (prepDoc2) prepFilesArray.push(prepDoc2);
                                     if (prepDoc3) prepFilesArray.push(prepDoc3);
 
-                                    submitStep(6, 2, JSON.stringify({ auditors }), null, { prepFiles: prepFilesArray });
+                                    setConfirmModal({
+                                      open: true,
+                                      title: 'Confirm Audit Schedule',
+                                      message: 'Are you sure you want to assign these auditors and finalize the schedule? This action will notify the client.',
+                                      onConfirm: () => {
+                                        setConfirmModal({ open: false });
+                                        submitStep(6, 2, JSON.stringify({ auditors }), null, { prepFiles: prepFilesArray });
+                                      }
+                                    });
                                   }}
                                   disabled={saving || auditors.length === 0}
                                 >
@@ -1144,7 +1153,12 @@ export default function ApplicationProcess() {
                                     )}
                                   </div>
                                   <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                    <button className="action-btn-primary sm" onClick={() => submitStep(6, sub.id)} disabled={saving}>
+                                    <button className="action-btn-primary sm" onClick={() => setConfirmModal({
+                                      open: true,
+                                      title: 'Mark NC as Closed',
+                                      message: 'The client has submitted corrected actions. Are you sure you want to mark the NC as closed?',
+                                      onConfirm: () => { setConfirmModal({ open: false }); submitStep(6, sub.id); }
+                                    })} disabled={saving}>
                                       {saving ? <Loader2 className="spin" size={14} /> : <CheckCircle size={14} />}
                                       Mark NC as Closed
                                     </button>
@@ -1157,11 +1171,23 @@ export default function ApplicationProcess() {
                                     <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#b45309' }}>Last reminder sent: {new Date(processData.audit.ncReminderSentAt).toLocaleString()}</p>
                                   )}
                                   <div style={{ display: 'flex', gap: '12px' }}>
-                                    <button className="action-btn-secondary sm" onClick={handleRemindNcCorrection} disabled={saving}>
-                                      {saving ? <Loader2 className="spin" size={14} /> : <Bell size={14} />}
-                                      Remind Client
-                                    </button>
-                                    <button className="action-btn-primary sm" onClick={() => submitStep(6, sub.id)} disabled={saving}>
+                                    {!(Array.isArray(processData?.audit?.ncCorrectionFile) ? processData.audit.ncCorrectionFile.length > 0 : !!processData?.audit?.ncCorrectionFile) && (
+                                      <button className="action-btn-secondary sm" onClick={() => setConfirmModal({
+                                        open: true,
+                                        title: 'Send NC Correction Reminder',
+                                        message: 'This will send an email to the client reminding them to submit their NC Correction document. Proceed?',
+                                        onConfirm: () => { setConfirmModal({ open: false }); handleRemindNcCorrection(); }
+                                      })} disabled={saving}>
+                                        {saving ? <Loader2 className="spin" size={14} /> : <Bell size={14} />}
+                                        Remind Client
+                                      </button>
+                                    )}
+                                    <button className="action-btn-primary sm" onClick={() => setConfirmModal({
+                                      open: true,
+                                      title: 'Mark NC as Closed',
+                                      message: 'Are you sure you want to mark the NC as closed? This action cannot be undone.',
+                                      onConfirm: () => { setConfirmModal({ open: false }); submitStep(6, sub.id); }
+                                    })} disabled={saving}>
                                       {saving ? <Loader2 className="spin" size={14} /> : <CheckCircle size={14} />}
                                       Mark NC as Closed Anyway
                                     </button>
@@ -1170,7 +1196,14 @@ export default function ApplicationProcess() {
                               )}
                             </div>
                           ) : (
-                            <button className="action-btn-primary sm" onClick={() => submitStep(6, sub.id)} disabled={saving}>
+                            <button className="action-btn-primary sm" onClick={() => setConfirmModal({
+                              open: true,
+                              title: sub.id === 3 ? 'Confirm Audit Completed' : 'Confirm Audit Report Received',
+                              message: sub.id === 3
+                                ? 'Are you sure you want to mark this audit session as Audited? This will advance the certification process.'
+                                : 'Are you sure you want to confirm receipt of the audit report? This will advance the process.',
+                              onConfirm: () => { setConfirmModal({ open: false }); submitStep(6, sub.id); }
+                            })} disabled={saving}>
                               {saving ? <Loader2 className="spin" size={14} /> : <CheckCircle size={14} />}
                               {sub.id === 3 ? 'Mark as Audited' : 'Confirm Audit Report Received'}
                             </button>
@@ -1212,7 +1245,12 @@ export default function ApplicationProcess() {
                           {hasPrivilege('Audit Manager') ? (
                             <button
                               className="action-btn-primary sm"
-                              onClick={() => submitStep(6, 6, null, auditReportFile)}
+                              onClick={() => setConfirmModal({
+                                open: true,
+                                title: 'Upload Audit Report',
+                                message: `Are you sure you want to upload this audit report? This will advance the application.`,
+                                onConfirm: () => { setConfirmModal({ open: false }); submitStep(6, 6, null, auditReportFile); }
+                              })}
                               disabled={saving || !auditReportFile}
                             >
                               {saving ? <Loader2 className="spin" size={14} /> : <Upload size={14} />}
@@ -1248,7 +1286,12 @@ export default function ApplicationProcess() {
                           {hasPrivilege('Audit Manager') ? (
                             <button
                               className="action-btn-primary sm"
-                              onClick={() => submitStep(6, 4, null, ncReportFile)}
+                              onClick={() => setConfirmModal({
+                                open: true,
+                                title: 'Upload NC Report',
+                                message: `Are you sure you want to upload this Non-Conformance (NC) report? This will flag the application as NC and notify the client.`,
+                                onConfirm: () => { setConfirmModal({ open: false }); submitStep(6, 4, null, ncReportFile); }
+                              })}
                               disabled={saving || !ncReportFile}
                             >
                               {saving ? <Loader2 className="spin" size={14} /> : <Upload size={14} />}
