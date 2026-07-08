@@ -140,7 +140,7 @@ const Applications = () => {
       case 'pending':
         return app.status === 'pending' || app.status === 'submitted' || app.status === 'Pending' || app.status === 'Submitted';
       case 'renewal':
-        return app.applicationType === 'renewal';
+        return app.category?.toLowerCase().includes('renewal');
       case 'issued':
         return app.status === 'issued' || app.status === 'Issued';
       case 'accepted':
@@ -462,7 +462,7 @@ const Applications = () => {
         a.status === 'pending' || a.status === 'submitted' ||
         a.status === 'Pending' || a.status === 'Submitted'
       ).length,
-      renewal: applications.filter(a => a.applicationType === 'renewal').length,
+      renewal: applications.filter(a => a.category?.toLowerCase().includes('renewal')).length,
       accepted: applications.filter(a =>
         a.status === 'accepted' || a.status === 'Accepted'
       ).length,
