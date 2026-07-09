@@ -238,7 +238,7 @@ const BulkEmail = () => {
                   onChange={(e) => setContent(e.target.value)}
                 />
                 <p className="mt-2 text-[11px] text-gray-500 italic">
-                  Note: This email will be sent from onboarding@theyoungpioneers.com on behalf of HCA Team.
+                  Note: This email will be sent from onboarding@theyoungpioneers.com on behalf of HDI Team.
                 </p>
               </div>
             </div>

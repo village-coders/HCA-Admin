@@ -2,7 +2,7 @@ import { useState } from "react";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { useAuth } from "../hooks/useAuth";
 import { useNavigate, Link } from "react-router-dom";
-import logo from '../assets/hcaLogo1.png'
+import logo from '../assets/hdiLogo1.png'
 import { PulseLoader } from "react-spinners";
 
 

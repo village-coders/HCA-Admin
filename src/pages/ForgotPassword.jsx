@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import logo from '../assets/hcaLogo1.png'
+import logo from '../assets/hdiLogo1.png'
 import { PulseLoader } from "react-spinners";
 
 export default function ForgotPassword() {
@@ -72,7 +72,7 @@ export default function ForgotPassword() {
         </div>
 
         <div className="text-center text-gray-500 text-sm mt-4">
-          &copy; {year} Halal Certification Authority. All rights reserved.
+          &copy; {year} Halal And Haram Distinction Initiative Development. All rights reserved.
         </div>
       </div>
     </div>
