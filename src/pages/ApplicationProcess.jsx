@@ -169,6 +169,11 @@ export default function ApplicationProcess() {
 
   const resolveUrl = (path) => {
     if (!path) return '';
+    if (Array.isArray(path)) {
+        if (path.length === 0) return '';
+        path = path[0];
+    }
+    if (typeof path !== 'string') return '';
     if (path.startsWith('http')) return path;
     const cleanPath = path.startsWith('/api') ? path.replace('/api', '') : path;
     return `${API_BASE_URL}${cleanPath}`;
@@ -1340,16 +1345,32 @@ export default function ApplicationProcess() {
                             <FileText size={14} /> View Uploaded NC Report
                           </a>
                           {processData?.audit?.ncCorrectionFile && (
-                            <a href={resolveUrl(processData.audit.ncCorrectionFile)} target="_blank" rel="noreferrer" style={{ fontSize: '12px', color: '#15803d', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: '4px', width: 'fit-content' }}>
-                              <FileText size={14} /> View Corrected Action
-                            </a>
+                            Array.isArray(processData.audit.ncCorrectionFile) ? (
+                              processData.audit.ncCorrectionFile.map((file, idx) => (
+                                <a key={idx} href={resolveUrl(file)} target="_blank" rel="noreferrer" style={{ fontSize: '12px', color: '#15803d', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: '4px', width: 'fit-content' }}>
+                                  <FileText size={14} /> View Corrected Action {idx + 1}
+                                </a>
+                              ))
+                            ) : (
+                              <a href={resolveUrl(processData.audit.ncCorrectionFile)} target="_blank" rel="noreferrer" style={{ fontSize: '12px', color: '#15803d', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: '4px', width: 'fit-content' }}>
+                                <FileText size={14} /> View Corrected Action
+                              </a>
+                            )
                           )}
                         </div>
                       )}
                       {sub.id === 5 && processData?.audit?.ncCorrectionFile && (
-                        <a href={resolveUrl(processData.audit.ncCorrectionFile)} target="_blank" rel="noreferrer" style={{ fontSize: '12px', color: '#15803d', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: '4px', width: 'fit-content' }}>
-                          <FileText size={14} /> View Corrected Action
-                        </a>
+                        Array.isArray(processData.audit.ncCorrectionFile) ? (
+                          processData.audit.ncCorrectionFile.map((file, idx) => (
+                            <a key={idx} href={resolveUrl(file)} target="_blank" rel="noreferrer" style={{ fontSize: '12px', color: '#15803d', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: '4px', width: 'fit-content', marginTop: '4px' }}>
+                              <FileText size={14} /> View Corrected Action {idx + 1}
+                            </a>
+                          ))
+                        ) : (
+                          <a href={resolveUrl(processData.audit.ncCorrectionFile)} target="_blank" rel="noreferrer" style={{ fontSize: '12px', color: '#15803d', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: '4px', width: 'fit-content', marginTop: '4px' }}>
+                            <FileText size={14} /> View Corrected Action
+                          </a>
+                        )
                       )}
                     </div>
                   )}

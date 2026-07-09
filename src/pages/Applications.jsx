@@ -536,6 +536,11 @@ const Applications = () => {
     const baseUrl = import.meta.env.VITE_BASE_URL || 'http://localhost:5000/api';
     const getDocumentUrl = (path) => {
       if (!path) return '#';
+      if (Array.isArray(path)) {
+          if (path.length === 0) return '#';
+          path = path[0];
+      }
+      if (typeof path !== 'string') return '#';
       if (path.startsWith('http')) return path;
       if (path.startsWith('/api/')) return `${baseUrl.replace('/api', '')}${path}`;
       if (path.startsWith('/files/')) return `${baseUrl.replace('/api', '')}/api${path}`;
