@@ -1036,7 +1036,7 @@ export default function ApplicationProcess() {
                                       <select value={auditor.role} onChange={(e) => { setAuditors(prev => { const updated = [...prev]; updated[idx] = { ...updated[idx], role: e.target.value }; return updated; }); }} className="form-input">
                                         <option value="Lead Auditor">Lead Auditor</option>
                                         <option value="Shari'a Auditor">Shari'a Auditor</option>
-                                        <option value="Normal Auditor">Normal Auditor</option>
+                                        <option value="Audit Trainee">Audit Trainee</option>
                                       </select>
                                     </div>
                                     <div>
@@ -1050,7 +1050,7 @@ export default function ApplicationProcess() {
                                   </div>
                                 </div>
                               ))}
-                              <button type="button" onClick={() => setAuditors(prev => [...prev, { name: '', email: '', phone: '', role: 'Normal Auditor' }])} style={{ width: 'fit-content', background: '#e2e8f0', color: '#334155', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>+ Add Another Auditor</button>
+                              <button type="button" onClick={() => setAuditors(prev => [...prev, { name: '', email: '', phone: '', role: 'Audit Trainee' }])} style={{ width: 'fit-content', background: '#e2e8f0', color: '#334155', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>+ Add Another Auditor</button>
                               <div style={{ marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '20px', marginBottom: '20px' }}>
                                 <label style={{ fontWeight: 600, fontSize: '14px' }}>Preparation Documents for Client</label>
                                 <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '12px' }}>Upload up to 3 documents needed by the client to prepare for the audit. At least one is required.</p>
