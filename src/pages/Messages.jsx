@@ -713,7 +713,7 @@ function AdminMessages() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between">
                                 <h4 className="text-sm font-medium text-gray-900 truncate">
-                                  {conversation.user?.fullName || conversation.companyName || 'Unknown User'}
+                                  {conversation.user?.fullName || conversation.user?.companyName || 'Unknown User'}
                                 </h4>
                                 <span className="text-xs text-gray-500">
                                   {formatTime(conversation?.lastMessage?.createdAt)}

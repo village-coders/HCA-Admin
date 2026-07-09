@@ -257,8 +257,8 @@ const ManageAdmins = () => {
 
       {/* Add / Edit Admin Form Modal */}
       {showAddForm && (
-        <div className="fixed inset-0 bg-gradient-to-br from-green-200 via-gray-200 to-green-500 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-gray-900">
                 {editingAdmin ? "Edit Admin" : "Add New Admin"}
@@ -273,91 +273,80 @@ const ManageAdmins = () => {
                 <XCircle className="w-5 h-5" />
               </button>
             </div>
-            <div className="space-y-4">
+            {/* 2-column grid layout */}
+            <div className="grid grid-cols-2 gap-x-6 gap-y-5">
+              {/* Full Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
                 <input
                   type="text"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b]"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b] outline-none"
                   value={newAdmin.name}
-                  onChange={(e) =>
-                    setNewAdmin({ ...newAdmin, name: e.target.value })
-                  }
+                  onChange={(e) => setNewAdmin({ ...newAdmin, name: e.target.value })}
                   placeholder="Enter full name"
                 />
               </div>
+
+              {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
                 <input
                   type="email"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b]"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b] outline-none"
                   value={newAdmin.email}
-                  onChange={(e) =>
-                    setNewAdmin({ ...newAdmin, email: e.target.value })
-                  }
+                  onChange={(e) => setNewAdmin({ ...newAdmin, email: e.target.value })}
                   placeholder="Enter email address"
                 />
               </div>
+
+              {/* Password — only shown when adding */}
               {!editingAdmin && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Password
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
                   <input
                     type="password"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b]"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b] outline-none"
                     value={newAdmin.password}
-                    onChange={(e) =>
-                      setNewAdmin({ ...newAdmin, password: e.target.value })
-                    }
-                    placeholder="Enter Password"
+                    onChange={(e) => setNewAdmin({ ...newAdmin, password: e.target.value })}
+                    placeholder="Enter password"
                   />
                 </div>
               )}
+
+              {/* Phone */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
                 <input
                   type="tel"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b]"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b] outline-none"
                   value={newAdmin.contact}
-                  onChange={(e) =>
-                    setNewAdmin({ ...newAdmin, contact: e.target.value })
-                  }
+                  onChange={(e) => setNewAdmin({ ...newAdmin, contact: e.target.value })}
                   placeholder="Enter phone number"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Role
-                </label>
+
+              {/* Role — full-width */}
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
                 <select
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b]"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b] outline-none bg-white"
                   value={newAdmin.role}
-                  onChange={(e) =>
-                    setNewAdmin({ ...newAdmin, role: e.target.value })
-                  }
+                  onChange={(e) => setNewAdmin({ ...newAdmin, role: e.target.value })}
                 >
                   <option value="admin">Admin</option>
                   <option value="super admin">Super Admin</option>
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Privileges (Select one or more)
-                </label>
-                <div className="grid grid-cols-2 gap-3">
+              {/* Privileges — full-width */}
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-3">Privileges <span className="text-gray-400 font-normal">(select one or more)</span></label>
+                <div className="grid grid-cols-3 gap-2">
                   {PRIVILEGE_OPTIONS.map((priv) => (
-                    <label key={priv} className="flex items-center space-x-2 text-sm text-gray-600 cursor-pointer p-2 border rounded-lg hover:bg-gray-50">
+                    <label key={priv} className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer p-2.5 border rounded-lg hover:bg-green-50 hover:border-[#00853b] transition-colors duration-150">
                       <input
                         type="checkbox"
-                        className="rounded text-[#00853b] focus:ring-[#00853b]"
+                        className="rounded text-[#00853b] focus:ring-[#00853b] accent-[#00853b]"
                         checked={newAdmin.privileges.includes(priv)}
                         onChange={(e) => {
                           const updatedPrivs = e.target.checked
