@@ -806,7 +806,11 @@ export default function ApplicationProcess() {
 
           <p>Confirm that payment has been received from the applicant.</p>
           {hasPrivilege('Accountant') ? (
-            <button className="action-btn-primary" onClick={() => submitStep(5)} disabled={saving}>
+            <button 
+              className={`action-btn-primary ${!appInvoice?.proofOfPayment ? 'opacity-50 cursor-not-allowed' : ''}`} 
+              onClick={() => submitStep(5)} 
+              disabled={saving || !appInvoice?.proofOfPayment}
+            >
               {saving ? <Loader2 className="spin" size={16} /> : <CheckCircle size={16} />}
               {saving ? 'Processing...' : 'Confirm Payment Received'}
             </button>
@@ -866,7 +870,7 @@ export default function ApplicationProcess() {
                                       <input
                                         type="date"
                                         required
-                                        min={new Date().toISOString().split('T')[0]}
+                                        // min={new Date().toISOString().split('T')[0]}
                                         value={proposedDates[idx]?.date || ''}
                                         onChange={(e) => {
                                           setProposedDates(prev => {
@@ -1138,7 +1142,7 @@ export default function ApplicationProcess() {
                         </div>
                       )}
                       {sub.type === 'confirm' && (
-                        hasPrivilege('Audit Manager') ? (
+                        (hasPrivilege('Audit Manager') || hasPrivilege('Auditor')) ? (
                           sub.id === 5 ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                               {processData?.audit?.ncCorrectionFile ? (
@@ -1245,7 +1249,7 @@ export default function ApplicationProcess() {
                               setAuditReportFile(file);
                             }}
                           />
-                          {hasPrivilege('Audit Manager') ? (
+                          {(hasPrivilege('Audit Manager') || hasPrivilege('Auditor')) ? (
                             <button
                               className="action-btn-primary sm"
                               onClick={() => setConfirmModal({
@@ -1286,7 +1290,7 @@ export default function ApplicationProcess() {
                               setNcReportFile(file);
                             }}
                           />
-                          {hasPrivilege('Audit Manager') ? (
+                          {(hasPrivilege('Audit Manager') || hasPrivilege('Auditor')) ? (
                             <button
                               className="action-btn-primary sm"
                               onClick={() => setConfirmModal({
@@ -1389,13 +1393,13 @@ export default function ApplicationProcess() {
         <div className="action-panel">
           <h2>Initiate Shari'a Logsheet</h2>
           <p>Create a formal logsheet to be sent to the Shari'a Board for endorsement.</p>
-          {hasPrivilege('Audit Manager') ? (
+          {(hasPrivilege('Audit Manager') || hasPrivilege('Auditor')) ? (
             <button className="action-btn-primary" onClick={() => setShowLogsheetModal(true)} disabled={saving}>
               <FileText size={16} />
               Create Logsheet
             </button>
           ) : (
-            <NoPermissionView privilege="Audit Manager" />
+            <NoPermissionView privilege="Audit Manager or Auditor" />
           )}
         </div>
       );
