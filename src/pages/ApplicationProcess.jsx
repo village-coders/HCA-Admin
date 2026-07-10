@@ -422,10 +422,10 @@ export default function ApplicationProcess() {
       });
 
       const { data } = await axios.patch(
-        `${API_BASE_URL}/applications/${id}/process`,
-        formData,
-        { headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'multipart/form-data' } }
-      );
+  `${API_BASE_URL}/applications/${id}/process`,
+  formData,
+  { headers: { Authorization: `Bearer ${getToken()}` } }
+);
       setApplication(data.application);
 
       const stepLabel = (stepId === 6 && subStep)
