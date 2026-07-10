@@ -42,7 +42,9 @@ const Sidebar = () => {
     { path: '/documents', icon: FolderOpen, label: 'Documents' },
     { path: '/invoices', icon: Receipt, label: 'Invoices' },
     { path: '/audits', icon: CalendarCheck, label: 'Audits' },
-    { path: '/sharia-board', icon: Award, label: "Shari'a Board" },
+    ...(user?.role === "super admin" || user?.privileges?.includes("Shari'a Board")
+      ? [{ path: '/sharia-board', icon: Award, label: "Shari'a Board" }]
+      : []),
     { path: '/bulk-email', icon: Mail, label: 'Bulk Email' },
     ...(user?.role === "super admin"
       ? [{ path: '/manage-admins', icon: Users, label: 'Manage Admin' }]

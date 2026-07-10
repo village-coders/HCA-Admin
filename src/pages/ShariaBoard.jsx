@@ -75,7 +75,11 @@ const ShariaBoard = () => {
 
   useEffect(() => {
     fetchLogsheets();
-  }, []);
+    if (user && !hasPrivilege("Shari'a Board")) {
+      navigate('/dashboard');
+      toast.error('You do not have permission to view the Shari\'a Board panel');
+    }
+  }, [user]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
