@@ -1042,6 +1042,7 @@ export default function ApplicationProcess() {
                                         <option value="Lead Auditor">Lead Auditor</option>
                                         <option value="Shari'a Auditor">Shari'a Auditor</option>
                                         <option value="Audit Trainee">Audit Trainee</option>
+                                        <option value="Technical Auditor">Technical Auditor</option>
                                       </select>
                                     </div>
                                     <div>
