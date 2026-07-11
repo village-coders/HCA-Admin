@@ -487,7 +487,7 @@ const ShariaBoard = () => {
                 </span>
               </div>
               <div className="flex gap-2">
-                {selectedLogsheet.isFinalized && (
+                {(selectedLogsheet.isFinalized || (selectedLogsheet.signatures && selectedLogsheet.signatures.length >= 2)) && (
                   hasPrivilege("Audit Manager") || hasPrivilege("Shari'a Board") ? (
                     <button 
                       onClick={() => handleMarkSuccessful(selectedLogsheet.applicationId?._id || selectedLogsheet.applicationId)}

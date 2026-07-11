@@ -364,30 +364,30 @@ const Audits = () => {
                               icon: Calendar,
                               onClick: () => { setSelectedAudit(audit); setIsViewModalOpen(true); }
                             },
-                            (audit.status === 'Accepted' || audit.status === 'Audited' || audit.status === 'Correction Needed' || audit.status === 'NC Flagged') && {
-                              label: 'Upload Audit Report',
-                              icon: FileText,
-                              onClick: () => { 
-                                if (!hasPrivilege('Audit Manager')) {
-                                  toast.error('Only Audit Managers can upload reports');
-                                  return;
-                                }
-                                setSelectedAudit(audit); 
-                                setIsReportModalOpen(true); 
-                              }
-                            },
-                            (audit.status === 'Accepted' || audit.status === 'Audited' || audit.status === 'Correction Needed' || audit.status === 'NC Flagged') && {
-                              label: 'Flag Non Conformant',
-                              icon: AlertTriangle,
-                              onClick: () => { 
-                                if (!hasPrivilege('Audit Manager')) {
-                                  toast.error('Only Audit Managers can flag findings');
-                                  return;
-                                }
-                                setSelectedAudit(audit); 
-                                setIsCorrectionModalOpen(true); 
-                              }
-                            },
+                            // (audit.status === 'Accepted' || audit.status === 'Audited' || audit.status === 'Correction Needed' || audit.status === 'NC Flagged') && {
+                            //   label: 'Upload Audit Report',
+                            //   icon: FileText,
+                            //   onClick: () => { 
+                            //     if (!hasPrivilege('Audit Manager')) {
+                            //       toast.error('Only Audit Managers can upload reports');
+                            //       return;
+                            //     }
+                            //     setSelectedAudit(audit); 
+                            //     setIsReportModalOpen(true); 
+                            //   }
+                            // },
+                            // (audit.status === 'Accepted' || audit.status === 'Audited' || audit.status === 'Correction Needed' || audit.status === 'NC Flagged') && {
+                            //   label: 'Flag Non Conformant',
+                            //   icon: AlertTriangle,
+                            //   onClick: () => { 
+                            //     if (!hasPrivilege('Audit Manager')) {
+                            //       toast.error('Only Audit Managers can flag findings');
+                            //       return;
+                            //     }
+                            //     setSelectedAudit(audit); 
+                            //     setIsCorrectionModalOpen(true); 
+                            //   }
+                            // },
                             (audit.status === 'Accepted' || audit.status === 'Audited' || audit.status === 'Correction Needed' || audit.status === 'NC Flagged') && {
                               label: 'Mark Complete',
                               icon: CheckCircle,
@@ -645,7 +645,7 @@ const Audits = () => {
       )}
 
       {/* Upload Audit Report Modal */}
-      {isReportModalOpen && (
+      {/* {isReportModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setIsReportModalOpen(false)}></div>
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -701,7 +701,7 @@ const Audits = () => {
             </form>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* View Audit Details Modal */}
       {isViewModalOpen && selectedAudit && (
