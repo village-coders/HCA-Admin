@@ -128,8 +128,41 @@ const Certificates = () => {
     return null;
   };
 
+  // Pre-process certificates to only show the latest per branch AND hide if there's an active renewal
+  const displayCertificates = (() => {
+    // 1. Find all branches that have an active renewal processing
+    const activeRenewals = applications.filter(app => 
+      app.category === "Renewal Application" && 
+      !["issued", "rejected", "expired"].includes(app.status?.toLowerCase())
+    ).map(app => app.branchId?._id || app.branchId || app.companyId);
+
+    // 2. Group certificates by branch and keep the latest
+    const latestCertsMap = new Map();
+    certificates.forEach(cert => {
+      const key = cert.branchId?._id || cert.branchId || getCompanyIdFromCert(cert) || cert._id;
+      
+      // If this branch has an active renewal processing, hide all its old certificates completely
+      if (activeRenewals.includes(key)) {
+        return;
+      }
+
+      const existing = latestCertsMap.get(key);
+      if (!existing) {
+        latestCertsMap.set(key, cert);
+      } else {
+        const currentExpiry = new Date(cert.expiryDate).getTime();
+        const existingExpiry = new Date(existing.expiryDate).getTime();
+        if (currentExpiry > existingExpiry) {
+          latestCertsMap.set(key, cert);
+        }
+      }
+    });
+
+    return Array.from(latestCertsMap.values());
+  })();
+
   // Filter certificates with improved company search
-  const filteredCertificates = certificates.filter(cert => {
+  const filteredCertificates = displayCertificates.filter(cert => {
     // Tab filter
     if (activeTab !== 'all') {
       let tabMatch = false;
@@ -505,20 +538,20 @@ const Certificates = () => {
   // Calculate tab counts
   const getTabCounts = () => {
     return {
-      all: certificates.length,
-      active: certificates.filter(c => 
+      all: displayCertificates.length,
+      active: displayCertificates.filter(c => 
         c.status === 'active' || c.status === 'Active'
       ).length,
-      expiring_soon: certificates.filter(c => 
+      expiring_soon: displayCertificates.filter(c => 
         c.status?.toLowerCase() === 'expiring soon'
       ).length,
-      expired: certificates.filter(c => 
+      expired: displayCertificates.filter(c => 
         c.status === 'expired' || c.status === 'Expired'
       ).length,
-      renewal: certificates.filter(c => 
+      renewal: displayCertificates.filter(c => 
         c.status === 'pending_renewal' || c.status === 'Renewal'
       ).length,
-      revoked: certificates.filter(c => 
+      revoked: displayCertificates.filter(c => 
         c.status === 'revoked' || c.status === 'Revoked'
       ).length,
     };
@@ -1149,7 +1182,7 @@ const Certificates = () => {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Certificate</th>
-                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
+                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manufacturing Facility</th>
                       <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
                       {/* <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th> */}
                       <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>

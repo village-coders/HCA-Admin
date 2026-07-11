@@ -137,8 +137,14 @@ const Applications = () => {
     switch (activeTab) {
       case 'all':
         break;
-      case 'pending':
-        return app.status === 'pending' || app.status === 'submitted' || app.status === 'Pending' || app.status === 'Submitted';
+      case 'pending': {
+        // Show all Initial Applications that are actively processing (not terminal states)
+        // const isInitialApp = !app.category?.toLowerCase().includes('renewal');
+        const isProcessing = !['Issued', 'Rejected', 'Expired'].includes(app.status);
+        return isProcessing;
+      }
+      case 'initial':
+        return !app.category?.toLowerCase().includes('renewal');
       case 'renewal':
         return app.category?.toLowerCase().includes('renewal');
       case 'issued':
@@ -458,10 +464,11 @@ const Applications = () => {
   const getTabCounts = () => {
     return {
       all: applications.length,
-      pending: applications.filter(a =>
-        a.status === 'pending' || a.status === 'submitted' ||
-        a.status === 'Pending' || a.status === 'Submitted'
-      ).length,
+      pending: applications.filter(a => {
+        const isProcessing = !['Issued', 'Rejected', 'Expired'].includes(a.status);
+        return isProcessing;
+      }).length,
+      initial: applications.filter(a => !a.category?.toLowerCase().includes('renewal')).length,
       renewal: applications.filter(a => a.category?.toLowerCase().includes('renewal')).length,
       accepted: applications.filter(a =>
         a.status === 'accepted' || a.status === 'Accepted'
@@ -479,7 +486,8 @@ const Applications = () => {
 
   const tabs = [
     { id: 'all', label: 'All Applications', count: tabCounts.all },
-    { id: 'pending', label: 'Pending', count: tabCounts.pending },
+    { id: 'initial', label: 'Initial Application', count: tabCounts.initial },
+    { id: 'pending', label: 'In Progress', count: tabCounts.pending },
     { id: 'renewal', label: 'Renewal', count: tabCounts.renewal },
     { id: 'accepted', label: 'Accepted', count: tabCounts.accepted },
     { id: 'issued', label: 'Issued', count: tabCounts.issued },
@@ -681,27 +689,27 @@ const Applications = () => {
                     </div>
                   </div>
 
-                  {/* Branch Information */}
+                  {/* Manufacturing Facility Information */}
                   <div className="bg-gray-50 rounded-lg p-5">
                     <div className="flex items-center mb-4">
                       <MapPin className="w-5 h-5 text-gray-500 mr-2" />
-                      <h3 className="text-lg font-semibold text-gray-900">Branch Information</h3>
+                      <h3 className="text-lg font-semibold text-gray-900">Manufacturing Facility Information</h3>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-sm text-gray-600">Branch Name</p>
+                        <p className="text-sm text-gray-600">Manufacturing Facility Name</p>
                         <p className="font-medium text-gray-900">
                           {selectedApplication.branchId?.branchName || 'N/A'}
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">Branch Contact</p>
+                        <p className="text-sm text-gray-600">Manufacturing Facility Contact</p>
                         <p className="font-medium text-gray-900">
                           {selectedApplication.branchId?.contactName || 'N/A'}
                         </p>
                       </div>
                       <div className="col-span-2">
-                        <p className="text-sm text-gray-600">Branch Address</p>
+                        <p className="text-sm text-gray-600">Manufacturing Facility Address</p>
                         <p className="font-medium text-gray-900">
                           {selectedApplication.branchId?.address || 'N/A'}, {selectedApplication.branchId?.city || 'N/A'}, {selectedApplication.branchId?.state || 'N/A'}
                         </p>
@@ -803,12 +811,12 @@ const Applications = () => {
                     </div>
                   )}
 
-                  {/* Authorized By */}
+                  {/* Prepared By */}
                   {selectedApplication.authorizedBy && (
                     <div className="bg-gray-50 rounded-lg p-5">
                       <div className="flex items-center mb-4">
                         <User className="w-5 h-5 text-gray-500 mr-2" />
-                        <h3 className="text-lg font-semibold text-gray-900">Authorized By</h3>
+                        <h3 className="text-lg font-semibold text-gray-900">Prepared By</h3>
                       </div>
                       <div className="grid grid-cols-3 gap-4">
                         <div>
@@ -1542,7 +1550,7 @@ const Applications = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
+                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manufacturing Facility</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Application ID</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>

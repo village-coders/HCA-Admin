@@ -144,7 +144,6 @@ export default function ApplicationProcess() {
   const [auditTime, setAuditTime] = useState('');
   const [proposedDates, setProposedDates] = useState([
     { date: '', fromTime: '', toDate: '' },
-    { date: '', fromTime: '', toDate: '' },
     { date: '', fromTime: '', toDate: '' }
   ]);
   const [auditLeadName, setAuditLeadName] = useState('');
@@ -166,6 +165,9 @@ export default function ApplicationProcess() {
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ open: false, title: '', message: '', onConfirm: null });
+  const [ncRejectModal, setNcRejectModal] = useState({ open: false, reason: '' });
+  const [ncRejectReason, setNcRejectReason] = useState('');
+  const [ncRejectFiles, setNcRejectFiles] = useState([]);
 
   const resolveUrl = (path) => {
     if (!path) return '';
@@ -224,8 +226,9 @@ export default function ApplicationProcess() {
         if (data.processData.audit.leadAuditorName) setAuditLeadName(data.processData.audit.leadAuditorName);
         if (data.processData.audit.leadAuditorEmail) setAuditLeadEmail(data.processData.audit.leadAuditorEmail);
         if (data.processData.audit.leadAuditorPhone) setAuditLeadPhone(data.processData.audit.leadAuditorPhone);
-        if (data.processData.audit.proposedDates && data.processData.audit.proposedDates.length === 3) {
-          setProposedDates(data.processData.audit.proposedDates.map(pd => ({
+        if (data.processData.audit.proposedDates && data.processData.audit.proposedDates.length > 0) {
+          const datesToSet = data.processData.audit.proposedDates.slice(0, 2);
+          setProposedDates(datesToSet.map(pd => ({
             date: pd.date ? new Date(pd.date).toISOString().split('T')[0] : '',
             fromTime: pd.fromTime || pd.time || '',
             toDate: pd.toDate ? new Date(pd.toDate).toISOString().split('T')[0] : '',
@@ -416,6 +419,8 @@ export default function ApplicationProcess() {
           additionalBody[key].forEach(f => formData.append('label', f));
         } else if (key === 'prepFiles' && Array.isArray(additionalBody[key])) {
           additionalBody[key].forEach(f => formData.append('prepDoc', f));
+        } else if (key === 'ncRejectFilesList' && Array.isArray(additionalBody[key])) {
+          additionalBody[key].forEach(f => formData.append('ncRejectFile', f));
         } else {
           formData.append(key, additionalBody[key]);
         }
@@ -428,11 +433,16 @@ export default function ApplicationProcess() {
 );
       setApplication(data.application);
 
-      const stepLabel = (stepId === 6 && subStep)
-        ? AUDIT_SUB_STEPS.find(s => s.id === parseInt(subStep))?.label
-        : STEPS.find(s => s.id === stepId)?.label || 'Step';
+      let formattedLabel = '';
+      if (stepId === 6 && subStep === 5 && extraData && extraData.includes('rejectNc')) {
+        formattedLabel = 'NC Corrections Rejected';
+      } else {
+        const stepLabel = (stepId === 6 && subStep)
+          ? AUDIT_SUB_STEPS.find(s => s.id === parseInt(subStep))?.label
+          : STEPS.find(s => s.id === stepId)?.label || 'Step';
 
-      const formattedLabel = stepLabel.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        formattedLabel = stepLabel.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+      }
 
       toast.success(`${formattedLabel} Successfully!`);
       setActiveStep(null);
@@ -860,8 +870,8 @@ export default function ApplicationProcess() {
                           {/* Phase 1: No proposed dates yet */}
                           {(!processData?.audit?.status || processData?.audit?.status === 'Rejected' || !processData?.audit?.proposedDates || processData?.audit?.proposedDates.length === 0) && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                              <p className="text-sm text-slate-600 font-medium">Propose three date options with a time period for the client to choose from:</p>
-                              {[0, 1, 2].map((idx) => (
+                              <p className="text-sm text-slate-600 font-medium">Propose two date options with a time period for the client to choose from:</p>
+                              {[0, 1].map((idx) => (
                                 <div key={idx} style={{ padding: '16px', border: '1px dashed #cbd5e1', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                   <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>Option #{idx + 1}</span>
                                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -1145,7 +1155,7 @@ export default function ApplicationProcess() {
                         (hasPrivilege('Audit Manager') || hasPrivilege('Auditor')) ? (
                           sub.id === 5 ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                              {processData?.audit?.ncCorrectionFile ? (
+                              {processData?.audit?.ncCorrectionFile && (Array.isArray(processData.audit.ncCorrectionFile) ? processData.audit.ncCorrectionFile.length > 0 : !!processData.audit.ncCorrectionFile) ? (
                                 <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '16px', borderRadius: '8px' }}>
                                   <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#166534', fontWeight: 600 }}>Client submitted corrected actions.</p>
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
@@ -1161,7 +1171,14 @@ export default function ApplicationProcess() {
                                       </a>
                                     )}
                                   </div>
-                                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
+                                    <button
+                                      onClick={() => { setNcRejectReason(''); setNcRejectFiles([]); setNcRejectModal({ open: true }); }}
+                                      disabled={saving}
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontWeight: 700, fontSize: '13px', cursor: 'pointer', transition: 'all 0.15s' }}
+                                    >
+                                      <XCircle size={15} /> Reject Corrections
+                                    </button>
                                     <button className="action-btn-primary sm" onClick={() => setConfirmModal({
                                       open: true,
                                       title: 'Mark NC as Closed',
@@ -1175,6 +1192,23 @@ export default function ApplicationProcess() {
                                 </div>
                               ) : (
                                 <div style={{ background: '#fffbeb', border: '1px solid #fef3c7', padding: '16px', borderRadius: '8px' }}>
+                                  {processData?.audit?.ncRejectReason && (
+                                    <div style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '12px', borderRadius: '6px', marginBottom: '12px' }}>
+                                      <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#991b1b', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <XCircle size={14} /> Corrections were rejected — waiting for client to re-upload.
+                                      </p>
+                                      <p style={{ margin: 0, fontSize: '12px', color: '#b91c1c' }}>Reason given: <em>{processData.audit.ncRejectReason}</em></p>
+                                      {processData.audit.ncRejectFiles && processData.audit.ncRejectFiles.length > 0 && (
+                                        <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                          {processData.audit.ncRejectFiles.map((fUrl, idx) => (
+                                            <a key={idx} href={resolveUrl(fUrl)} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#991b1b', textDecoration: 'underline' }}>
+                                              <FileText size={12} /> View Attached Doc #{idx + 1}
+                                            </a>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                   <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#92400e', fontWeight: 600 }}>Waiting for client to submit NC correction...</p>
                                   {processData?.audit?.ncReminderSentAt && (
                                     <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#b45309' }}>Last reminder sent: {new Date(processData.audit.ncReminderSentAt).toLocaleString()}</p>
@@ -1810,6 +1844,106 @@ export default function ApplicationProcess() {
                 style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', background: '#00853b', color: 'white', fontWeight: 700, cursor: 'pointer', fontSize: '14px' }}
               >
                 Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* NC Correction Reject Modal */}
+      {ncRejectModal.open && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: 'white', borderRadius: '20px', padding: '32px', maxWidth: '540px', width: '100%', boxShadow: '0 32px 64px rgba(0,0,0,0.25)', maxHeight: '90vh', overflowY: 'auto' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
+              <div style={{ background: '#fef2f2', borderRadius: '12px', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <XCircle size={24} color="#dc2626" />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#111827' }}>Reject NC Corrections</h3>
+                <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>Client will be notified and prompted to re-upload</p>
+              </div>
+            </div>
+            <hr style={{ border: 'none', borderTop: '1px solid #f3f4f6', margin: '20px 0' }} />
+
+            {/* Rejection Reason */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#374151', marginBottom: '8px' }}>
+                Rejection Reason <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <textarea
+                value={ncRejectReason}
+                onChange={(e) => setNcRejectReason(e.target.value)}
+                rows={4}
+                placeholder="e.g. The corrective actions provided are insufficient. Please provide more detailed documentary evidence of the corrective measures taken..."
+                style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1.5px solid #e5e7eb', fontSize: '14px', resize: 'vertical', outline: 'none', boxSizing: 'border-box', lineHeight: '1.6', color: '#1f2937', transition: 'border 0.15s' }}
+                onFocus={e => e.target.style.borderColor = '#dc2626'}
+                onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+              />
+            </div>
+
+            {/* File Attachments */}
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#374151', marginBottom: '8px' }}>
+                Attach Supporting Documents <span style={{ fontSize: '12px', color: '#9ca3af', fontWeight: 400 }}>(optional, multiple allowed)</span>
+              </label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {ncRejectFiles.map((file, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                    <FileText size={16} color="#6b7280" style={{ flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        onChange={(e) => {
+                          const selected = e.target.files[0];
+                          if (selected) {
+                            setNcRejectFiles(prev => { const updated = [...prev]; updated[i] = selected; return updated; });
+                          }
+                        }}
+                        style={{ fontSize: '13px', width: '100%' }}
+                      />
+                      {file && <p style={{ margin: '3px 0 0 0', fontSize: '11px', color: '#6b7280' }}>{(file.size / 1024).toFixed(1)} KB</p>}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setNcRejectFiles(prev => prev.filter((_, idx) => idx !== i))}
+                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', flexShrink: 0 }}
+                      title="Remove"
+                    >
+                      <XCircle size={16} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setNcRejectFiles(prev => [...prev, null])}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: '1.5px dashed #d1d5db', background: 'transparent', color: '#6b7280', fontSize: '13px', cursor: 'pointer', fontWeight: 500, width: 'fit-content' }}
+                >
+                  <Upload size={14} /> Add Document
+                </button>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setNcRejectModal({ open: false }); setNcRejectFiles([]); setNcRejectReason(''); }}
+                style={{ padding: '10px 22px', borderRadius: '10px', border: '1.5px solid #e5e7eb', background: 'white', color: '#374151', fontWeight: 600, cursor: 'pointer', fontSize: '14px' }}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={!ncRejectReason.trim() || saving}
+                onClick={async () => {
+                  if (!ncRejectReason.trim()) { toast.error('Please enter a rejection reason.'); return; }
+                  setNcRejectModal({ open: false });
+                  const validFiles = ncRejectFiles.filter(Boolean);
+                  submitStep(6, 5, JSON.stringify({ action: 'rejectNc', rejectReason: ncRejectReason.trim() }), null, { ncRejectFilesList: validFiles });
+                }}
+                style={{ padding: '10px 22px', borderRadius: '10px', border: 'none', background: '#dc2626', color: 'white', fontWeight: 700, cursor: 'pointer', fontSize: '14px', opacity: (!ncRejectReason.trim() || saving) ? 0.55 : 1, display: 'flex', alignItems: 'center', gap: '8px' }}
+              >
+                <XCircle size={16} />
+                {saving ? 'Sending...' : 'Send Rejection'}
               </button>
             </div>
           </div>
