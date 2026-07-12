@@ -50,6 +50,9 @@ const Sidebar = () => {
       ? [{ path: '/manage-admins', icon: Users, label: 'Manage Admin' }]
       : []),
     { path: '/message', icon: MessageCircleIcon, label: 'Message' },
+    ...(user?.privileges?.includes("Accountant") 
+      ? [{ path: 'https://www.invoice.hdiportal.com', icon: Receipt, label: 'Create Invoice'}] 
+      : [])
   ];
 
   function logout(){

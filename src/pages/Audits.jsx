@@ -359,11 +359,11 @@ const Audits = () => {
                               icon: Eye,
                               onClick: () => { setSelectedAudit(audit); setIsViewModalOpen(true); }
                             },
-                            (audit.status === 'Counter Proposed') && {
-                              label: 'Respond to Counter Proposal',
-                              icon: Calendar,
-                              onClick: () => { setSelectedAudit(audit); setIsViewModalOpen(true); }
-                            },
+                            // (audit.status === 'Counter Proposed') && {
+                            //   label: 'Respond to Counter Proposal',
+                            //   icon: Calendar,
+                            //   onClick: () => { setSelectedAudit(audit); setIsViewModalOpen(true); }
+                            // },
                             // (audit.status === 'Accepted' || audit.status === 'Audited' || audit.status === 'Correction Needed' || audit.status === 'NC Flagged') && {
                             //   label: 'Upload Audit Report',
                             //   icon: FileText,
@@ -388,28 +388,28 @@ const Audits = () => {
                             //     setIsCorrectionModalOpen(true); 
                             //   }
                             // },
-                            (audit.status === 'Accepted' || audit.status === 'Audited' || audit.status === 'Correction Needed' || audit.status === 'NC Flagged') && {
-                              label: 'Mark Complete',
-                              icon: CheckCircle,
-                              onClick: () => {
-                                if (!hasPrivilege('Audit Manager')) {
-                                  toast.error('Only Audit Managers can mark as complete');
-                                  return;
-                                }
-                                handleComplete(audit._id);
-                              }
-                            },
-                            (audit.status === 'Correction Needed' || audit.status === 'NC Flagged') && {
-                              label: 'Send Reminder',
-                              icon: RefreshCw,
-                              onClick: () => {
-                                if (!hasPrivilege('Audit Manager')) {
-                                  toast.error('Only Audit Managers can send reminders');
-                                  return;
-                                }
-                                handleSendReminder(audit._id);
-                              }
-                            },
+                            // (audit.status === 'Accepted' || audit.status === 'Audited' || audit.status === 'Correction Needed' || audit.status === 'NC Flagged') && {
+                            //   label: 'Mark Complete',
+                            //   icon: CheckCircle,
+                            //   onClick: () => {
+                            //     if (!hasPrivilege('Audit Manager')) {
+                            //       toast.error('Only Audit Managers can mark as complete');
+                            //       return;
+                            //     }
+                            //     handleComplete(audit._id);
+                            //   }
+                            // },
+                            // (audit.status === 'Correction Needed' || audit.status === 'NC Flagged') && {
+                            //   label: 'Send Reminder',
+                            //   icon: RefreshCw,
+                            //   onClick: () => {
+                            //     if (!hasPrivilege('Audit Manager')) {
+                            //       toast.error('Only Audit Managers can send reminders');
+                            //       return;
+                            //     }
+                            //     handleSendReminder(audit._id);
+                            //   }
+                            // },
                             audit.auditReport && {
                               label: 'View Audit Report',
                               icon: ExternalLink,
