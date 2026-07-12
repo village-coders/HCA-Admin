@@ -51,6 +51,7 @@ const Certificates = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedCertificate, setSelectedCertificate] = useState(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [isRemindingId, setIsRemindingId] = useState(null);
   const [companySuggestions, setCompanySuggestions] = useState([]);
 
   const { 
@@ -368,6 +369,33 @@ const Certificates = () => {
       console.log(error)
     } finally {
       setIsLoadingDetails(false);
+    }
+  };
+
+  // Handle Send Reminder
+  const handleSendReminder = async (certId) => {
+    setIsRemindingId(certId);
+    try {
+      const token = JSON.parse(localStorage.getItem('accessToken'));
+      const response = await fetch(`${baseUrl}/certificates/${certId}/remind`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        toast.success("Renewal reminder sent successfully!");
+      } else {
+        toast.error(data.message || "Failed to send reminder");
+      }
+    } catch (error) {
+      toast.error("Failed to send reminder");
+      console.log(error);
+    } finally {
+      setIsRemindingId(null);
     }
   };
 
@@ -1267,6 +1295,12 @@ const Certificates = () => {
                                     label: 'Download Label',
                                     icon: Tag,
                                     onClick: () => handleDownloadLabel(cert._id, cert.labelPaths ? cert.labelPaths[0] : cert.labelPath)
+                                  },
+                                  (cert.status?.toLowerCase() === 'expired' || cert.status?.toLowerCase() === 'expiring soon') && {
+                                    label: isRemindingId === cert._id ? 'Sending...' : 'Send Reminder',
+                                    icon: Mail,
+                                    onClick: () => handleSendReminder(cert._id),
+                                    disabled: isRemindingId === cert._id
                                   }
                                 ].filter(Boolean)}
                               />
