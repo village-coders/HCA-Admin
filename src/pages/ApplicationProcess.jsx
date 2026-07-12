@@ -1426,11 +1426,22 @@ export default function ApplicationProcess() {
       return (
         <div className="action-panel">
           <h2>Initiate Shari'a Logsheet</h2>
+          {processData?.shariaLogsheetRejectReason && (
+            <div className="mb-6 bg-red-50 p-4 rounded-xl border border-red-100 flex gap-3 text-left">
+              <XCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-bold text-red-800">Previous Logsheet Rejected by Shari'a Board</p>
+                <p className="text-xs text-red-700 mt-1 leading-relaxed">
+                  Reason: {processData.shariaLogsheetRejectReason}
+                </p>
+              </div>
+            </div>
+          )}
           <p>Create a formal logsheet to be sent to the Shari'a Board for endorsement.</p>
           {(hasPrivilege('Audit Manager') || hasPrivilege('Auditor')) ? (
             <button className="action-btn-primary" onClick={() => setShowLogsheetModal(true)} disabled={saving}>
               <FileText size={16} />
-              Create Logsheet
+              {processData?.shariaLogsheetRejectReason ? 'Recreate Logsheet' : 'Create Logsheet'}
             </button>
           ) : (
             <NoPermissionView privilege="Audit Manager or Auditor" />

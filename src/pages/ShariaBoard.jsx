@@ -47,6 +47,9 @@ const ShariaBoard = () => {
   const [uploadName, setUploadName] = useState(user?.signatureName || user?.fullName || '');
   const [uploadTitle, setUploadTitle] = useState(user?.signatureTitle || "Member, Shari'a Board");
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
+  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [isRejecting, setIsRejecting] = useState(false);
 
   const getToken = () => JSON.parse(localStorage.getItem('accessToken'));
 
@@ -129,6 +132,31 @@ const ShariaBoard = () => {
       toast.error(error.response?.data?.message || 'Failed to sign logsheet');
     } finally {
       setIsSigning(false);
+    }
+  };
+
+  const handleRejectLogsheet = async (logsheetId) => {
+    if (!rejectReason.trim()) {
+      toast.error('Please enter a reason for rejection');
+      return;
+    }
+    setIsRejecting(true);
+    try {
+      await axios.post(`${API_BASE_URL}/logsheets/reject`, { 
+        logsheetId, 
+        reason: rejectReason 
+      }, {
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
+      toast.success('Logsheet has been rejected and sent back to the auditor');
+      setIsSignModalOpen(false);
+      setShowRejectForm(false);
+      setRejectReason('');
+      fetchLogsheets();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to reject logsheet');
+    } finally {
+      setIsRejecting(false);
     }
   };
 
@@ -426,6 +454,45 @@ const ShariaBoard = () => {
                 </div>
               )}
 
+              {/* Rejection Area */}
+              {showRejectForm && (
+                <div className="bg-red-50 p-6 rounded-2xl border border-red-200 space-y-4">
+                  <h3 className="font-bold text-red-900 flex items-center gap-2">
+                    <XCircle className="w-5 h-5 text-red-600" />
+                    Reject Logsheet
+                  </h3>
+                  <p className="text-xs text-red-700 font-semibold">
+                    Please provide a clear reason for rejecting this logsheet. It will be sent back to the auditor to be updated/recreated.
+                  </p>
+                  <textarea
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="Enter rejection reason..."
+                    className="w-full p-3 bg-white border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none text-sm min-h-[100px]"
+                    required
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => {
+                        setShowRejectForm(false);
+                        setRejectReason('');
+                      }}
+                      className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleRejectLogsheet(selectedLogsheet._id)}
+                      disabled={isRejecting}
+                      className="px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-bold hover:bg-red-700 flex items-center gap-1.5 cursor-pointer disabled:bg-gray-300"
+                    >
+                      {isRejecting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : null}
+                      Confirm Rejection
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Signatures Area */}
               <div className="space-y-4">
                 <h3 className="font-bold text-gray-900 border-b pb-2">Digital Endorsements</h3>
@@ -487,6 +554,14 @@ const ShariaBoard = () => {
                 </span>
               </div>
               <div className="flex gap-2">
+                {!selectedLogsheet.isFinalized && hasPrivilege("Shari'a Board") && !showRejectForm && (
+                  <button 
+                    onClick={() => setShowRejectForm(true)}
+                    className="px-6 py-2 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 transition-all cursor-pointer"
+                  >
+                    Reject Logsheet
+                  </button>
+                )}
                 {(selectedLogsheet.isFinalized || (selectedLogsheet.signatures && selectedLogsheet.signatures.length >= 2)) && (
                   hasPrivilege("Audit Manager") || hasPrivilege("Shari'a Board") ? (
                     <button 

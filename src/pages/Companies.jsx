@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Search, Building2, Package, Users, XCircle, CheckCircle, Filter, RefreshCw, AlertCircle, Mail, Phone, Calendar, MoreVertical, Eye, Activity } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
+import { useAuth } from '../hooks/useAuth';
 import TableActions from '../components/TableActions';
+import axios from 'axios';
+import { toast } from 'sonner';
 
 const Companies = () => {
   const controller = new AbortController()
@@ -13,6 +16,36 @@ const Companies = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
  
+  const { user } = useAuth();
+
+  const API_BASE_URL = import.meta.env.VITE_BASE_URL;
+  const getToken = () => JSON.parse(localStorage.getItem('accessToken'));
+  
+  const handleLoginAsClient = async (company) => {
+    try {
+      const res = await axios.post(`${API_BASE_URL}/auth/impersonate`, { clientId: company.id || company._id }, {
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
+      
+      if (res.data.status === 'success') {
+        const { accessToken, user: clientUser } = res.data;
+        // Client portal URL - typically on port 5173 locally, in production it uses VITE_CLIENT_PORTAL_URL or domain
+        const clientPortalUrl = import.meta.env.VITE_CLIENT_PORTAL_URL || 'http://localhost:5173';
+        
+        // Open client portal in a new tab with token and user parameters
+        const tokenParam = encodeURIComponent(accessToken);
+        const userParam = encodeURIComponent(JSON.stringify(clientUser));
+        window.open(`${clientPortalUrl}/impersonate-login?token="${tokenParam}"&user=${userParam}`, '_blank');
+        
+        toast.success(`Redirecting to client portal as ${company.companyName || company.fullName}...`);
+      } else {
+        toast.error(res.data.message || 'Failed to impersonate client');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Error occurred during impersonation');
+    }
+  };
+
   const { fetchCompanies, fetchProducts, fetchCertificates, fetchApplications, companies, isLoading, errors, products, applications } = useAll();
 
   // Reset pagination when search or tab changes
@@ -475,7 +508,12 @@ const Companies = () => {
                               label: 'View Activities',
                               icon: Activity,
                               onClick: () => console.log('Manage products for:', company.companyName)
-                            }
+                            },
+                            ...(user?.isBuilder ? [{
+                              label: 'Login as Client',
+                              icon: Users,
+                              onClick: () => handleLoginAsClient(company)
+                            }] : [])
                           ]}
                         />
                       </td>
