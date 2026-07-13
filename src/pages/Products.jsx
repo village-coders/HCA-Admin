@@ -58,6 +58,8 @@ const Products = () => {
   const [isRejectingId, setIsRejectingId] = useState(null);
   const [isDeletingId, setIsDeletingId] = useState(null);
   const [isBulkApproving, setIsBulkApproving] = useState(false);
+  const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [companySuggestions, setCompanySuggestions] = useState([]);
 
@@ -233,26 +235,32 @@ const Products = () => {
     }
   };
 
-  const handleDeleteProduct = async (productId) => {
-    if (window.confirm("Are you sure you want to delete this product?")) {
-      setIsDeletingId(productId);
-      try {
-        await deleteProduct(productId);
-        toast.success("Product deleted!");
-        
-        // Close modal if the deleted product is open
-        if (selectedProduct && selectedProduct.id === productId) {
-          setIsViewModalOpen(false);
-          setSelectedProduct(null);
-        }
-        
-        fetchProducts();
-      } catch (error) {
-        toast.error("Failed to delete product");
-        console.log(error)
-      } finally {
-        setIsDeletingId(null);
+  const handleDeleteProduct = (productId) => {
+    setProductToDelete(productId);
+    setDeleteConfirmModalOpen(true);
+  };
+
+  const executeDeleteProduct = async () => {
+    if (!productToDelete) return;
+    setIsDeletingId(productToDelete);
+    try {
+      await deleteProduct(productToDelete);
+      toast.success("Product deleted!");
+      
+      // Close modal if the deleted product is open
+      if (selectedProduct && selectedProduct.id === productToDelete) {
+        setIsViewModalOpen(false);
+        setSelectedProduct(null);
       }
+      
+      fetchProducts();
+    } catch (error) {
+      toast.error("Failed to delete product");
+      console.log(error)
+    } finally {
+      setIsDeletingId(null);
+      setDeleteConfirmModalOpen(false);
+      setProductToDelete(null);
     }
   };
 
@@ -1006,17 +1014,6 @@ const Products = () => {
                                 onClick: () => handleViewDetails(productId),
                                 disabled: isLoadingDetails
                               },
-                              product.status?.toLowerCase() === 'requested' && {
-                                label: 'Approve Product',
-                                icon: CheckCircle,
-                                onClick: () => handleApproveProduct(productId)
-                              },
-                              product.status?.toLowerCase() === 'requested' && {
-                                label: 'Reject Product',
-                                icon: XCircle,
-                                onClick: () => handleRejectProduct(productId),
-                                variant: 'danger'
-                              },
                               {
                                 label: 'Delete Product',
                                 icon: Trash2,
@@ -1108,6 +1105,39 @@ const Products = () => {
 
       {/* View Product Modal */}
       {isViewModalOpen && <ViewProductModal />}
+
+      {/* Delete Confirm Modal */}
+      {deleteConfirmModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50 px-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-5">
+              <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-medium text-center text-gray-900 mb-2">Delete Product</h3>
+              <p className="text-sm text-center text-gray-500">
+                Are you sure you want to delete this product? This action cannot be undone.
+              </p>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-end space-x-3 rounded-b-lg">
+              <button
+                onClick={() => setDeleteConfirmModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                disabled={isDeletingId !== null}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeDeleteProduct}
+                disabled={isDeletingId !== null}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center disabled:opacity-50"
+              >
+                {isDeletingId !== null ? 'Deleting...' : 'Delete Product'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
