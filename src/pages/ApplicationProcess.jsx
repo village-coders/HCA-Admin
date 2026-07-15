@@ -918,14 +918,22 @@ export default function ApplicationProcess() {
                                   onClick={() => {
                                     const anyEmpty = proposedDates.some(pd => !pd.date || !pd.fromTime);
                                     if (anyEmpty) {
-                                      toast.error('Please fill in the date and time for all 3 options.');
+                                      toast.error('Please fill in the date and time for all options.');
                                       return;
                                     }
-                                    const payload = JSON.stringify({
-                                      action: 'propose',
-                                      proposedDates: proposedDates
+                                    setConfirmModal({
+                                      open: true,
+                                      title: 'Confirm Proposed Dates',
+                                      message: 'Are you sure you want to propose these dates to the client? The client will receive an email notification.',
+                                      onConfirm: () => {
+                                        setConfirmModal({ open: false });
+                                        const payload = JSON.stringify({
+                                          action: 'propose',
+                                          proposedDates: proposedDates
+                                        });
+                                        submitStep(6, 1, payload);
+                                      }
                                     });
-                                    submitStep(6, 1, payload);
                                   }}
                                   disabled={saving}
                                 >
@@ -963,25 +971,33 @@ export default function ApplicationProcess() {
                                         </span>
                                       )}
                                     </div>
-                                    {hasPrivilege('Audit Manager') && (
+                                    {/* {hasPrivilege('Audit Manager') && (
                                       <button
                                         type="button"
                                         style={{ background: '#00853b', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
                                         onClick={() => {
-                                          const payload = JSON.stringify({
-                                            action: 'finalizeDate',
-                                            date: pd.date,
-                                            time: pd.fromTime || pd.time,
-                                            fromTime: pd.fromTime || pd.time,
-                                            toDate: pd.toDate || pd.date
+                                          setConfirmModal({
+                                            open: true,
+                                            title: 'Finalize Audit Date',
+                                            message: 'Are you sure you want to finalize this date option? The client will receive an email notification.',
+                                            onConfirm: () => {
+                                              setConfirmModal({ open: false });
+                                              const payload = JSON.stringify({
+                                                action: 'finalizeDate',
+                                                date: pd.date,
+                                                time: pd.fromTime || pd.time,
+                                                fromTime: pd.fromTime || pd.time,
+                                                toDate: pd.toDate || pd.date
+                                              });
+                                              submitStep(6, 1, payload);
+                                            }
                                           });
-                                          submitStep(6, 1, payload);
                                         }}
                                         disabled={saving}
                                       >
                                         Finalize This Option
                                       </button>
-                                    )}
+                                    )} */}
                                   </div>
                                 ))}
                               </div>
