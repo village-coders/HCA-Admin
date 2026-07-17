@@ -157,6 +157,7 @@ const Dashboard = () => {
     pendingCertificates: 0,
     expiredCertificates: 0,
     pendingApplications: 0,
+    newlySubmittedApplications: 0,
     newApplications: 0,
     renewalApplications: 0,
     approvedApplications: 0,
@@ -188,8 +189,11 @@ const Dashboard = () => {
         else if (status === 'pending' || status === 'under_review' || status === 'submitted') acc.pending++;
         else if (status === 'rejected') acc.rejected++;
         else if (status === 'draft') acc.draft++;
+        
+        if (status === 'submitted') acc.newlySubmitted++;
+
         return acc;
-      }, { approved: 0, pending: 0, rejected: 0, draft: 0 });
+      }, { approved: 0, pending: 0, rejected: 0, draft: 0, newlySubmitted: 0 });
       // Count applications by category/type
       const applicationsByCategory = applications.reduce((acc, app) => {
         const category = app.category?.toLowerCase() || '';
@@ -253,6 +257,7 @@ const Dashboard = () => {
         pendingCertificates: certificateStats.pending,
         expiredCertificates: certificateStats.expired,
         pendingApplications: applicationStats.pending,
+        newlySubmittedApplications: applicationStats.newlySubmitted,
         newApplications: applicationsByCategory.newApp,
         renewalApplications: applicationsByCategory.renewal,
         approvedApplications: applicationStats.approved,
@@ -286,12 +291,12 @@ const Dashboard = () => {
     },
     { 
       title: 'New Application', 
-      value: dashboardStats.newApplications.toString(), 
-      change: calculateTrend(dashboardStats.newApplications, Math.max(dashboardStats.newApplications - 2, 0)), 
+      value: dashboardStats.newlySubmittedApplications.toString(), 
+      change: calculateTrend(dashboardStats.newlySubmittedApplications, Math.max(dashboardStats.newlySubmittedApplications - 2, 0)), 
       icon: FileText, 
       color: 'bg-yellow-500',
-      trend: dashboardStats.newApplications > (dashboardStats.newApplications - 2) ? 'up' : 'down',
-      onClick: () => navigate('/applications', { state: { activeTab: 'pending' } })
+      trend: dashboardStats.newlySubmittedApplications > (dashboardStats.newlySubmittedApplications - 2) ? 'up' : 'down',
+      onClick: () => navigate('/applications', { state: { activeTab: 'new' } })
     },
     { 
       title: 'Active Certificates', 

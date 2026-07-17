@@ -133,52 +133,66 @@ const Applications = () => {
 
   // Filter applications
   const filteredApplications = applications.filter(app => {
-    // Tab filter
+    // Tab filter — determines whether app passes the current tab
+    let passesTab = true;
     switch (activeTab) {
       case 'all':
+        passesTab = true;
+        break;
+      case 'new':
+        passesTab = app.status === 'Submitted' || app.status === 'submitted';
         break;
       case 'pending': {
-        // Show all Initial Applications that are actively processing (not terminal states)
-        // const isInitialApp = !app.category?.toLowerCase().includes('renewal');
         const isProcessing = !['Issued', 'Rejected', 'Expired'].includes(app.status);
-        return isProcessing;
+        passesTab = isProcessing;
+        break;
       }
       case 'initial':
-        return !app.category?.toLowerCase().includes('renewal');
-      case 'renewal':
-        return app.category?.toLowerCase().includes('renewal');
-      case 'issued':
-        return app.status === 'issued' || app.status === 'Issued';
-      case 'accepted':
-        return app.status === 'accepted' || app.status === 'Accepted';
-      case 'rejected':
-        return app.status === 'rejected' || app.status === 'Rejected';
-      default:
+        passesTab = !app.category?.toLowerCase().includes('renewal');
         break;
+      case 'renewal':
+        passesTab = app.category?.toLowerCase().includes('renewal');
+        break;
+      case 'issued':
+        passesTab = app.status === 'issued' || app.status === 'Issued';
+        break;
+      case 'accepted':
+        passesTab = app.status === 'accepted' || app.status === 'Accepted';
+        break;
+      case 'rejected':
+        passesTab = app.status === 'rejected' || app.status === 'Rejected';
+        break;
+      default:
+        passesTab = true;
     }
+    if (!passesTab) return false;
 
-    // Custom filter
+    // Company search filter
     if (filter.company) {
       const searchTerm = filter.company.toLowerCase();
       const matchCompanyName = app.companyName?.toLowerCase().includes(searchTerm);
-
       const matchCompanyObjName = typeof app.company === 'object'
         ? app.company?.companyName?.toLowerCase().includes(searchTerm)
         : app.company?.toLowerCase().includes(searchTerm);
+      if (!matchCompanyName && !matchCompanyObjName) return false;
+    }
 
-      if (!matchCompanyName && !matchCompanyObjName) {
-        return false;
-      }
+    // Date range filter (inclusive — dateTo covers the full end day)
+    const appDate = app.createdAt ? new Date(app.createdAt) : null;
+    if (filter.dateFrom && appDate) {
+      const from = new Date(filter.dateFrom);
+      from.setHours(0, 0, 0, 0);
+      if (appDate < from) return false;
     }
-    if (filter.dateFrom && app.createdAt && new Date(app.createdAt) < new Date(filter.dateFrom)) {
-      return false;
+    if (filter.dateTo && appDate) {
+      const to = new Date(filter.dateTo);
+      to.setHours(23, 59, 59, 999);
+      if (appDate > to) return false;
     }
-    if (filter.dateTo && app.createdAt && new Date(app.createdAt) > new Date(filter.dateTo)) {
-      return false;
-    }
-    if (filter.status && app.status !== filter.status) {
-      return false;
-    }
+
+    // Status filter (from the dropdown, independent of tab)
+    if (filter.status && app.status?.toLowerCase() !== filter.status.toLowerCase()) return false;
+
     return true;
   });
 
@@ -464,6 +478,7 @@ const Applications = () => {
   const getTabCounts = () => {
     return {
       all: applications.length,
+      new: applications.filter(a => a.status === 'Submitted' || a.status === 'submitted').length,
       pending: applications.filter(a => {
         const isProcessing = !['Issued', 'Rejected', 'Expired'].includes(a.status);
         return isProcessing;
@@ -486,6 +501,7 @@ const Applications = () => {
 
   const tabs = [
     { id: 'all', label: 'All Applications', count: tabCounts.all },
+    { id: 'new', label: 'New Application', count: tabCounts.new },
     { id: 'initial', label: 'Initial Application', count: tabCounts.initial },
     { id: 'pending', label: 'In Progress', count: tabCounts.pending },
     { id: 'renewal', label: 'Renewal', count: tabCounts.renewal },

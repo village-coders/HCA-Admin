@@ -40,6 +40,14 @@ const ShariaBoard = () => {
   const [selectedLogsheet, setSelectedLogsheet] = useState(null);
   const [isSignModalOpen, setIsSignModalOpen] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
   
   // Signature upload state
   const [signatureFile, setSignatureFile] = useState(null);
@@ -199,6 +207,9 @@ const ShariaBoard = () => {
     ls.applicationId?.applicationNumber?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const totalPages = Math.ceil(filteredLogsheets.length / itemsPerPage) || 1;
+  const paginatedLogsheets = filteredLogsheets.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   const hasSigned = (logsheet) => {
     return logsheet.signatures?.some(s => s.user?._id === user?.id || s.user === user?.id);
   };
@@ -302,8 +313,8 @@ const ShariaBoard = () => {
                     <RefreshCw className="w-8 h-8 animate-spin mx-auto text-gray-300" />
                   </td>
                 </tr>
-              ) : filteredLogsheets.length > 0 ? (
-                filteredLogsheets.map((ls) => (
+              ) : paginatedLogsheets.length > 0 ? (
+                paginatedLogsheets.map((ls) => (
                   <tr key={ls._id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="font-bold text-gray-900">{ls.applicationId?.applicationNumber}</div>
@@ -361,6 +372,39 @@ const ShariaBoard = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Table Footer / Pagination */}
+        {filteredLogsheets.length > 0 && (
+          <div className="px-6 py-4 border-t border-gray-100 bg-white">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="text-sm text-gray-500">
+                Showing <span className="font-medium text-gray-900">{Math.min(filteredLogsheets.length, (currentPage - 1) * itemsPerPage + 1)}-{Math.min(filteredLogsheets.length, currentPage * itemsPerPage)}</span> of{' '}
+                <span className="font-medium text-gray-900">{filteredLogsheets.length}</span> logsheets
+              </div>
+              <div className="flex items-center space-x-2">
+                {totalPages > 1 && (
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 bg-white border border-gray-200 rounded-lg transition-colors duration-200 disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-sm text-gray-500 px-2">Page {currentPage} of {totalPages}</span>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 bg-white border border-gray-200 rounded-lg transition-colors duration-200 disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Sign/View Modal */}

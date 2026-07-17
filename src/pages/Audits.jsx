@@ -50,6 +50,8 @@ const Audits = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isCorrectionModalOpen, setIsCorrectionModalOpen] = useState(false);
   const [isCounterProposalModalOpen, setIsCounterProposalModalOpen] = useState(false);
@@ -60,6 +62,13 @@ const Audits = () => {
   const [reportFile, setReportFile] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [finalizingDate, setFinalizingDate] = useState(false);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, dateFrom, dateTo]);
 
   const [scheduleForm, setScheduleForm] = useState({
     applicationId: '',
@@ -81,15 +90,36 @@ const Audits = () => {
   };
 
   const filteredAudits = audits.filter(audit => {
-    const matchesSearch = 
-      audit.applicationId?.applicationNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      audit.staffName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      audit.userId?.companyName?.toLowerCase().includes(searchQuery.toLowerCase());
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = !searchQuery || 
+      (audit.applicationId?.applicationNumber?.toLowerCase() || '').includes(searchLower) ||
+      (audit.staffName?.toLowerCase() || '').includes(searchLower) ||
+      (audit.userId?.companyName?.toLowerCase() || '').includes(searchLower);
     
-    const matchesStatus = statusFilter === 'all' || audit.status?.toLowerCase() === statusFilter.toLowerCase().replace(' ', '');
+    const normalizedAuditStatus = audit.status?.toLowerCase().replace(/\s/g, '') || '';
+    const normalizedFilterStatus = statusFilter.toLowerCase().replace(/\s/g, '');
+    const matchesStatus = statusFilter === 'all' || normalizedAuditStatus === normalizedFilterStatus;
+
+    // Date range filter on scheduledDate
+    const auditDate = audit.scheduledDate ? new Date(audit.scheduledDate) : null;
+    let matchesDateFrom = true;
+    let matchesDateTo = true;
+    if (dateFrom && auditDate) {
+      const from = new Date(dateFrom);
+      from.setHours(0, 0, 0, 0);
+      matchesDateFrom = auditDate >= from;
+    }
+    if (dateTo && auditDate) {
+      const to = new Date(dateTo);
+      to.setHours(23, 59, 59, 999);
+      matchesDateTo = auditDate <= to;
+    }
     
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo;
   });
+
+  const totalPages = Math.ceil(filteredAudits.length / itemsPerPage) || 1;
+  const paginatedAudits = filteredAudits.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const getEligibleApplications = () => {
     // Only applications that don't have an audit or are approved can be scheduled
@@ -242,32 +272,71 @@ const Audits = () => {
 
       {/* Filters Section */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input 
-              type="text" 
-              placeholder="Search audits by application, company or staff..."
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input 
+                type="text" 
+                placeholder="Search audits by application, company or staff..."
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="relative md:w-48">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <select 
+                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none appearance-none cursor-pointer text-sm"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All Statuses</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="accepted">Accepted</option>
+                <option value="audited">Audited</option>
+                <option value="rejected">Rejected</option>
+                <option value="ncflagged">NC Flagged</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
           </div>
-          <div className="relative md:w-48">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <select 
-              className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none appearance-none cursor-pointer text-sm"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">All Statuses</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="accepted">Accepted</option>
-              <option value="audited">Audited</option>
-              <option value="rejected">Rejected</option>
-              <option value="ncflagged">NC Flagged</option>
-              <option value="completed">Completed</option>
-            </select>
+
+          {/* Date Range Row */}
+          <div className="flex flex-col sm:flex-row gap-4 items-end">
+            <div className="flex-1">
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Date From</label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="date"
+                  className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all text-sm"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Date To</label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="date"
+                  className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all text-sm"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  min={dateFrom || undefined}
+                />
+              </div>
+            </div>
+            {(dateFrom || dateTo) && (
+              <button
+                onClick={() => { setDateFrom(''); setDateTo(''); }}
+                className="px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors whitespace-nowrap"
+              >
+                Clear Dates
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -296,8 +365,8 @@ const Audits = () => {
                     </td>
                   </tr>
                 ))
-              ) : filteredAudits.length > 0 ? (
-                filteredAudits.map((audit) => {
+              ) : paginatedAudits.length > 0 ? (
+                paginatedAudits.map((audit) => {
                   const statusBadge = getStatusBadge(audit.status);
                   return (
                     <tr key={audit._id} className="hover:bg-gray-50 transition-colors">
@@ -444,6 +513,39 @@ const Audits = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Table Footer / Pagination */}
+        {filteredAudits.length > 0 && (
+          <div className="px-6 py-4 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="text-sm text-gray-600">
+                Showing <span className="font-medium">{Math.min(filteredAudits.length, (currentPage - 1) * itemsPerPage + 1)}-{Math.min(filteredAudits.length, currentPage * itemsPerPage)}</span> of{' '}
+                <span className="font-medium">{filteredAudits.length}</span> audits
+              </div>
+              <div className="flex items-center space-x-2">
+                {totalPages > 1 && (
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 bg-white border border-gray-300 shadow-sm rounded-lg transition-colors duration-200 disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-sm text-gray-600 px-2">Page {currentPage} of {totalPages}</span>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 bg-white border border-gray-300 shadow-sm rounded-lg transition-colors duration-200 disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Schedule Audit Modal */}
