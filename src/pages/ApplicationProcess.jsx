@@ -971,7 +971,7 @@ export default function ApplicationProcess() {
                                         </span>
                                       )}
                                     </div>
-                                    {/* {hasPrivilege('Audit Manager') && (
+                                    {hasPrivilege('Audit Manager') && (!['Date Concluded', 'Scheduled'].includes(processData?.audit?.status)) && (
                                       <button
                                         type="button"
                                         style={{ background: '#00853b', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
@@ -997,7 +997,7 @@ export default function ApplicationProcess() {
                                       >
                                         Finalize This Option
                                       </button>
-                                    )} */}
+                                    )}
                                   </div>
                                 ))}
                               </div>
