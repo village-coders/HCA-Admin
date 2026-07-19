@@ -469,32 +469,41 @@ export default function ApplicationProcess() {
       toast.error('Please provide a reason for rejection');
       return;
     }
-    try {
-      setRejecting(true);
-      await axios.put(
-        `${API_BASE_URL}/applications/${id}/reject`,
-        { reason: rejectReason },
-        { headers: { Authorization: `Bearer ${getToken()}` } }
-      );
-      toast.success('Application rejected successfully');
-      setShowRejectForm(false);
-      setRejectReason('');
-      await fetchApplication();
-      setActiveStep(currentStep);
+    
+    setConfirmModal({
+      open: true,
+      title: 'Reject Application',
+      message: 'Are you sure you want to reject this application? This action will notify the client.',
+      onConfirm: async () => {
+        setConfirmModal({ open: false, title: '', message: '', onConfirm: null });
+        try {
+          setRejecting(true);
+          await axios.put(
+            `${API_BASE_URL}/applications/${id}/reject`,
+            { reason: rejectReason },
+            { headers: { Authorization: `Bearer ${getToken()}` } }
+          );
+          toast.success('Application rejected successfully');
+          setShowRejectForm(false);
+          setRejectReason('');
+          await fetchApplication();
+          setActiveStep(currentStep);
 
-      // Pre-fill logsheet data
-      if (res.data) {
-        setLogsheetData({
-          companyName: res.data.company?.companyName || '',
-          companyEmail: res.data.company?.email || '',
-          auditReport: res.data.processData?.audit?.auditReportFile || ''
-        });
+          // Pre-fill logsheet data (if res is defined locally)
+          if (typeof res !== 'undefined' && res.data) {
+            setLogsheetData({
+              companyName: res.data.company?.companyName || '',
+              companyEmail: res.data.company?.email || '',
+              auditReport: res.data.processData?.audit?.auditReportFile || ''
+            });
+          }
+        } catch (err) {
+          toast.error(err.response?.data?.message || 'Failed to reject application');
+        } finally {
+          setRejecting(false);
+        }
       }
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to reject application');
-    } finally {
-      setRejecting(false);
-    }
+    });
   };
 
   const handleApproveProduct = async (productId) => {
@@ -694,7 +703,18 @@ export default function ApplicationProcess() {
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '20px' }}>
             {hasPrivilege('Application Officer') ? (
               <>
-                <button className="action-btn-primary" onClick={() => { setShowRejectForm(false); submitStep(2); }} disabled={saving}>
+                <button className="action-btn-primary" onClick={() => {
+                  setConfirmModal({
+                    open: true,
+                    title: 'Accept Application',
+                    message: 'Are you sure you want to accept this application? This will progress the application to the next step.',
+                    onConfirm: () => {
+                      setConfirmModal({ open: false, title: '', message: '', onConfirm: null });
+                      setShowRejectForm(false); 
+                      submitStep(2);
+                    }
+                  });
+                }} disabled={saving}>
                   {saving ? <Loader2 className="spin" size={16} /> : <CheckCircle size={16} />}
                   {saving ? 'Processing...' : 'Accept Application'}
                 </button>

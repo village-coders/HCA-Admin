@@ -231,6 +231,7 @@ const Applications = () => {
 
   // Handle Accept Application
   const handleAcceptApplication = async (appId) => {
+    if (!window.confirm("Are you sure you want to accept this application?")) return;
     setIsAcceptingId(appId);
     try {
       const result = await acceptApplication(appId);
@@ -287,6 +288,7 @@ const Applications = () => {
   };
 
   const handleRejectApplication = async (appId) => {
+    if (!window.confirm("Are you sure you want to reject this application?")) return;
     const reason = prompt("Enter rejection reason:");
     if (reason) {
       setIsRejectingId(appId);
@@ -577,27 +579,26 @@ const Applications = () => {
     const appId = selectedApplication.id || selectedApplication._id;
 
     const [isAcknowledging, setIsAcknowledging] = useState(false);
+    const [selectedProductIds, setSelectedProductIds] = useState([]);
 
-    const handleAcknowledgeAllProducts = async () => {
-      const pendingProducts = selectedAppProducts.filter(
-        p => p.status === 'requested' || p.status === 'Requested' || p.status === 'pending' || p.status === 'Pending'
-      );
-      if (pendingProducts.length === 0) {
-        toast.info("No pending products to acknowledge.");
+    const handleAcknowledgeSelectedProducts = async () => {
+      if (selectedProductIds.length === 0) {
+        toast.info("Please select at least one product to acknowledge.");
         return;
       }
       setIsAcknowledging(true);
       try {
-        const approvePromises = pendingProducts.map(p => approveProduct(p._id || p.id));
+        const approvePromises = selectedProductIds.map(id => approveProduct(id));
         await Promise.all(approvePromises);
-        toast.success(`${pendingProducts.length} products acknowledged successfully!`);
+        toast.success(`${selectedProductIds.length} products acknowledged successfully!`);
         // Update local state to show them as acknowledged
         setSelectedAppProducts(prev => prev.map(p => {
-          if (pendingProducts.find(pending => (pending._id || pending.id) === (p._id || p.id))) {
+          if (selectedProductIds.includes(p._id || p.id)) {
             return { ...p, status: 'acknowledged' };
           }
           return p;
         }));
+        setSelectedProductIds([]); // Clear selection
       } catch (err) {
         toast.error("Failed to acknowledge some products");
         console.error(err);
@@ -1306,11 +1307,15 @@ const Applications = () => {
                       <h3 className="text-lg font-semibold text-gray-900">Products Under This Application</h3>
                       {selectedAppProducts.some(p => p.status === 'requested' || p.status === 'Requested' || p.status === 'pending' || p.status === 'Pending') && hasPrivilege('Application Officer') && (
                         <button
-                          onClick={handleAcknowledgeAllProducts}
-                          disabled={isAcknowledging}
-                          className="px-3 py-1.5 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+                          onClick={handleAcknowledgeSelectedProducts}
+                          disabled={isAcknowledging || selectedProductIds.length === 0}
+                          className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                            selectedProductIds.length > 0
+                              ? 'bg-green-600 text-white hover:bg-green-700'
+                              : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                          }`}
                         >
-                          {isAcknowledging ? 'Acknowledging...' : 'Acknowledge All Products'}
+                          {isAcknowledging ? 'Acknowledging...' : `Acknowledge Selected (${selectedProductIds.length})`}
                         </button>
                       )}
                     </div>
@@ -1319,26 +1324,67 @@ const Applications = () => {
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="border-b border-gray-200">
+                              <th className="px-4 py-3 text-left font-semibold text-gray-600 w-10">
+                                <input
+                                  type="checkbox"
+                                  className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                  checked={
+                                    selectedAppProducts.filter(p => p.status === 'requested' || p.status === 'Requested' || p.status === 'pending' || p.status === 'Pending').length > 0 &&
+                                    selectedProductIds.length === selectedAppProducts.filter(p => p.status === 'requested' || p.status === 'Requested' || p.status === 'pending' || p.status === 'Pending').length
+                                  }
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      const pendingIds = selectedAppProducts
+                                        .filter(p => p.status === 'requested' || p.status === 'Requested' || p.status === 'pending' || p.status === 'Pending')
+                                        .map(p => p._id || p.id);
+                                      setSelectedProductIds(pendingIds);
+                                    } else {
+                                      setSelectedProductIds([]);
+                                    }
+                                  }}
+                                />
+                              </th>
                               <th className="px-4 py-3 text-left font-semibold text-gray-600">Product Name</th>
                               <th className="px-4 py-3 text-left font-semibold text-gray-600">Category</th>
                               <th className="px-4 py-3 text-left font-semibold text-gray-600">Status</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100">
-                            {selectedAppProducts.map((product, i) => (
-                              <tr key={product._id || i} className="hover:bg-white">
-                                <td className="px-4 py-3 font-medium text-gray-900">{product.name}</td>
-                                <td className="px-4 py-3 text-gray-500">{product.category || product.productCategory || '—'}</td>
-                                <td className="px-4 py-3">
-                                  <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${product.status === 'acknowledged' ? 'bg-green-100 text-green-700' :
-                                      product.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                                        'bg-yellow-100 text-yellow-700'
-                                    }`}>
-                                    {product.status || 'Pending'}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
+                            {selectedAppProducts.map((product, i) => {
+                              const isPending = product.status === 'requested' || product.status === 'Requested' || product.status === 'pending' || product.status === 'Pending';
+                              return (
+                                <tr key={product._id || i} className="hover:bg-white">
+                                  <td className="px-4 py-3">
+                                    {isPending ? (
+                                      <input
+                                        type="checkbox"
+                                        className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                        checked={selectedProductIds.includes(product._id || product.id)}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setSelectedProductIds(prev => [...prev, product._id || product.id]);
+                                          } else {
+                                            setSelectedProductIds(prev => prev.filter(id => id !== (product._id || product.id)));
+                                          }
+                                        }}
+                                      />
+                                    ) : (
+                                      <input type="checkbox" disabled className="w-4 h-4 rounded border-gray-300 text-gray-300 cursor-not-allowed opacity-50" />
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-3 font-medium text-gray-900">{product.name}</td>
+                                  <td className="px-4 py-3 text-gray-500">{product.category || product.productCategory || '—'}</td>
+                                  <td className="px-4 py-3">
+                                    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${product.status === 'acknowledged' ? 'bg-green-100 text-green-700' :
+                                        product.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                          'bg-yellow-100 text-yellow-700'
+                                      }`}>
+                                      {product.status || 'Pending'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
