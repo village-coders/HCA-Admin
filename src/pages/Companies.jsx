@@ -504,11 +504,6 @@ const Companies = () => {
                               icon: Eye,
                               onClick: () => handleViewDetails(company)
                             },
-                            {
-                              label: 'View Activities',
-                              icon: Activity,
-                              onClick: () => console.log('Manage products for:', company.companyName)
-                            },
                             ...(user?.isBuilder ? [{
                               label: 'Login as Client',
                               icon: Users,
