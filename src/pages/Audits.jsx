@@ -494,6 +494,17 @@ const Audits = () => {
                                 const url = audit.ncReport.startsWith('http') ? audit.ncReport : `${baseUrl.replace(/\/api$/, '')}${audit.ncReport.startsWith('/api') ? audit.ncReport : '/api' + audit.ncReport}`;
                                 window.open(url, '_blank');
                               }
+                            },
+                            (audit.ncCorrectionFile && audit.ncCorrectionFile.length > 0) && {
+                              label: 'View NC Correction',
+                              icon: Download,
+                              onClick: () => {
+                                const files = Array.isArray(audit.ncCorrectionFile) ? audit.ncCorrectionFile : [audit.ncCorrectionFile];
+                                files.forEach(f => {
+                                  const url = f.startsWith('http') ? f : `${baseUrl.replace(/\/api$/, '')}${f.startsWith('/api') ? f : '/api' + f}`;
+                                  window.open(url, '_blank');
+                                });
+                              }
                             }
                           ].filter(Boolean)} 
                         />
@@ -1010,6 +1021,44 @@ const Audits = () => {
                         </button>
                       )}
                     </div>
+
+                    {/* NC Correction File — uploaded by the client */}
+                    {selectedAudit.ncCorrectionFile && selectedAudit.ncCorrectionFile.length > 0 && (
+                      <div className="sm:col-span-2 p-4 rounded-xl border-2 border-dashed bg-amber-50/50 border-amber-200">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="p-2 bg-amber-100 rounded-lg">
+                            <Download className="w-5 h-5 text-amber-600" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-bold text-gray-900">NC Correction Files</div>
+                            <div className="text-xs text-gray-500">Submitted by the client in response to the NC report</div>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {(Array.isArray(selectedAudit.ncCorrectionFile) ? selectedAudit.ncCorrectionFile : [selectedAudit.ncCorrectionFile]).map((f, idx) => {
+                            const url = f.startsWith('http') ? f : `${baseUrl.replace(/\/api$/, '')}${f.startsWith('/api') ? f : '/api' + f}`;
+                            const filename = f.split('/').pop() || `Correction File ${idx + 1}`;
+                            return (
+                              <a
+                                key={idx}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 px-3 py-2 bg-white border border-amber-200 rounded-lg text-amber-700 text-xs font-semibold hover:bg-amber-50 transition-colors w-fit"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                {filename}
+                              </a>
+                            );
+                          })}
+                        </div>
+                        {selectedAudit.ncCorrectionUploadedAt && (
+                          <div className="text-[10px] text-gray-400 mt-2">
+                            Uploaded: {new Date(selectedAudit.ncCorrectionUploadedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
