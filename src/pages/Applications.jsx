@@ -568,9 +568,27 @@ const Applications = () => {
       }
       if (typeof path !== 'string') return '#';
       if (path.startsWith('http')) return path;
-      if (path.startsWith('/api/')) return `${baseUrl.replace('/api', '')}${path}`;
-      if (path.startsWith('/files/')) return `${baseUrl.replace('/api', '')}/api${path}`;
-      return `${baseUrl.replace('/api', '')}/api/files/${path}`;
+      
+      // Clean baseUrl by removing trailing slash if present
+      const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+      
+      // If path starts with /api/, strip the /api/ prefix so we don't duplicate it
+      let relativePath = path;
+      if (relativePath.startsWith('/api/')) {
+        relativePath = relativePath.slice(4); // Keep leading slash, i.e., /files/...
+      }
+      
+      // Ensure the relative path has a leading slash
+      if (!relativePath.startsWith('/')) {
+        relativePath = '/' + relativePath;
+      }
+      
+      // If the path doesn't start with /files/ or /api/files/, prefix it with /files/
+      if (!relativePath.startsWith('/files/')) {
+        relativePath = '/files' + relativePath;
+      }
+      
+      return `${cleanBase}${relativePath}`;
     };
 
     const statusConfig = getStatusConfig(selectedApplication.status);
