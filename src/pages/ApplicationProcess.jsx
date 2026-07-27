@@ -1650,6 +1650,11 @@ export default function ApplicationProcess() {
                     ? `${certLabelFiles.length} label file(s) selected`
                     : 'Click to select label file(s)'}
                 </p>
+                {certLabelFiles.length > 0 && (
+                  <div style={{ fontSize: '11px', color: '#1e40af', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '5px' }}>
+                    {certLabelFiles.map((f, i) => <span key={i} className="bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{f.name}</span>)}
+                  </div>
+                )}
                 <span style={{ fontSize: '11px', color: '#6b7280' }}>PDF, PNG, JPG files supported (Select multiple if needed)</span>
               </div>
               <input
