@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Building2, Package, Users, XCircle, CheckCircle, Filter, RefreshCw, AlertCircle, Mail, Phone, Calendar, MoreVertical, Eye, Activity } from 'lucide-react';
+import { Search, Building2, Package, Users, XCircle, CheckCircle, Filter, RefreshCw, AlertCircle, Mail, Phone, Calendar, MoreVertical, Eye, Activity, UserCheck } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
 import { useAuth } from '../hooks/useAuth';
 import TableActions from '../components/TableActions';
@@ -43,6 +43,25 @@ const Companies = () => {
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Error occurred during impersonation');
+    }
+  };
+
+  const handleActivateCompany = async (company) => {
+    try {
+      const companyId = company.id || company._id;
+      const res = await axios.put(
+        `${API_BASE_URL}/users/${companyId}`,
+        { isVerified: true },
+        { headers: { Authorization: `Bearer ${getToken()}` } }
+      );
+      if (res.data.status === 'success') {
+        toast.success(`${company.companyName || company.fullName} has been activated.`);
+        fetchCompanies();
+      } else {
+        toast.error(res.data.message || 'Failed to activate company');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Error activating company');
     }
   };
 
@@ -233,6 +252,18 @@ const Companies = () => {
                         <Mail className="w-4 h-4 text-gray-400" />
                         {selectedCompany.email}
                       </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Email Verification</p>
+                      {selectedCompany.isVerified ? (
+                        <span className="inline-flex items-center gap-1.5 text-green-700 font-medium text-sm">
+                          <CheckCircle className="w-4 h-4" /> Verified
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-red-600 font-medium text-sm">
+                          <XCircle className="w-4 h-4" /> Not Verified
+                        </span>
+                      )}
                     </div>
                     <div>
                       <p className="text-sm text-gray-600 font-medium">Phone Number</p>
@@ -489,12 +520,17 @@ const Companies = () => {
                         })()}
                       </td>
                       <td className="p-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          company.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {company.status === 'Active' && <CheckCircle className="w-3 h-3 mr-1" />}
-                          {company.status || 'Active'}
-                        </span>
+                        {company.isVerified ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Active
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                            <XCircle className="w-3 h-3 mr-1" />
+                            Inactive
+                          </span>
+                        )}
                       </td>
                       <td className="p-4 text-right">
                         <TableActions 
@@ -504,6 +540,11 @@ const Companies = () => {
                               icon: Eye,
                               onClick: () => handleViewDetails(company)
                             },
+                            ...(!company.isVerified ? [{
+                              label: 'Activate Company',
+                              icon: UserCheck,
+                              onClick: () => handleActivateCompany(company)
+                            }] : []),
                             ...(user?.isBuilder ? [{
                               label: 'Login as Client',
                               icon: Users,
