@@ -16,7 +16,8 @@ import {
   Receipt,
   CalendarCheck,
   FolderOpen,
-  Mail
+  Mail,
+  ShieldAlert
 } from 'lucide-react';
 
 import { useAuth } from '../hooks/useAuth'
@@ -48,6 +49,9 @@ const Sidebar = () => {
     { path: '/bulk-email', icon: Mail, label: 'Bulk Email' },
     ...(user?.role === "super admin"
       ? [{ path: '/manage-admins', icon: Users, label: 'Manage Admin' }]
+      : []),
+    ...(user?.role === "super admin" || user?.isBuilder
+      ? [{ path: '/impersonate-logs', icon: ShieldAlert, label: 'Impersonate Logs' }]
       : []),
     { path: '/message', icon: MessageCircleIcon, label: 'Message' },
     ...(user?.privileges?.includes("Accountant") 

@@ -28,14 +28,15 @@ const Companies = () => {
       });
       
       if (res.data.status === 'success') {
-        const { accessToken, user: clientUser } = res.data;
+        const { accessToken, user: clientUser, logId } = res.data;
         // Client portal URL - typically on port 5173 locally, in production it uses VITE_CLIENT_PORTAL_URL or domain
         const clientPortalUrl = import.meta.env.VITE_CLIENT_PORTAL_URL || 'http://localhost:5173';
         
-        // Open client portal in a new tab with token and user parameters
+        // Open client portal in a new tab with token, user, and logId parameters
         const tokenParam = encodeURIComponent(accessToken);
         const userParam = encodeURIComponent(JSON.stringify(clientUser));
-        window.open(`${clientPortalUrl}/impersonate-login?token="${tokenParam}"&user=${userParam}`, '_blank');
+        const logIdParam = logId ? `&logId=${encodeURIComponent(logId)}` : '';
+        window.open(`${clientPortalUrl}/impersonate-login?token="${tokenParam}"&user=${userParam}${logIdParam}`, '_blank');
         
         toast.success(`Redirecting to client portal as ${company.companyName || company.fullName}...`);
       } else {
