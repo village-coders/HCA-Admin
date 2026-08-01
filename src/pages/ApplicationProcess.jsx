@@ -771,43 +771,87 @@ export default function ApplicationProcess() {
     }
 
     if (step.id === 4) {
-      if (isComplete && processData?.invoiceFile) {
-        return (
-          <CompletedPanel label="Invoice Sent" timestamp={processData?.invoiceSentAt}>
-            <a href={resolveUrl(processData.invoiceFile)} target="_blank" rel="noreferrer" className="file-link">
-              <FileText size={16} /> View Invoice
-            </a>
-          </CompletedPanel>
-        );
-      }
+      const isRejected = appInvoice?.status === 'Cancelled';
+
       return (
         <div className="action-panel">
-          <h2>Upload Invoice</h2>
-          <p>Upload the invoice document to send to the applicant.</p>
-          <div className="upload-area" onClick={() => document.getElementById('invoice-upload').click()}>
-            <Upload size={32} color="#9ca3af" />
-            <p>{invoiceFile ? invoiceFile.name : 'Click to select invoice file'}</p>
-            <span>PDF, DOC, DOCX up to 10MB</span>
-          </div>
-          <input type="file" id="invoice-upload" hidden accept=".pdf,.doc,.docx" onChange={e => {
-            const file = e.target.files[0];
-            if (file && file.size > 5 * 1024 * 1024) {
-              toast.error(`File "${file.name}" exceeds the 5MB size limit.`);
-              e.target.value = "";
-              return;
-            }
-            setInvoiceFile(file);
-          }} />
-          {hasPrivilege('Accountant') ? (
-            <button className="action-btn-primary" onClick={() => submitStep(4, null, null, invoiceFile)} disabled={saving || !invoiceFile}>
-              {saving ? <Loader2 className="spin" size={16} /> : <Upload size={16} />}
-              {saving ? 'Uploading...' : 'Upload & Send Invoice'}
-            </button>
-          ) : (
-            <NoPermissionView privilege="Accountant" />
+          {isComplete && processData?.invoiceFile && (
+            <CompletedPanel label="Invoice Sent" timestamp={processData?.invoiceSentAt}>
+              <a href={resolveUrl(processData.invoiceFile)} target="_blank" rel="noreferrer" className="file-link">
+                <FileText size={16} /> View Invoice
+              </a>
+              {isRejected && (
+                <div style={{ marginTop: '15px', padding: '15px', backgroundColor: '#fee2e2', borderRadius: '8px' }}>
+                  <h4 style={{ color: '#991b1b', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                    <XCircle size={16} /> Invoice Rejected by Client
+                  </h4>
+                  <p style={{ fontSize: '14px', color: '#7f1d1d', margin: 0 }}>
+                    <strong>Reason:</strong> {appInvoice?.rejectionReason || 'No reason provided'}
+                  </p>
+                </div>
+              )}
+            </CompletedPanel>
+          )}
+
+          {(!isComplete || isRejected) && (
+            <div style={{ marginTop: isComplete ? '20px' : '0' }}>
+              <h2>{isRejected ? 'Re-issue Invoice' : 'Upload Invoice'}</h2>
+              <p>Upload the {isRejected ? 'new ' : ''}invoice document to send to the applicant.</p>
+              <div className="upload-area" onClick={() => document.getElementById('invoice-upload').click()}>
+                <Upload size={32} color="#9ca3af" />
+                <p>{invoiceFile ? invoiceFile.name : 'Click to select invoice file'}</p>
+                <span>PDF, DOC, DOCX up to 10MB</span>
+              </div>
+              <input type="file" id="invoice-upload" hidden accept=".pdf,.doc,.docx" onChange={e => {
+                const file = e.target.files[0];
+                if (file && file.size > 10 * 1024 * 1024) {
+                  toast.error(`File "${file.name}" exceeds the 10MB size limit.`);
+                  e.target.value = "";
+                  return;
+                }
+                setInvoiceFile(file);
+              }} />
+              {hasPrivilege('Accountant') ? (
+                <button className="action-btn-primary" onClick={() => submitStep(4, null, null, invoiceFile)} disabled={saving || !invoiceFile}>
+                  {saving ? <Loader2 className="spin" size={16} /> : <Upload size={16} />}
+                  {saving ? 'Uploading...' : (isRejected ? 'Upload & Re-issue Invoice' : 'Upload & Send Invoice')}
+                </button>
+              ) : (
+                <NoPermissionView privilege="Accountant" />
+              )}
+            </div>
+          )}
+
+          {isComplete && !isRejected && (
+            <div style={{ marginTop: '20px', textAlign: 'center', borderTop: '1px solid #e5e7eb', paddingTop: '20px' }}>
+              <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '10px' }}>Need to update the invoice?</p>
+              <input type="file" id="invoice-reupload" hidden accept=".pdf,.doc,.docx" onChange={e => {
+                const file = e.target.files[0];
+                if (file && file.size > 10 * 1024 * 1024) {
+                  toast.error('File exceeds 10MB limit');
+                  e.target.value = "";
+                  return;
+                }
+                if (file) {
+                  if (window.confirm('Are you sure you want to replace the current invoice with this new file?')) {
+                    submitStep(4, null, null, file);
+                  }
+                }
+                e.target.value = "";
+              }} />
+              {hasPrivilege('Accountant') && (
+                <button 
+                  onClick={() => document.getElementById('invoice-reupload').click()}
+                  style={{ padding: '8px 16px', fontSize: '13px', backgroundColor: '#f9fafb', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#374151' }}
+                  disabled={saving}
+                >
+                  {saving ? <Loader2 className="spin" size={14} /> : <Upload size={14} />}
+                  {saving ? 'Uploading...' : 'Re-upload Invoice'}
+                </button>
+              )}
+            </div>
           )}
         </div>
-
       );
     }
 
