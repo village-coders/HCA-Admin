@@ -53,9 +53,12 @@ const Invoices = () => {
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isProofModalOpen, setIsProofModalOpen] = useState(false);
+  const [isResendModalOpen, setIsResendModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   
   const [invoiceFile, setInvoiceFile] = useState(null);
+  const [resendInvoiceFile, setResendInvoiceFile] = useState(null);
+  const [resendDescription, setResendDescription] = useState('');
   const [issueDescription, setIssueDescription] = useState('');
   const [selectedClient, setSelectedClient] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -160,11 +163,25 @@ const Invoices = () => {
     }
   };
 
-  const handleResendInvoice = async (invoice) => {
-    if (!window.confirm(`Are you sure you want to re-issue invoice ${invoice.invoiceNumber}? This will notify the client.`)) {
-      return;
+  const handleOpenResendModal = (invoice) => {
+    setSelectedInvoice(invoice);
+    setResendDescription(invoice.description || '');
+    setResendInvoiceFile(null);
+    setIsResendModalOpen(true);
+  };
+
+  const handleResendSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedInvoice) return;
+    setIsSubmitting(true);
+    const result = await resendInvoice(selectedInvoice._id, {
+      invoiceFile: resendInvoiceFile,
+      description: resendDescription
+    });
+    setIsSubmitting(false);
+    if (result.success) {
+      setIsResendModalOpen(false);
     }
-    await resendInvoice(invoice._id);
   };
 
   const formatDate = (dateString) => {
@@ -404,7 +421,7 @@ const Invoices = () => {
                           invoice.status === 'Cancelled' && {
                             label: 'Re-issue / Resend Invoice',
                             icon: Send,
-                            onClick: () => handleResendInvoice(invoice)
+                            onClick: () => handleOpenResendModal(invoice)
                           },
                           {
                             label: 'Copy Invoice #',
@@ -645,6 +662,105 @@ const Invoices = () => {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Re-issue / Resend Modal */}
+      {isResendModalOpen && selectedInvoice && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setIsResendModalOpen(false)}></div>
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Send className="w-5 h-5 text-[#00853b]" />
+                Re-issue Invoice #{selectedInvoice.invoiceNumber}
+              </h3>
+              <button 
+                onClick={() => setIsResendModalOpen(false)}
+                className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
+                disabled={isSubmitting}
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleResendSubmit} className="p-6">
+              {selectedInvoice.rejectionReason && (
+                <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
+                  <p className="font-semibold mb-1">Previous Rejection Reason from Client:</p>
+                  <p className="italic">"{selectedInvoice.rejectionReason}"</p>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Invoice Description
+                  </label>
+                  <textarea 
+                    rows={3}
+                    value={resendDescription}
+                    onChange={(e) => setResendDescription(e.target.value)}
+                    placeholder="Enter description or note..."
+                    className="w-full px-3.5 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00853b]/20 focus:border-[#00853b] text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Attach New Invoice Document (Optional)
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Upload a new PDF or image to replace the existing invoice file, or leave empty to keep the previous file.
+                  </p>
+                  <div className="relative">
+                    <input 
+                      type="file" 
+                      accept=".pdf,.png,.jpg,.jpeg"
+                      onChange={(e) => setResendInvoiceFile(e.target.files[0])}
+                      className="hidden" 
+                      id="resend-invoice-upload"
+                    />
+                    <label 
+                      htmlFor="resend-invoice-upload"
+                      className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-[#00853b] hover:bg-gray-50/50 transition-all text-sm text-gray-600 font-medium"
+                    >
+                      <Upload className="w-4 h-4 text-gray-400" />
+                      {resendInvoiceFile ? resendInvoiceFile.name : (selectedInvoice.invoiceFile ? 'Replace Current Invoice Document' : 'Select PDF or Image')}
+                    </label>
+                  </div>
+                  {resendInvoiceFile && (
+                    <p className="mt-2 text-xs text-[#00853b] font-medium flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3" /> New file selected: {resendInvoiceFile.name}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-8 flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setIsResendModalOpen(false)}
+                  disabled={isSubmitting}
+                  className="flex-1 px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-1 px-4 py-2.5 bg-[#00853b] text-white rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  Re-issue &amp; Notify Client
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

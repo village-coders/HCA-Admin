@@ -926,9 +926,22 @@ const AllProvider = ({ children }) => {
     if (!token) return { success: false };
     setIsLoading(true);
     try {
-      const res = await axios.put(`${baseUrl}/invoices/${id}/resend`, payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      let data = payload;
+      let headers = { Authorization: `Bearer ${token}` };
+
+      if (payload instanceof FormData) {
+        data = payload;
+        headers["Content-Type"] = "multipart/form-data";
+      } else if (payload && typeof payload === 'object' && payload.invoiceFile) {
+        const formData = new FormData();
+        Object.entries(payload).forEach(([k, v]) => {
+          if (v !== undefined && v !== null) formData.append(k, v);
+        });
+        data = formData;
+        headers["Content-Type"] = "multipart/form-data";
+      }
+
+      const res = await axios.put(`${baseUrl}/invoices/${id}/resend`, data, { headers });
       setInvoices(prev => prev.map(inv => inv._id === id ? res.data.invoice : inv));
       toast.success(res.data.message || "Invoice re-issued successfully!");
       return { success: true, data: res.data };
