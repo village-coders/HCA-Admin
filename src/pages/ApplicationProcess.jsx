@@ -772,6 +772,7 @@ export default function ApplicationProcess() {
 
     if (step.id === 4) {
       const isRejected = appInvoice?.status === 'Cancelled';
+      const hasUploadedProof = !!appInvoice?.proofOfPayment;
 
       return (
         <div className="action-panel">
@@ -822,7 +823,7 @@ export default function ApplicationProcess() {
             </div>
           )}
 
-          {isComplete && !isRejected && (
+          {isComplete && !isRejected && !hasUploadedProof && (
             <div style={{ marginTop: '20px', textAlign: 'center', borderTop: '1px solid #e5e7eb', paddingTop: '20px' }}>
               <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '10px' }}>Need to update the invoice?</p>
               <input type="file" id="invoice-reupload" hidden accept=".pdf,.doc,.docx" onChange={e => {
