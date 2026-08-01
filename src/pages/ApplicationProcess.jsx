@@ -822,36 +822,6 @@ export default function ApplicationProcess() {
               )}
             </div>
           )}
-
-          {isComplete && !isRejected && !hasUploadedProof && (
-            <div style={{ marginTop: '20px', textAlign: 'center', borderTop: '1px solid #e5e7eb', paddingTop: '20px' }}>
-              <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '10px' }}>Need to update the invoice?</p>
-              <input type="file" id="invoice-reupload" hidden accept=".pdf,.doc,.docx" onChange={e => {
-                const file = e.target.files[0];
-                if (file && file.size > 10 * 1024 * 1024) {
-                  toast.error('File exceeds 10MB limit');
-                  e.target.value = "";
-                  return;
-                }
-                if (file) {
-                  if (window.confirm('Are you sure you want to replace the current invoice with this new file?')) {
-                    submitStep(4, null, null, file);
-                  }
-                }
-                e.target.value = "";
-              }} />
-              {hasPrivilege('Accountant') && (
-                <button 
-                  onClick={() => document.getElementById('invoice-reupload').click()}
-                  style={{ padding: '8px 16px', fontSize: '13px', backgroundColor: '#f9fafb', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#374151' }}
-                  disabled={saving}
-                >
-                  {saving ? <Loader2 className="spin" size={14} /> : <Upload size={14} />}
-                  {saving ? 'Uploading...' : 'Re-upload Invoice'}
-                </button>
-              )}
-            </div>
-          )}
         </div>
       );
     }
