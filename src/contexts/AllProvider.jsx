@@ -921,6 +921,26 @@ const AllProvider = ({ children }) => {
     }
   };
 
+  const resendInvoice = async (id, payload = {}) => {
+    const token = getToken();
+    if (!token) return { success: false };
+    setIsLoading(true);
+    try {
+      const res = await axios.put(`${baseUrl}/invoices/${id}/resend`, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setInvoices(prev => prev.map(inv => inv._id === id ? res.data.invoice : inv));
+      toast.success(res.data.message || "Invoice re-issued successfully!");
+      return { success: true, data: res.data };
+    } catch (error) {
+      console.error("Failed to resend invoice:", error);
+      toast.error(error.response?.data?.message || "Failed to resend invoice");
+      return { success: false, error };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // 🕵️ Audit Management
   const fetchAudits = async () => {
     const token = getToken();
@@ -1141,6 +1161,7 @@ const AllProvider = ({ children }) => {
     issueInvoice,
     createInvoice,
     approvePayment,
+    resendInvoice,
 
     // Audits
     audits,

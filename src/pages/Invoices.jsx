@@ -36,6 +36,7 @@ const Invoices = () => {
     issueInvoice,
     createInvoice,
     approvePayment,
+    resendInvoice,
     baseUrl
   } = useAll();
 
@@ -157,6 +158,13 @@ const Invoices = () => {
     if(result.success) {
        setIsProofModalOpen(false);
     }
+  };
+
+  const handleResendInvoice = async (invoice) => {
+    if (!window.confirm(`Are you sure you want to re-issue invoice ${invoice.invoiceNumber}? This will notify the client.`)) {
+      return;
+    }
+    await resendInvoice(invoice._id);
   };
 
   const formatDate = (dateString) => {
@@ -343,6 +351,11 @@ const Invoices = () => {
                       <div className="flex flex-col">
                         <p className="text-sm font-medium text-gray-900">{invoice.userId?.companyName || 'Unknown'}</p>
                         <p className="text-xs text-gray-500">{invoice.userId?.email}</p>
+                        {invoice.rejectionReason && (
+                          <p className="text-xs text-red-600 font-medium mt-1">
+                            Reason: {invoice.rejectionReason}
+                          </p>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -387,6 +400,11 @@ const Invoices = () => {
                             label: 'View Payment Details',
                             icon: Receipt,
                             onClick: () => handleOpenProofModal(invoice)
+                          },
+                          invoice.status === 'Cancelled' && {
+                            label: 'Re-issue / Resend Invoice',
+                            icon: Send,
+                            onClick: () => handleResendInvoice(invoice)
                           },
                           {
                             label: 'Copy Invoice #',
