@@ -170,15 +170,14 @@ const ShariaBoard = () => {
 
   const isAppSuccessful = (logsheet) => {
     if (!logsheet) return false;
-    if (logsheet.status === 'Approved') return true;
     const app = logsheet.applicationId;
-    if (!app) return false;
-    if (typeof app === 'object') {
-      if (app.processStep >= 9) return true;
-      const statusLower = app.status?.toLowerCase();
-      if (['successful', 'application successful', 'issued', 'certified', 'approved'].includes(statusLower)) {
-        return true;
-      }
+    if (!app || typeof app !== 'object') return false;
+    // Only hide the button after the admin has actually clicked Mark Successful
+    // (which advances processStep to 9 and changes status to Certificate Processing or beyond)
+    if (app.processStep >= 9) return true;
+    const statusLower = app.status?.toLowerCase();
+    if (['certificate processing', 'issued', 'certified'].includes(statusLower)) {
+      return true;
     }
     return false;
   };
