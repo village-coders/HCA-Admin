@@ -546,7 +546,7 @@ const Companies = () => {
                               icon: UserCheck,
                               onClick: () => handleActivateCompany(company)
                             }] : []),
-                            ...(user?.isBuilder ? [{
+                            ...(user?.role === "super admin" || user?.role === "admin" ? [{
                               label: 'Login as Client',
                               icon: Users,
                               onClick: () => handleLoginAsClient(company)

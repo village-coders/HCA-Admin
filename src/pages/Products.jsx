@@ -712,20 +712,16 @@ const Products = () => {
                 >
                   Close
                 </button>
-                <button
-                  onClick={() => {
-                    if (!hasPrivilege('Application Officer')) {
-                      toast.error('Only Application Officers can delete products');
-                      return;
-                    }
-                    handleDeleteProduct(productId);
-                  }}
-                  disabled={isDeletingId === productId}
-                  className="px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
-                >
-                  {isDeletingId === productId ? <Trash2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-                  {isDeletingId === productId ? 'Deleting...' : 'Delete Product'}
-                </button>
+                {user?.isBuilder && (
+                  <button
+                    onClick={() => handleDeleteProduct(productId)}
+                    disabled={isDeletingId === productId}
+                    className="px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
+                  >
+                    {isDeletingId === productId ? <Trash2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                    {isDeletingId === productId ? 'Deleting...' : 'Delete Product'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -925,13 +921,15 @@ const Products = () => {
                   >
                     {isBulkApproving ? 'Approving...' : 'Approve Selected'}
                   </button>
-                  <button
-                    onClick={handleBulkDelete}
-                    disabled={isLoading || isBulkDeleting}
-                    className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
-                  >
-                    {isBulkDeleting ? 'Deleting...' : 'Delete Selected'}
-                  </button>
+                  {user?.isBuilder && (
+                    <button
+                      onClick={handleBulkDelete}
+                      disabled={isLoading || isBulkDeleting}
+                      className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
+                    >
+                      {isBulkDeleting ? 'Deleting...' : 'Delete Selected'}
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -1014,13 +1012,13 @@ const Products = () => {
                                 onClick: () => handleViewDetails(productId),
                                 disabled: isLoadingDetails
                               },
-                              {
+                              user?.isBuilder ? {
                                 label: 'Delete Product',
                                 icon: Trash2,
                                 onClick: () => handleDeleteProduct(productId),
                                 variant: 'danger',
                                 disabled: isDeletingId === productId
-                              }
+                              } : null
                             ].filter(Boolean)}
                           />
                         </td>
@@ -1068,13 +1066,15 @@ const Products = () => {
                       >
                        {isBulkApproving ? `Approving (${selectedProducts.length})...` : `Approve Selected (${selectedProducts.length})`}
                       </button>
-                      <button
-                        onClick={handleBulkDelete}
-                        disabled={isLoading || isBulkDeleting}
-                        className="px-3 py-1.5 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
-                      >
-                        {isBulkDeleting ? 'Deleting...' : 'Delete Selected'}
-                      </button>
+                      {user?.isBuilder && (
+                        <button
+                          onClick={handleBulkDelete}
+                          disabled={isLoading || isBulkDeleting}
+                          className="px-3 py-1.5 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
+                        >
+                          {isBulkDeleting ? 'Deleting...' : 'Delete Selected'}
+                        </button>
+                      )}
                     </>
                   )}
                   {totalPages > 1 && (
