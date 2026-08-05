@@ -148,10 +148,13 @@ const Applications = () => {
         break;
       }
       case 'initial':
-        passesTab = !app.category?.toLowerCase().includes('renewal');
+        passesTab = !app.category?.toLowerCase().includes('renewal') && !app.category?.toLowerCase().includes('ad-on') && app.type !== 'Ad-On';
         break;
       case 'renewal':
-        passesTab = app.category?.toLowerCase().includes('renewal');
+        passesTab = app.category?.toLowerCase().includes('renewal') || app.type === 'Renewal';
+        break;
+      case 'addon':
+        passesTab = app.category?.toLowerCase().includes('ad-on') || app.type === 'Ad-On';
         break;
       case 'issued':
         passesTab = app.status === 'issued' || app.status === 'Issued';
@@ -485,8 +488,9 @@ const Applications = () => {
         const isProcessing = !['Issued', 'Rejected', 'Expired'].includes(a.status);
         return isProcessing;
       }).length,
-      initial: applications.filter(a => !a.category?.toLowerCase().includes('renewal')).length,
-      renewal: applications.filter(a => a.category?.toLowerCase().includes('renewal')).length,
+      initial: applications.filter(a => !a.category?.toLowerCase().includes('renewal') && !a.category?.toLowerCase().includes('ad-on') && a.type !== 'Ad-On').length,
+      renewal: applications.filter(a => a.category?.toLowerCase().includes('renewal') || a.type === 'Renewal').length,
+      addon: applications.filter(a => a.category?.toLowerCase().includes('ad-on') || a.type === 'Ad-On').length,
       accepted: applications.filter(a =>
         a.status === 'accepted' || a.status === 'Accepted'
       ).length,
@@ -507,6 +511,7 @@ const Applications = () => {
     { id: 'initial', label: 'Initial Application', count: tabCounts.initial },
     { id: 'pending', label: 'In Progress', count: tabCounts.pending },
     { id: 'renewal', label: 'Renewal', count: tabCounts.renewal },
+    { id: 'addon', label: 'Ad-On Application', count: tabCounts.addon },
     { id: 'accepted', label: 'Accepted', count: tabCounts.accepted },
     { id: 'issued', label: 'Issued', count: tabCounts.issued },
     { id: 'rejected', label: 'Rejected', count: tabCounts.rejected },
@@ -536,9 +541,12 @@ const Applications = () => {
   // Get type badge configuration
   const getTypeConfig = (type) => {
     const typeLower = type?.toLowerCase();
-    return typeLower === 'renewal'
-      ? { bg: 'bg-purple-100', text: 'text-purple-800' }
-      : { bg: 'bg-blue-100', text: 'text-blue-800' };
+    if (typeLower === 'ad-on' || typeLower?.includes('ad-on')) {
+      return { bg: 'bg-purple-100', text: 'text-purple-800' };
+    } else if (typeLower === 'renewal' || typeLower?.includes('renewal')) {
+      return { bg: 'bg-indigo-100', text: 'text-indigo-800' };
+    }
+    return { bg: 'bg-blue-100', text: 'text-blue-800' };
   };
 
   // Get yes/no badge

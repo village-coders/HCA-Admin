@@ -105,8 +105,9 @@ export default function ApplicationProcess() {
 
   // Dynamic steps: step 1 label changes based on application category
   const isRenewal = application?.category?.toLowerCase()?.includes('renewal');
+  const isAdOn = application?.category?.toLowerCase()?.includes('ad-on');
   const STEPS = BASE_STEPS.map(s =>
-    s.id === 1 ? { ...s, label: isRenewal ? 'RENEWAL APPLICATION' : 'APPLICATION RECEIVED' } : s
+    s.id === 1 ? { ...s, label: isRenewal ? 'RENEWAL APPLICATION' : isAdOn ? 'AD-ON APPLICATION' : 'APPLICATION RECEIVED' } : s
   );
   const ROW_ONE = STEPS.slice(0, 5);
   const ROW_TWO = STEPS.slice(5, 10);
@@ -613,7 +614,7 @@ export default function ApplicationProcess() {
       return (
         <div className="action-panel">
           <h2 style={{ textAlign: 'center', fontWeight: 700, fontSize: '20px', marginBottom: '24px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-            {isRenewal ? 'RENEWAL APPLICATION' : 'APPLICATION RECEIVED'}
+            {isRenewal ? 'RENEWAL APPLICATION' : isAdOn ? 'AD-ON APPLICATION' : 'APPLICATION RECEIVED'}
           </h2>
           <div className="details-grid">
             <div className="details-card">

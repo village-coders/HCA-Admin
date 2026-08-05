@@ -168,7 +168,25 @@ const ShariaBoard = () => {
     }
   };
 
+  const isAppSuccessful = (logsheet) => {
+    if (!logsheet) return false;
+    if (logsheet.status === 'Approved') return true;
+    const app = logsheet.applicationId;
+    if (!app) return false;
+    if (typeof app === 'object') {
+      if (app.processStep >= 9) return true;
+      const statusLower = app.status?.toLowerCase();
+      if (['successful', 'application successful', 'issued', 'certified', 'approved'].includes(statusLower)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   const handleMarkSuccessful = async (applicationId) => {
+    const isConfirmed = window.confirm("Are you sure you want to mark this application as successful and confirm it for processing?");
+    if (!isConfirmed) return;
+
     try {
       setIsLoading(true);
       
@@ -607,7 +625,12 @@ const ShariaBoard = () => {
                   </button>
                 )}
                 {(selectedLogsheet.isFinalized || (selectedLogsheet.signatures && selectedLogsheet.signatures.length >= 2)) && (
-                  hasPrivilege("Audit Manager") || hasPrivilege("Shari'a Board") ? (
+                  isAppSuccessful(selectedLogsheet) ? (
+                    <div className="px-4 py-2 bg-green-50 border border-green-200 text-green-700 rounded-xl text-xs font-bold flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      Marked Successful
+                    </div>
+                  ) : (hasPrivilege("Audit Manager") || hasPrivilege("Shari'a Board")) ? (
                     <button 
                       onClick={() => handleMarkSuccessful(selectedLogsheet.applicationId?._id || selectedLogsheet.applicationId)}
                       disabled={isLoading}
