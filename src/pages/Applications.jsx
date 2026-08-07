@@ -766,38 +766,6 @@ const Applications = () => {
                     </div>
                   </div>
 
-                  {/* Product Information */}
-                  <div className="bg-gray-50 rounded-lg p-5">
-                    <div className="flex items-center mb-4">
-                      <Package className="w-5 h-5 text-gray-500 mr-2" />
-                      <h3 className="text-lg font-semibold text-gray-900">Product Information</h3>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-gray-600">Category</p>
-                        <p className="font-medium text-gray-900">
-                          {selectedApplication.category || 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Market Type</p>
-                        <p className="font-medium text-gray-900">
-                          {selectedApplication.marketType || 'N/A'}
-                          {selectedApplication.marketType === 'Other' && selectedApplication.marketTypeOther &&
-                            ` - ${selectedApplication.marketTypeOther}`}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Brand Type</p>
-                        <p className="font-medium text-gray-900">
-                          {selectedApplication.brandType || 'N/A'}
-                          {selectedApplication.brandType === 'Other' && selectedApplication.brandTypeOther &&
-                            ` - ${selectedApplication.brandTypeOther}`}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Food Safety Programs */}
                   {selectedApplication.foodSafetyPrograms && selectedApplication.foodSafetyPrograms.length > 0 && (
                     <div className="bg-gray-50 rounded-lg p-5">
@@ -983,6 +951,38 @@ const Applications = () => {
               {/* Product Composition Tab */}
               {activeDetailTab === 'product-composition' && (
                 <div className="space-y-6">
+                  {/* Product Information */}
+                  <div className="bg-gray-50 rounded-lg p-5">
+                    <div className="flex items-center mb-4">
+                      <Package className="w-5 h-5 text-gray-500 mr-2" />
+                      <h3 className="text-lg font-semibold text-gray-900">Product Information</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-600">Category</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedApplication.category || 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Market Type</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedApplication.marketType || 'N/A'}
+                          {selectedApplication.marketType === 'Other' && selectedApplication.marketTypeOther &&
+                            ` - ${selectedApplication.marketTypeOther}`}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Brand Type</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedApplication.brandType || 'N/A'}
+                          {selectedApplication.brandType === 'Other' && selectedApplication.brandTypeOther &&
+                            ` - ${selectedApplication.brandTypeOther}`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="bg-gray-50 rounded-lg p-5">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Product Composition</h3>
 
