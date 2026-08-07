@@ -732,35 +732,7 @@ const Applications = () => {
                     </div>
                   </div>
 
-                  {/* Manufacturing Facility Information */}
-                  <div className="bg-gray-50 rounded-lg p-5">
-                    <div className="flex items-center mb-4">
-                      <MapPin className="w-5 h-5 text-gray-500 mr-2" />
-                      <h3 className="text-lg font-semibold text-gray-900">Manufacturing Facility Information</h3>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-gray-600">Manufacturing Facility Name</p>
-                        <p className="font-medium text-gray-900">
-                          {selectedApplication.branchId?.branchName || 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Manufacturing Facility Contact</p>
-                        <p className="font-medium text-gray-900">
-                          {selectedApplication.branchId?.contactName || 'N/A'}
-                        </p>
-                      </div>
-                      <div className="col-span-2">
-                        <p className="text-sm text-gray-600">Manufacturing Facility Address</p>
-                        <p className="font-medium text-gray-900">
-                          {selectedApplication.branchId?.address || 'N/A'}, {selectedApplication.branchId?.city || 'N/A'}, {selectedApplication.branchId?.state || 'N/A'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Applicant Information */}
+                  {/* Primary Contact */}
                   <div className="bg-gray-50 rounded-lg p-5">
                     <div className="flex items-center mb-4">
                       <User className="w-5 h-5 text-gray-500 mr-2" />
@@ -770,25 +742,25 @@ const Applications = () => {
                       <div>
                         <p className="text-sm text-gray-600">Name</p>
                         <p className="font-medium text-gray-900">
-                          {selectedApplication.applicantName || 'N/A'}
+                          {selectedApplication.primaryContact?.name || selectedApplication.authorizedBy?.name || selectedApplication.applicantName || 'N/A'}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Position/Title</p>
                         <p className="font-medium text-gray-900">
-                          {selectedApplication.positionTitle || 'N/A'}
+                          {selectedApplication.primaryContact?.positionTitle || selectedApplication.authorizedBy?.positionTitle || selectedApplication.positionTitle || 'N/A'}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Email</p>
                         <p className="font-medium text-gray-900">
-                          {selectedApplication.applicantEmail || 'N/A'}
+                          {selectedApplication.primaryContact?.email || selectedApplication.company?.email || selectedApplication.applicantEmail || 'N/A'}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Phone</p>
                         <p className="font-medium text-gray-900">
-                          {selectedApplication.applicantPhone || 'N/A'}
+                          {selectedApplication.primaryContact?.telephoneNo || selectedApplication.company?.phone || selectedApplication.applicantPhone || 'N/A'}
                         </p>
                       </div>
                     </div>
