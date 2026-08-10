@@ -1014,11 +1014,14 @@ const Applications = () => {
                     </div>
                   </div>
 
-                  {/* Products under this application - required */}
+
+              {/* Products Tab */}
+              {activeDetailTab === 'products' && (
+                <div className="space-y-6">
                   <div className="bg-gray-50 rounded-lg p-5">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-semibold text-gray-900">
-                        Products Under This Application *
+                        Products Under This Application
                         {selectedAppProducts.length > 0 && (
                           <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
                             {selectedAppProducts.length}
@@ -1390,101 +1393,6 @@ const Applications = () => {
                 </div>
               )}
 
-              {/* Products Tab */}
-              {activeDetailTab === 'products' && (
-                <div className="space-y-6">
-                  <div className="bg-gray-50 rounded-lg p-5">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900">Products Under This Application</h3>
-                      {selectedAppProducts.some(p => p.status === 'requested' || p.status === 'Requested' || p.status === 'pending' || p.status === 'Pending') && hasPrivilege('Application Officer') && (
-                        <button
-                          onClick={handleAcknowledgeSelectedProducts}
-                          disabled={isAcknowledging || selectedProductIds.length === 0}
-                          className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                            selectedProductIds.length > 0
-                              ? 'bg-green-600 text-white hover:bg-green-700'
-                              : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                          }`}
-                        >
-                          {isAcknowledging ? 'Acknowledging...' : `Acknowledge Selected (${selectedProductIds.length})`}
-                        </button>
-                      )}
-                    </div>
-                    {selectedAppProducts.length > 0 ? (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b border-gray-200">
-                              <th className="px-4 py-3 text-left font-semibold text-gray-600 w-10">
-                                <input
-                                  type="checkbox"
-                                  className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                                  checked={
-                                    selectedAppProducts.filter(p => p.status === 'requested' || p.status === 'Requested' || p.status === 'pending' || p.status === 'Pending').length > 0 &&
-                                    selectedProductIds.length === selectedAppProducts.filter(p => p.status === 'requested' || p.status === 'Requested' || p.status === 'pending' || p.status === 'Pending').length
-                                  }
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      const pendingIds = selectedAppProducts
-                                        .filter(p => p.status === 'requested' || p.status === 'Requested' || p.status === 'pending' || p.status === 'Pending')
-                                        .map(p => p._id || p.id);
-                                      setSelectedProductIds(pendingIds);
-                                    } else {
-                                      setSelectedProductIds([]);
-                                    }
-                                  }}
-                                />
-                              </th>
-                              <th className="px-4 py-3 text-left font-semibold text-gray-600">Product Name</th>
-                              <th className="px-4 py-3 text-left font-semibold text-gray-600">Category</th>
-                              <th className="px-4 py-3 text-left font-semibold text-gray-600">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100">
-                            {selectedAppProducts.map((product, i) => {
-                              const isPending = product.status === 'requested' || product.status === 'Requested' || product.status === 'pending' || product.status === 'Pending';
-                              return (
-                                <tr key={product._id || i} className="hover:bg-white">
-                                  <td className="px-4 py-3">
-                                    {isPending ? (
-                                      <input
-                                        type="checkbox"
-                                        className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                                        checked={selectedProductIds.includes(product._id || product.id)}
-                                        onChange={(e) => {
-                                          if (e.target.checked) {
-                                            setSelectedProductIds(prev => [...prev, product._id || product.id]);
-                                          } else {
-                                            setSelectedProductIds(prev => prev.filter(id => id !== (product._id || product.id)));
-                                          }
-                                        }}
-                                      />
-                                    ) : (
-                                      <input type="checkbox" disabled className="w-4 h-4 rounded border-gray-300 text-gray-300 cursor-not-allowed opacity-50" />
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-3 font-medium text-gray-900">{product.name}</td>
-                                  <td className="px-4 py-3 text-gray-500">{product.category || product.productCategory || '—'}</td>
-                                  <td className="px-4 py-3">
-                                    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${product.status === 'acknowledged' ? 'bg-green-100 text-green-700' :
-                                        product.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                                          'bg-yellow-100 text-yellow-700'
-                                      }`}>
-                                      {product.status || 'Pending'}
-                                    </span>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <p className="text-gray-500 text-sm italic">No products have been submitted for this application yet.</p>
-                    )}
-                  </div>
-                </div>
-              )}
 
               {/* Additional Notes */}
               {selectedApplication.description && (

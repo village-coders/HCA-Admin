@@ -641,42 +641,7 @@ export default function ApplicationProcess() {
             </div>
           </div>
 
-          {/* Products Section */}
-          {appProducts.length > 0 && (
-            <div className="details-card" style={{ marginTop: '20px' }}>
-              <h3>Products Under This Application ({appProducts.length})</h3>
-              <table className="details-table" style={{ width: '100%' }}>
-                <thead>
-                  <tr style={{ background: '#f9fafb' }}>
-                    <th style={{ padding: '10px', textAlign: 'left', fontWeight: 600, fontSize: '13px', color: '#374151', borderBottom: '1px solid #e5e7eb' }}>Product Name</th>
-                    <th style={{ padding: '10px', textAlign: 'left', fontWeight: 600, fontSize: '13px', color: '#374151', borderBottom: '1px solid #e5e7eb' }}>Category</th>
-                    <th style={{ padding: '10px', textAlign: 'left', fontWeight: 600, fontSize: '13px', color: '#374151', borderBottom: '1px solid #e5e7eb' }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {appProducts.map((product, i) => (
-                    <tr key={product._id || i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                      <td style={{ padding: '10px', fontSize: '13px' }}>{product.name}</td>
-                      <td style={{ padding: '10px', fontSize: '13px', color: '#6b7280' }}>{product.category || product.productCategory || '—'}</td>
-                      <td style={{ padding: '10px' }}>
-                        <span style={{
-                          padding: '2px 10px',
-                          borderRadius: '20px',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          textTransform: 'capitalize',
-                          background: product.status === 'acknowledged' ? '#dcfce7' : product.status === 'rejected' ? '#fee2e2' : '#fef9c3',
-                          color: product.status === 'acknowledged' ? '#15803d' : product.status === 'rejected' ? '#dc2626' : '#92400e'
-                        }}>
-                          {product.status || 'Pending'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+
         </div>
       );
     }
