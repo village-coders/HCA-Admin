@@ -1013,7 +1013,8 @@ const Applications = () => {
                       </div>
                     </div>
                   </div>
-
+                </div>
+              )}
 
               {/* Products Tab */}
               {activeDetailTab === 'products' && (
