@@ -43,6 +43,7 @@ import { toast } from 'sonner';
 import { useNavigate, useLocation } from 'react-router-dom';
 import TableActions from '../components/TableActions';
 import { Lock } from 'lucide-react';
+import axios from 'axios';
 
 const Applications = () => {
   const { user } = useAuth();
@@ -72,11 +73,60 @@ const Applications = () => {
   const [selectedAppProducts, setSelectedAppProducts] = useState([]);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [companySuggestions, setCompanySuggestions] = useState([]);
+  // Renewal window toggle (in days). false => 90 days (3 months), true => 180 days (6 months)
+  const [showRenewals, setShowRenewals] = useState(() => {
+    const stored = localStorage.getItem('renewWindowDays');
+    return stored === '180';
+  });
+
+  const baseUrl = import.meta.env.VITE_BASE_URL;
+
+  const fetchRenewWindow = async () => {
+    try {
+      const token = JSON.parse(localStorage.getItem("accessToken"));
+      const res = await axios.get(`${baseUrl}/settings/renewWindowDays`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (res.data && res.data.status === 'success') {
+        const val = res.data.data.value;
+        setShowRenewals(val === 180);
+        localStorage.setItem('renewWindowDays', val.toString());
+      }
+    } catch (err) {
+      console.error("Failed to fetch renew window from server:", err);
+    }
+  };
+
+  const handleToggleRenewals = async () => {
+    const nextVal = !showRenewals;
+    setShowRenewals(nextVal);
+    localStorage.setItem('renewWindowDays', nextVal ? '180' : '90');
+
+    try {
+      const token = JSON.parse(localStorage.getItem("accessToken"));
+      await axios.put(`${baseUrl}/settings/renewWindowDays`, {
+        value: nextVal ? 180 : 90
+      }, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      toast.success(`Renewal window set to ${nextVal ? '6' : '3'} months`);
+    } catch (err) {
+      console.error("Failed to save renew window setting to server:", err);
+      setShowRenewals(!nextVal);
+      localStorage.setItem('renewWindowDays', (!nextVal) ? '180' : '90');
+      toast.error(err.response?.data?.message || "Failed to update renewal window on server");
+    }
+  };
 
   // Reset pagination when filter or tab changes
   useEffect(() => {
     setCurrentPage(1);
   }, [filter, activeTab]);
+
+  // Load initial renewal window from backend/localStorage on mount
+  useEffect(() => {
+    fetchRenewWindow();
+  }, []);
 
   // Set active tab from navigation state (e.g. dashboard click)
   useEffect(() => {
@@ -201,6 +251,9 @@ const Applications = () => {
 
   const totalPages = Math.ceil(filteredApplications.length / itemsPerPage) || 1;
   const paginatedApplications = filteredApplications.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const renewWindowDays = showRenewals ? 180 : 90;
+  const isExpiringSoon = (daysRemaining) => daysRemaining !== null && daysRemaining <= renewWindowDays && daysRemaining > 0;
 
   // Format date
   const formatDate = (dateString) => {
@@ -571,31 +624,31 @@ const Applications = () => {
     const getDocumentUrl = (path) => {
       if (!path) return '#';
       if (Array.isArray(path)) {
-          if (path.length === 0) return '#';
-          path = path[0];
+        if (path.length === 0) return '#';
+        path = path[0];
       }
       if (typeof path !== 'string') return '#';
       if (path.startsWith('http')) return path;
-      
+
       // Clean baseUrl by removing trailing slash if present
       const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-      
+
       // If path starts with /api/, strip the /api/ prefix so we don't duplicate it
       let relativePath = path;
       if (relativePath.startsWith('/api/')) {
         relativePath = relativePath.slice(4); // Keep leading slash, i.e., /files/...
       }
-      
+
       // Ensure the relative path has a leading slash
       if (!relativePath.startsWith('/')) {
         relativePath = '/' + relativePath;
       }
-      
+
       // If the path doesn't start with /files/ or /api/files/, prefix it with /files/
       if (!relativePath.startsWith('/files/')) {
         relativePath = '/files' + relativePath;
       }
-      
+
       return `${cleanBase}${relativePath}`;
     };
 
@@ -686,8 +739,8 @@ const Applications = () => {
                     key={tab.id}
                     onClick={() => setActiveDetailTab(tab.id)}
                     className={`py-3 px-2 border-b-2 font-medium text-sm flex items-center space-x-2 transition-colors duration-200 ${activeDetailTab === tab.id
-                        ? 'border-[#00853b] text-[#00853b]'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                      ? 'border-[#00853b] text-[#00853b]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}
                   >
                     <TabIcon className="w-4 h-4" />
@@ -1033,11 +1086,10 @@ const Applications = () => {
                         <button
                           onClick={handleAcknowledgeSelectedProducts}
                           disabled={isAcknowledging || selectedProductIds.length === 0}
-                          className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                            selectedProductIds.length > 0
-                              ? 'bg-green-600 text-white hover:bg-green-700'
-                              : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                          }`}
+                          className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${selectedProductIds.length > 0
+                            ? 'bg-green-600 text-white hover:bg-green-700'
+                            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                            }`}
                         >
                           {isAcknowledging ? 'Acknowledging...' : `Acknowledge Selected (${selectedProductIds.length})`}
                         </button>
@@ -1100,8 +1152,8 @@ const Applications = () => {
                                   <td className="px-4 py-3 text-gray-500">{product.category || product.productCategory || '—'}</td>
                                   <td className="px-4 py-3">
                                     <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${product.status === 'acknowledged' ? 'bg-green-100 text-green-700' :
-                                        product.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                                          'bg-yellow-100 text-yellow-700'
+                                      product.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                        'bg-yellow-100 text-yellow-700'
                                       }`}>
                                       {product.status || 'Pending'}
                                     </span>
@@ -1462,8 +1514,8 @@ const Applications = () => {
               onClick={() => setActiveTab(tab.id)}
               disabled={isLoading}
               className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center ${activeTab === tab.id
-                  ? 'bg-[#00853b] text-white shadow-sm'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                ? 'bg-[#00853b] text-white shadow-sm'
+                : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
                 } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {tab.label}
@@ -1586,6 +1638,29 @@ const Applications = () => {
               >
                 Clear All Filters
               </button>
+              <button
+                className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                onClick={() => alert('Export feature coming soon')}
+                disabled={isLoading}
+              >
+                Export
+              </button>
+              {/* Builder-only renewal window toggle */}
+              {user?.isBuilder && (
+                <button
+                  id="builder-renewal-toggle"
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-all duration-200 shadow-sm ${
+                    showRenewals
+                      ? 'bg-[#00853b] text-white border-[#006e31] hover:bg-[#006e31]'
+                      : 'bg-white text-[#00853b] border-[#00853b] hover:bg-green-50'
+                  }`}
+                  onClick={handleToggleRenewals}
+                  title={showRenewals ? 'Currently showing 6-month window — click to revert to 3 months' : 'Click to expand renewal window to 6 months'}
+                >
+                  <RefreshCw className={`w-4 h-4 ${showRenewals ? 'animate-spin-slow' : ''}`} />
+                  {showRenewals ? '6-Month Window Active' : 'Enable 6-Month Renewals'}
+                </button>
+              )}
             </div>
           </div>
         </div>
