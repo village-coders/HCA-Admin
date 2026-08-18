@@ -798,6 +798,20 @@ export default function ApplicationProcess() {
         <div className="action-panel">
           <h2>Confirm Payment</h2>
 
+          {appInvoice?.status === 'Proof Rejected' && (
+            <div style={{ marginBottom: '16px', padding: '14px', backgroundColor: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '8px' }}>
+              <h4 style={{ color: '#b45309', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                <AlertCircle size={16} /> Proof of Payment Rejected
+              </h4>
+              <p style={{ fontSize: '13px', color: '#92400e', margin: 0 }}>
+                <strong>Reason:</strong> {appInvoice?.proofRejectionReason || 'No reason provided'}
+              </p>
+              <p style={{ fontSize: '12px', color: '#b45309', marginTop: '6px', margin: 0 }}>
+                Waiting for applicant to upload a corrected proof of payment.
+              </p>
+            </div>
+          )}
+
           {appInvoice?.proofOfPayment ? (
             <div className="mb-6 bg-blue-50 p-4 rounded-xl border border-blue-100 flex flex-col gap-2">
               <div className="flex items-center gap-2">

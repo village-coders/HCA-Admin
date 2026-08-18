@@ -921,6 +921,26 @@ const AllProvider = ({ children }) => {
     }
   };
 
+  const rejectProofOfPayment = async (id, reason) => {
+    const token = getToken();
+    if (!token) return { success: false };
+    setIsLoading(true);
+    try {
+      const res = await axios.put(`${baseUrl}/invoices/${id}/reject-proof`, { reason }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setInvoices(prev => prev.map(inv => inv._id === id ? res.data.invoice : inv));
+      toast.success(res.data.message || "Proof of payment rejected!");
+      return { success: true, data: res.data };
+    } catch (error) {
+      console.error("Failed to reject proof of payment:", error);
+      toast.error(error.response?.data?.message || "Failed to reject proof of payment");
+      return { success: false, error };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const resendInvoice = async (id, payload = {}) => {
     const token = getToken();
     if (!token) return { success: false };
@@ -1174,6 +1194,7 @@ const AllProvider = ({ children }) => {
     issueInvoice,
     createInvoice,
     approvePayment,
+    rejectProofOfPayment,
     resendInvoice,
 
     // Audits
