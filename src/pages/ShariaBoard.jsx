@@ -39,6 +39,7 @@ const ShariaBoard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLogsheet, setSelectedLogsheet] = useState(null);
   const [isSignModalOpen, setIsSignModalOpen] = useState(false);
+  const [showConfirmSignModal, setShowConfirmSignModal] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
 
   // Pagination state
@@ -134,6 +135,7 @@ const ShariaBoard = () => {
         headers: { Authorization: `Bearer ${getToken()}` }
       });
       toast.success('Logsheet signed successfully');
+      setShowConfirmSignModal(false);
       setIsSignModalOpen(false);
       fetchLogsheets();
     } catch (error) {
@@ -581,11 +583,11 @@ const ShariaBoard = () => {
                           <>
                             <p className="text-xs font-semibold text-gray-400">Ready to provide endorsement</p>
                             <button 
-                              onClick={() => handleSignLogsheet(selectedLogsheet._id)}
+                              onClick={() => setShowConfirmSignModal(true)}
                               disabled={isSigning}
-                              className="w-full py-3 bg-[#00853b] text-white rounded-xl font-bold shadow-lg shadow-[#00853b]/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+                              className="w-full py-3 bg-[#00853b] text-white rounded-xl font-bold shadow-lg shadow-[#00853b]/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-2 cursor-pointer"
                             >
-                              {isSigning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
+                              <ShieldCheck className="w-5 h-5" />
                               Sign Logsheet
                             </button>
                           </>
@@ -730,6 +732,90 @@ const ShariaBoard = () => {
               >
                 {isUploadingSignature ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                 Save Credentials
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Signature Modal */}
+      {showConfirmSignModal && selectedLogsheet && (
+        <div 
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isSigning) {
+              setShowConfirmSignModal(false);
+            }
+          }}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-60 animate-in fade-in duration-200"
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100 flex flex-col">
+            <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center text-[#00853b]">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-base">Confirm Digital Endorsement</h3>
+                  <p className="text-xs text-gray-500">Shari'a Board Endorsement</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowConfirmSignModal(false)}
+                disabled={isSigning}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-black">
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Are you sure you want to apply your official digital signature to endorse the logsheet for{' '}
+                <strong className="text-gray-900">{selectedLogsheet.companyName}</strong>
+                {selectedLogsheet.applicationId?.applicationNumber ? (
+                  <> (Application # <span className="font-semibold text-gray-900">{selectedLogsheet.applicationId.applicationNumber}</span>)</>
+                ) : null}?
+              </p>
+
+              {/* Signature Preview Card */}
+              <div className="bg-gray-50 rounded-xl border border-gray-200/80 p-4 flex flex-col items-center text-center">
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Signature to be applied</p>
+                {user?.signatureImage ? (
+                  <div className="h-16 flex items-center justify-center mb-2 px-4 py-1 bg-white rounded-lg border border-gray-100 shadow-sm w-full">
+                    <img 
+                      src={resolveUrl(user.signatureImage)} 
+                      alt="Your Signature" 
+                      className="max-h-full max-w-full object-contain" 
+                    />
+                  </div>
+                ) : null}
+                <p className="font-bold text-sm text-gray-900">{user?.signatureName || user?.fullName}</p>
+                <p className="text-xs text-gray-500">{user?.signatureTitle || "Member, Shari'a Board"}</p>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2.5 items-start text-xs text-amber-800">
+                <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                <span>This digital signature is legally binding and will be permanently recorded upon confirmation.</span>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50/80 border-t border-gray-100 flex justify-end gap-3">
+              <button 
+                type="button"
+                onClick={() => setShowConfirmSignModal(false)}
+                disabled={isSigning}
+                className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button 
+                type="button"
+                onClick={() => handleSignLogsheet(selectedLogsheet._id)}
+                disabled={isSigning}
+                className="px-5 py-2.5 bg-[#00853b] text-white rounded-xl text-sm font-bold hover:bg-[#007032] transition-all flex items-center gap-2 shadow-sm shadow-[#00853b]/20 cursor-pointer disabled:opacity-50"
+              >
+                {isSigning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                {isSigning ? 'Signing...' : 'Confirm & Sign'}
               </button>
             </div>
           </div>

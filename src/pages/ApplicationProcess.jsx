@@ -32,7 +32,6 @@ const AUDIT_SUB_STEPS = [
   { id: 3, label: 'Audited', type: 'confirm' },
   { id: 4, label: 'NC Report (Upload)', type: 'upload' },
   { id: 5, label: 'NC Report Closed', type: 'confirm' },
-  { id: 6, label: 'Audit Report Submitted', type: 'display' },
 ];
 
 
@@ -153,7 +152,6 @@ export default function ApplicationProcess() {
   const [auditors, setAuditors] = useState([{ name: '', email: '', phone: '', role: 'Lead Auditor' }]);
   const [invoiceFile, setInvoiceFile] = useState(null);
   const [ncReportFile, setNcReportFile] = useState(null);
-  const [auditReportFile, setAuditReportFile] = useState(null);
   const [prepDoc1, setPrepDoc1] = useState(null);
   const [prepDoc2, setPrepDoc2] = useState(null);
   const [prepDoc3, setPrepDoc3] = useState(null);
@@ -169,6 +167,9 @@ export default function ApplicationProcess() {
   const [ncRejectModal, setNcRejectModal] = useState({ open: false, reason: '' });
   const [ncRejectReason, setNcRejectReason] = useState('');
   const [ncRejectFiles, setNcRejectFiles] = useState([]);
+  const [showProofRejectForm, setShowProofRejectForm] = useState(false);
+  const [proofRejectReason, setProofRejectReason] = useState('');
+  const [rejectingProof, setRejectingProof] = useState(false);
 
   const resolveUrl = (path) => {
     if (!path) return '';
@@ -253,6 +254,33 @@ export default function ApplicationProcess() {
       setLoading(false);
     }
   }, [id]);
+
+  const handleRejectProof = async () => {
+    if (!appInvoice?._id) {
+      toast.error('No invoice found for this application');
+      return;
+    }
+    if (!proofRejectReason.trim()) {
+      toast.error('Please provide a reason for rejecting the proof of payment');
+      return;
+    }
+    try {
+      setRejectingProof(true);
+      await axios.put(
+        `${API_BASE_URL}/invoices/${appInvoice._id}/reject-proof`,
+        { reason: proofRejectReason.trim() },
+        { headers: { Authorization: `Bearer ${getToken()}` } }
+      );
+      toast.success('Proof of payment rejected. The applicant has been notified.');
+      setShowProofRejectForm(false);
+      setProofRejectReason('');
+      await fetchApplication();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to reject proof of payment');
+    } finally {
+      setRejectingProof(false);
+    }
+  };
 
   const fetchAdmins = useCallback(async () => {
     try {
@@ -794,11 +822,16 @@ export default function ApplicationProcess() {
 
     if (step.id === 5) {
       if (isComplete) return <CompletedPanel label="Payment Received" timestamp={processData?.paymentConfirmedAt} />;
+
+      const proofRejected = appInvoice?.status === 'Proof Rejected';
+      const hasProof = !!appInvoice?.proofOfPayment;
+
       return (
         <div className="action-panel">
           <h2>Confirm Payment</h2>
 
-          {appInvoice?.status === 'Proof Rejected' && (
+          {/* Proof Rejected Status Banner */}
+          {proofRejected && (
             <div style={{ marginBottom: '16px', padding: '14px', backgroundColor: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '8px' }}>
               <h4 style={{ color: '#b45309', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
                 <AlertCircle size={16} /> Proof of Payment Rejected
@@ -806,44 +839,126 @@ export default function ApplicationProcess() {
               <p style={{ fontSize: '13px', color: '#92400e', margin: 0 }}>
                 <strong>Reason:</strong> {appInvoice?.proofRejectionReason || 'No reason provided'}
               </p>
-              <p style={{ fontSize: '12px', color: '#b45309', marginTop: '6px', margin: 0 }}>
+              <p style={{ fontSize: '12px', color: '#b45309', marginTop: '6px', marginBottom: 0 }}>
                 Waiting for applicant to upload a corrected proof of payment.
               </p>
             </div>
           )}
 
-          {appInvoice?.proofOfPayment ? (
-            <div className="mb-6 bg-blue-50 p-4 rounded-xl border border-blue-100 flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-blue-600" />
-                <span className="font-semibold text-blue-800">Proof of Payment Uploaded</span>
+          {/* Proof Document Panel */}
+          {hasProof ? (
+            <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileText size={18} color="#2563eb" />
+                <span style={{ fontWeight: 600, color: '#1e40af', fontSize: '14px' }}>Proof of Payment Uploaded</span>
               </div>
-              <p className="text-sm text-blue-700" style={{ margin: 0 }}>The applicant has uploaded a proof of payment document for your review.</p>
-              <a href={resolveUrl(appInvoice.proofOfPayment)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium w-fit hover:bg-blue-700 transition" style={{ textDecoration: 'none', marginTop: '8px' }}>
-                <Download size={16} /> View Document
+              <p style={{ fontSize: '13px', color: '#1d4ed8', margin: 0 }}>The applicant has uploaded a proof of payment document for your review.</p>
+              <a
+                href={resolveUrl(appInvoice.proofOfPayment)}
+                target="_blank"
+                rel="noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 14px', background: '#2563eb', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: 500, textDecoration: 'none', width: 'fit-content', marginTop: '4px' }}
+              >
+                <Download size={14} /> View Uploaded Document
               </a>
             </div>
           ) : (
-            <div className="mb-6 bg-slate-50 p-4 text-slate-600 text-sm border border-slate-200 rounded-xl">
+            <div style={{ marginBottom: '16px', padding: '14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', color: '#64748b', fontSize: '14px' }}>
               No proof of payment uploaded by applicant yet.
             </div>
           )}
 
-          <p>Confirm that payment has been received from the applicant.</p>
           {hasPrivilege('Accountant') ? (
-            <button 
-              className={`action-btn-primary ${!appInvoice?.proofOfPayment ? 'opacity-50 cursor-not-allowed' : ''}`} 
-              onClick={() => submitStep(5)} 
-              disabled={saving || !appInvoice?.proofOfPayment}
-            >
-              {saving ? <Loader2 className="spin" size={16} /> : <CheckCircle size={16} />}
-              {saving ? 'Processing...' : 'Confirm Payment Received'}
-            </button>
+            <>
+              {/* Inline Reject Proof Form */}
+              {showProofRejectForm ? (
+                <div style={{ marginBottom: '16px', padding: '16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px' }}>
+                  <h4 style={{ color: '#991b1b', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', margin: '0 0 10px 0' }}>
+                    <XCircle size={16} /> Reject Proof of Payment
+                  </h4>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#7f1d1d', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                    Rejection Reason *
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={proofRejectReason}
+                    onChange={(e) => setProofRejectReason(e.target.value)}
+                    placeholder="e.g. Bank transaction receipt is illegible / amount does not match invoice total..."
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #fca5a5', borderRadius: '7px', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical', outline: 'none', boxSizing: 'border-box', background: '#fff' }}
+                  />
+                  {/* Quick suggestion chips */}
+                  <div style={{ marginTop: '8px', marginBottom: '12px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {[
+                      'Receipt is blurry / unreadable',
+                      'Amount does not match invoice total',
+                      'Transaction reference could not be verified',
+                      'Beneficiary account does not match HDI account'
+                    ].map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() => setProofRejectReason(chip)}
+                        style={{ fontSize: '11px', padding: '4px 10px', background: '#fee2e2', color: '#7f1d1d', border: '1px solid #fca5a5', borderRadius: '20px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => { setShowProofRejectForm(false); setProofRejectReason(''); }}
+                      disabled={rejectingProof}
+                      style={{ flex: 1, padding: '9px 0', border: '1px solid #d1d5db', background: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', color: '#374151' }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRejectProof}
+                      disabled={rejectingProof || !proofRejectReason.trim()}
+                      style={{ flex: 1, padding: '9px 0', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: (rejectingProof || !proofRejectReason.trim()) ? 0.6 : 1 }}
+                    >
+                      {rejectingProof ? <Loader2 className="spin" size={14} /> : <XCircle size={14} />}
+                      {rejectingProof ? 'Rejecting...' : 'Confirm Rejection'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p style={{ margin: '0 0 12px 0' }}>Confirm that payment has been received from the applicant.</p>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    {hasProof && !proofRejected && (
+                      <button
+                        type="button"
+                        onClick={() => setShowProofRejectForm(true)}
+                        style={{ flex: 1, minWidth: '140px', padding: '10px 16px', background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                      >
+                        <XCircle size={14} /> Reject Proof
+                      </button>
+                    )}
+                    <button
+                      className={`action-btn-primary ${!hasProof || proofRejected ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      style={{ flex: 2, minWidth: '180px' }}
+                      onClick={() => submitStep(5)}
+                      disabled={saving || !hasProof || proofRejected}
+                    >
+                      {saving ? <Loader2 className="spin" size={16} /> : <CheckCircle size={16} />}
+                      {saving ? 'Processing...' : 'Confirm Payment Received'}
+                    </button>
+                  </div>
+                  {proofRejected && (
+                    <p style={{ marginTop: '10px', fontSize: '12px', color: '#b45309' }}>
+                      Proof has been rejected. Awaiting re-upload from applicant before payment can be confirmed.
+                    </p>
+                  )}
+                </>
+              )}
+            </>
           ) : (
             <NoPermissionView privilege="Accountant" />
           )}
         </div>
-
       );
     }
 
@@ -1285,55 +1400,6 @@ export default function ApplicationProcess() {
                         )
                       )}
 
-                      {sub.type === 'display' && (
-                        <div className="substep-display">
-                          {processData?.audit?.auditReportFile && (
-                            <div className="file-info">
-                              <p>Audit report uploaded.</p>
-                              <a href={resolveUrl(processData.audit.auditReportFile)} target="_blank" rel="noreferrer" className="file-link">
-                                <FileText size={16} /> View Report
-                              </a>
-                            </div>
-                          )}
-                          <div className="upload-area sm" onClick={() => document.getElementById(`audit-upload-${sub.id}`).click()}>
-                            <Upload size={20} color="#9ca3af" />
-                            <p>{auditReportFile?.name || 'Re-upload/Upload on client behalf'}</p>
-                          </div>
-                          <input
-                            id={`audit-upload-${sub.id}`}
-                            type="file"
-                            hidden
-                            accept=".pdf,.doc,.docx"
-                            onChange={e => {
-                              const file = e.target.files[0];
-                              if (file && file.size > 5 * 1024 * 1024) {
-                                toast.error(`File "${file.name}" exceeds the 5MB size limit.`);
-                                e.target.value = "";
-                                return;
-                              }
-                              setAuditReportFile(file);
-                            }}
-                          />
-                          {(hasPrivilege('Audit Manager') || hasPrivilege('Auditor')) ? (
-                            <button
-                              className="action-btn-primary sm"
-                              onClick={() => setConfirmModal({
-                                open: true,
-                                title: 'Upload Audit Report',
-                                message: `Are you sure you want to upload this audit report? This will advance the application.`,
-                                onConfirm: () => { setConfirmModal({ open: false }); submitStep(6, 6, null, auditReportFile); }
-                              })}
-                              disabled={saving || !auditReportFile}
-                            >
-                              {saving ? <Loader2 className="spin" size={14} /> : <Upload size={14} />}
-                              {processData?.audit?.auditReportFile ? 'Update' : 'Upload'} Audit Report
-                            </button>
-                          ) : (
-                            <NoPermissionView privilege="Audit Manager" />
-                          )}
-                        </div>
-
-                      )}
                       {sub.type === 'upload' && sub.id === 4 && (
                         <>
                           <div className="upload-area sm" onClick={() => document.getElementById(`audit-upload-${sub.id}`).click()}>
