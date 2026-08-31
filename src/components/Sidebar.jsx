@@ -55,7 +55,7 @@ const Sidebar = () => {
       : []),
     { path: '/message', icon: MessageCircleIcon, label: 'Message' },
     ...(user?.privileges?.includes("Accountant") 
-      ? [{ path: 'https://www.invoice.hdiportal.com', icon: Receipt, label: 'Create Invoice'}] 
+      ? [{ path: 'https://www.invoice.hdiportal.com', icon: Receipt, label: 'Create Invoice', external: true }] 
       : [])
   ];
 
@@ -107,7 +107,7 @@ const Sidebar = () => {
             )}
             {isCollapsed && (
               <div className="w-10 h-10 rounded-lg bg-[#00853b] flex items-center justify-center">
-                <span className="text-white font-bold text-lg">{user.fullName.charAt(0).toUpperCase()}</span>
+                <span className="text-white font-bold text-lg">{user?.fullName?.charAt(0).toUpperCase()}</span>
               </div>
             )}
             <button
@@ -122,24 +122,37 @@ const Sidebar = () => {
         {/* Navigation */}
         <nav className="p-4 space-y-1 overflow-y-auto h-[calc(100vh-150px)] scrollbar-hide">
           {
-          navItems.map((item) => (          
-            
-            <NavLink
-              key={item.path}
-              to={item.path}
-              onClick={() => setIsMobileOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center ${isCollapsed ? 'justify-center px-3' : 'px-4'} py-3 rounded-lg transition-all duration-200
-                ${isActive 
-                  ? 'bg-[#00853b] text-white shadow-sm' 
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                }`
-              }
-            >
-              <item.icon className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'}`} />
-              {!isCollapsed && <span className="text-sm font-medium">{item.label}</span>}
-            </NavLink>
-          ))}
+          navItems.map((item) =>
+            item.external ? (
+              <a
+                key={item.path}
+                href={item.path}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setIsMobileOpen(false)}
+                className={`flex items-center ${isCollapsed ? 'justify-center px-3' : 'px-4'} py-3 rounded-lg transition-all duration-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900`}
+              >
+                <item.icon className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'}`} />
+                {!isCollapsed && <span className="text-sm font-medium">{item.label}</span>}
+              </a>
+            ) : (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                onClick={() => setIsMobileOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center ${isCollapsed ? 'justify-center px-3' : 'px-4'} py-3 rounded-lg transition-all duration-200
+                  ${isActive 
+                    ? 'bg-[#00853b] text-white shadow-sm' 
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }`
+                }
+              >
+                <item.icon className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'}`} />
+                {!isCollapsed && <span className="text-sm font-medium">{item.label}</span>}
+              </NavLink>
+            )
+          )}
           
           {isMobileOpen && (
             <button className={`

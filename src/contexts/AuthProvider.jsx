@@ -7,7 +7,7 @@ import { AuthContext } from "./authContext";
 
 const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
-  const [user, setUser] = useState([]);
+  const [user, setUser] = useState(null);
   const [verifyingAccount, setVerifyingAccount] = useState(false);
   const [verificationData, setVerificationData] = useState();
   const [signingIn, setSigningIn] = useState(false);

@@ -110,8 +110,6 @@ const AllProvider = ({ children }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      console.log(res.data)
-      
       setApplications(res.data || []);
       setErrors("");
     } catch (error) {
@@ -260,14 +258,10 @@ const AllProvider = ({ children }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      const data = res.data;
-      
-
-      if(res.ok){
-        setApplications(prev => prev.filter(app => app.id !== id));
-        toast.success(data.message);
-        return { success: true };
-      }      
+      // axios throws on non-2xx, so reaching here means success
+      setApplications(prev => prev.filter(app => app._id !== id && app.id !== id));
+      toast.success(res.data?.message || "Application deleted successfully");
+      return { success: true };
     } catch (error) {
       console.error("Failed to delete application:", error);
       toast.error(error.response?.data?.message || "Failed to delete application");
@@ -317,13 +311,13 @@ const AllProvider = ({ children }) => {
       );
 
       setApplications(prev => prev.map(app => 
-        app.id === id ? { ...app, status: 'rejected', rejectionReason: reason } : app
+        (app._id === id || app.id === id) ? { ...app, status: 'accepted' } : app
       ));
       toast.success(res.data.message);
       return { success: true, data: res.data };
     } catch (error) {
-      console.error("Failed to reject application:", error);
-      toast.error(error.response?.data?.message || "Failed to reject application");
+      console.error("Failed to accept application:", error);
+      toast.error(error.response?.data?.message || "Failed to accept application");
       return { success: false, error };
     } finally {
       setIsLoading(false);
@@ -426,17 +420,20 @@ const AllProvider = ({ children }) => {
 
     setIsLoading(true);
     try {
-      const res = await axios.put(`${baseUrl}/products/approve/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const res = await axios.put(
+        `${baseUrl}/products/approve/${id}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       setProducts((prev) =>
-        prev.map((p) => (p.id === id ? res.data.products : p))
+        prev.map((p) => (p._id === id || p.id === id ? res.data.product ?? { ...p, status: 'acknowledged' } : p))
       );
-      console.log(res.data)
       toast.success(res.data.message);
       return { success: true };
     } catch(err) {
@@ -448,21 +445,25 @@ const AllProvider = ({ children }) => {
   };
 
   // 🔄 Reject product
-  const rejectProduct = async (id) => {
+  const rejectProduct = async (id, reason = "") => {
     const token = getToken();
     if (!token) return { success: false };
 
     setIsLoading(true);
     try {
-      const res = await axios.put(`${baseUrl}/products/reject/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const res = await axios.put(
+        `${baseUrl}/products/reject/${id}`,
+        { reason },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       setProducts((prev) =>
-        prev.map((p) => (p.id === id ? res.data.products : p))
+        prev.map((p) => (p._id === id || p.id === id ? res.data.product ?? { ...p, status: 'rejected' } : p))
       );
       toast.success(res.data.message);
       return { success: true };
