@@ -5,13 +5,11 @@ import {
   CheckCircle, 
   XCircle, 
   Clock, 
-  ChevronDown, 
   Calendar,
   RefreshCw,
   AlertCircle,
   Eye,
   FileText,
-  Plus,
   Building,
   Package,
   Info,
@@ -23,7 +21,6 @@ import { useAll } from '../hooks/useAll';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'sonner';
 import TableActions from '../components/TableActions';
-import { Lock } from 'lucide-react';
 
 const Products = () => {
   const { user } = useAuth();
@@ -109,36 +106,37 @@ const Products = () => {
 
   // Filter products
   const filteredProducts = products.filter(product => {
-    // Tab filter
-    switch (activeTab) {
-      case 'all':
-        break;
-      case 'requested':
-        return product.status === 'requested' || product.status === 'Requested';
-      case 'acknowledged':
-        return product.status === 'acknowledged' || product.status === 'Acknowledged';
-      case 'rejected':
-        return product.status === 'rejected' || product.status === 'Rejected';
-      default:
-        break;
+    // Tab filter — applied first but does NOT short-circuit; custom filters still run
+    if (activeTab === 'requested' && !(product.status?.toLowerCase() === 'requested')) {
+      return false;
+    }
+    if (activeTab === 'acknowledged' && !(product.status?.toLowerCase() === 'acknowledged')) {
+      return false;
+    }
+    if (activeTab === 'rejected' && !(product.status?.toLowerCase() === 'rejected')) {
+      return false;
     }
 
-    // Custom filter
+    // Custom filter — name
     if (filter.name && !product.name?.toLowerCase().includes(filter.name.toLowerCase())) {
       return false;
     }
+
+    // Custom filter — company
+    // Products store company info on createdBy (populated), or companyName/company fields
     if (filter.company) {
       const searchTerm = filter.company.toLowerCase();
-      const matchCompanyName = product.companyName?.toLowerCase().includes(searchTerm);
-      // Check if product.company is populated and has a companyName
-      const matchCompanyObjName = typeof product.company === 'object' 
+      const matchCreatedByCompanyName = product.createdBy?.companyName?.toLowerCase().includes(searchTerm);
+      const matchTopLevelCompanyName = product.companyName?.toLowerCase().includes(searchTerm);
+      const matchCompanyObjName = typeof product.company === 'object'
         ? product.company?.companyName?.toLowerCase().includes(searchTerm)
         : product.company?.toLowerCase().includes(searchTerm);
 
-      if (!matchCompanyName && !matchCompanyObjName) {
+      if (!matchCreatedByCompanyName && !matchTopLevelCompanyName && !matchCompanyObjName) {
         return false;
       }
     }
+
     if (filter.dateFrom && product.createdAt && new Date(product.createdAt) < new Date(filter.dateFrom)) {
       return false;
     }
@@ -330,7 +328,7 @@ const Products = () => {
     // Filter only pending products
     const pendingProducts = selectedProducts.filter(productId => {
       const product = products.find(p => p.id === productId || p._id === productId);
-      return product && (product.status.toLowerCase() === 'requested' || product.status.toLowerCase() === 'requested');
+      return product && product.status?.toLowerCase() === 'requested';
     });
 
     if (pendingProducts.length === 0) {
@@ -338,21 +336,16 @@ const Products = () => {
       return;
     }
 
-    console.log(pendingProducts);
-    
-
     if (window.confirm(`Are you sure you want to approve ${pendingProducts.length} selected products?`)) {
       try {
         const approvePromises = pendingProducts.map(id => approveProduct(id));
         await Promise.all(approvePromises);
         setSelectedProducts([]);
-        
-        // toast.success(`${pendingProducts.length} products approved successfully!`);
+        toast.success(`${pendingProducts.length} products approved successfully!`);
         fetchProducts();
       } catch (error) {
         toast.error("Failed to approve some products");
         console.log(error);
-        
       }
     }
   };
@@ -362,13 +355,13 @@ const Products = () => {
     return {
       all: products.length,
       requested: products.filter(p => 
-        p.status === 'requested' || p.status === 'Requested'
+        p.status?.toLowerCase() === 'requested'
       ).length,
-      approved: products.filter(p => 
-        p.status === 'acknowledged' || p.status === 'Acknowledged'
+      acknowledged: products.filter(p => 
+        p.status?.toLowerCase() === 'acknowledged'
       ).length,
       rejected: products.filter(p => 
-        p.status === 'rejected' || p.status === 'Rejected'
+        p.status?.toLowerCase() === 'rejected'
       ).length,
     };
   };
@@ -477,7 +470,7 @@ const Products = () => {
                     <div>
                       <p className="text-sm text-gray-600">Product Code</p>
                       <p className="font-medium text-gray-900">
-                        {selectedProduct?._id.slice(-8) || 'N/A'}
+                        {selectedProduct?._id?.slice(-8) || 'N/A'}
                       </p>
                     </div>
                   </div>
@@ -493,7 +486,6 @@ const Products = () => {
                     <div>
                       <p className="text-sm text-gray-600">Company Name</p>
                       <p className="font-medium text-gray-900">
-                        {console.log(selectedProduct)}
                         {selectedProduct?.createdBy?.companyName || 'N/A'}
                       </p>
                     </div>
