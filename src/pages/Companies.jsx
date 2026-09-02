@@ -22,7 +22,7 @@ const Companies = () => {
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
   const { user } = useAuth();
-  const canEditCompany = user?.role === 'super admin' || user?.privileges?.includes('Manage Companies') || user?.privileges?.includes('Company Manager');
+  const canEditCompany = user?.role === 'super admin' || user?.privileges?.includes('Manage Companies');
 
   const API_BASE_URL = import.meta.env.VITE_BASE_URL;
   const getToken = () => JSON.parse(localStorage.getItem('accessToken'));

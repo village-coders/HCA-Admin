@@ -47,7 +47,6 @@ const ManageAdmins = () => {
     "Certificate Officer",
     "Auditor",
     "Manage Companies",
-    "Company Manager",
   ];
 
   
