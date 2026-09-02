@@ -17,7 +17,8 @@ import {
   CalendarCheck,
   FolderOpen,
   Mail,
-  ShieldAlert
+  ShieldAlert,
+  History
 } from 'lucide-react';
 
 import { useAuth } from '../hooks/useAuth'
@@ -52,6 +53,9 @@ const Sidebar = () => {
       : []),
     ...(user?.role === "super admin" || user?.isBuilder
       ? [{ path: '/impersonate-logs', icon: ShieldAlert, label: 'Impersonate Logs' }]
+      : []),
+    ...(user?.role === "super admin" || user?.isBuilder
+      ? [{ path: '/company-logs', icon: History, label: 'Company Logs' }]
       : []),
     { path: '/message', icon: MessageCircleIcon, label: 'Message' },
     ...(user?.privileges?.includes("Accountant") 

@@ -46,6 +46,8 @@ const ManageAdmins = () => {
     "Shari'a Board",
     "Certificate Officer",
     "Auditor",
+    "Manage Companies",
+    "Company Manager",
   ];
 
   

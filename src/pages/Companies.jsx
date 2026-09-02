@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Building2, Package, Users, XCircle, CheckCircle, Filter, RefreshCw, AlertCircle, Mail, Phone, Calendar, MoreVertical, Eye, Activity, UserCheck } from 'lucide-react';
+import { Search, Building2, Package, Users, XCircle, CheckCircle, Filter, RefreshCw, AlertCircle, Mail, Phone, Calendar, MoreVertical, Eye, Activity, UserCheck, Edit, Save } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
 import { useAuth } from '../hooks/useAuth';
 import TableActions from '../components/TableActions';
@@ -15,11 +15,54 @@ const Companies = () => {
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
- 
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingCompany, setEditingCompany] = useState(null);
+  const [editForm, setEditForm] = useState({ companyName: '', email: '', fullName: '' });
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+
   const { user } = useAuth();
+  const canEditCompany = user?.role === 'super admin' || user?.privileges?.includes('Manage Companies') || user?.privileges?.includes('Company Manager');
 
   const API_BASE_URL = import.meta.env.VITE_BASE_URL;
   const getToken = () => JSON.parse(localStorage.getItem('accessToken'));
+
+  const handleOpenEditModal = (company) => {
+    setEditingCompany(company);
+    setEditForm({
+      companyName: company.companyName || '',
+      email: company.email || '',
+      fullName: company.fullName || ''
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveCompanyDetails = async (e) => {
+    e.preventDefault();
+    if (!editingCompany) return;
+    try {
+      setIsSubmittingEdit(true);
+      const companyId = editingCompany.id || editingCompany._id;
+      const res = await axios.put(
+        `${API_BASE_URL}/company-logs/company/${companyId}`,
+        editForm,
+        { headers: { Authorization: `Bearer ${getToken()}` } }
+      );
+      if (res.data.status === 'success') {
+        toast.success(res.data.message || 'Company details updated successfully');
+        fetchCompanies();
+        setIsEditModalOpen(false);
+        setEditingCompany(null);
+        if (selectedCompany && (selectedCompany.id === companyId || selectedCompany._id === companyId)) {
+          setSelectedCompany(res.data.user);
+        }
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update company details');
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
   
   const handleLoginAsClient = async (company) => {
     try {
@@ -347,14 +390,111 @@ const Companies = () => {
           </div>
 
           {/* Modal Footer */}
-          <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-end">
+          <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-between items-center">
+            {canEditCompany ? (
+              <button
+                onClick={() => {
+                  setIsViewModalOpen(false);
+                  handleOpenEditModal(selectedCompany);
+                }}
+                className="px-4 py-2 bg-[#00853b] text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 flex items-center gap-2 text-sm cursor-pointer"
+              >
+                <Edit className="w-4 h-4" />
+                Edit Company Details
+              </button>
+            ) : <div />}
             <button
               onClick={() => setIsViewModalOpen(false)}
-              className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium transition-colors duration-200"
+              className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium transition-colors duration-200 cursor-pointer"
             >
               Close
             </button>
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Edit Company Modal Component
+  const EditCompanyModal = () => {
+    if (!editingCompany) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
+          <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-[#00853b]/10 rounded-lg">
+                <Edit className="w-5 h-5 text-[#00853b]" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900">Edit Company Details</h2>
+            </div>
+            <button
+              onClick={() => setIsEditModalOpen(false)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition cursor-pointer"
+            >
+              <XCircle className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSaveCompanyDetails} className="p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+              <input
+                type="text"
+                required
+                value={editForm.companyName}
+                onChange={(e) => setEditForm({ ...editForm, companyName: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00853b] text-sm"
+                placeholder="Enter Company Name"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+              <input
+                type="email"
+                required
+                value={editForm.email}
+                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00853b] text-sm"
+                placeholder="Enter Email Address"
+              />
+              <p className="text-xs text-amber-600 mt-1">
+                Note: Updating the email directly updates the company account without requiring re-verification.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person (Full Name)</label>
+              <input
+                type="text"
+                required
+                value={editForm.fullName}
+                onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00853b] text-sm"
+                placeholder="Enter Contact Person Name"
+              />
+            </div>
+
+            <div className="pt-4 border-t border-gray-200 flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmittingEdit}
+                className="px-4 py-2 text-sm font-medium text-white bg-[#00853b] hover:bg-green-700 rounded-lg transition flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmittingEdit ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {isSubmittingEdit ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     );
@@ -541,6 +681,11 @@ const Companies = () => {
                               icon: Eye,
                               onClick: () => handleViewDetails(company)
                             },
+                            ...(canEditCompany ? [{
+                              label: 'Edit Details',
+                              icon: Edit,
+                              onClick: () => handleOpenEditModal(company)
+                            }] : []),
                             ...(!company.isVerified ? [{
                               label: 'Activate Company',
                               icon: UserCheck,
@@ -615,6 +760,9 @@ const Companies = () => {
 
       {/* View Company Modal */}
       {isViewModalOpen && <ViewCompanyModal />}
+
+      {/* Edit Company Modal */}
+      {isEditModalOpen && <EditCompanyModal />}
     </div>
   );
 };
