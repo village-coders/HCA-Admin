@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, CheckCircle, Circle, ChevronDown, ChevronUp,
   Upload, Calendar, Loader2, FileText, Award, XCircle, Download,
-  AlertCircle, Lock, Bell
+  AlertCircle, Lock, Bell, FileCheck, X
 } from 'lucide-react';
 import './ApplicationProcess.css';
 import { useAuth } from '../hooks/useAuth';
@@ -122,9 +122,34 @@ export default function ApplicationProcess() {
     companyName: '',
     companyEmail: '',
     auditReportFile: null,
+    existingAuditReport: '',
     labResultFile: null,
+    existingAdditionalDocs: [],
     additionalDocFiles: []
   });
+
+  const handleOpenLogsheetModal = () => {
+    const pData = application?.processData || {};
+    const ncReportUrl = pData?.audit?.ncReport || pData?.audit?.ncReportFile || pData?.audit?.auditReportFile || '';
+    const rawNcCorrections = pData?.audit?.ncCorrectionFile || [];
+    const ncCorrections = Array.isArray(rawNcCorrections) ? rawNcCorrections : (rawNcCorrections ? [rawNcCorrections] : []);
+    const existingCorrectiveDocs = ncCorrections.filter(Boolean).map((url, idx) => ({
+      id: `corrective-${idx}`,
+      name: url.split('/').pop() || `Corrective Action Doc #${idx + 1}`,
+      url: url
+    }));
+
+    setLogsheetData(prev => ({
+      companyName: application?.company?.companyName || prev.companyName || '',
+      companyEmail: application?.company?.email || prev.companyEmail || '',
+      existingAuditReport: prev.existingAuditReport !== null ? (prev.existingAuditReport || ncReportUrl) : '',
+      auditReportFile: prev.auditReportFile || null,
+      labResultFile: prev.labResultFile || null,
+      existingAdditionalDocs: prev.existingAdditionalDocs?.length > 0 ? prev.existingAdditionalDocs : existingCorrectiveDocs,
+      additionalDocFiles: prev.additionalDocFiles || []
+    }));
+    setShowLogsheetModal(true);
+  };
 
   const NoPermissionView = ({ privilege }) => (
     <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 text-center">
@@ -216,10 +241,21 @@ export default function ApplicationProcess() {
       }
 
       // Pre-fill logsheet data
+      const ncReportUrl = data.processData?.audit?.ncReport || data.processData?.audit?.ncReportFile || data.processData?.audit?.auditReportFile || '';
+      const rawNcCorrections = data.processData?.audit?.ncCorrectionFile || [];
+      const ncCorrections = Array.isArray(rawNcCorrections) ? rawNcCorrections : (rawNcCorrections ? [rawNcCorrections] : []);
+      const existingCorrectiveDocs = ncCorrections.filter(Boolean).map((url, idx) => ({
+        id: `corrective-${idx}`,
+        name: url.split('/').pop() || `Corrective Action Doc #${idx + 1}`,
+        url: url
+      }));
+
       setLogsheetData(prev => ({
         ...prev,
-        companyName: data.company?.companyName || '',
-        companyEmail: data.company?.email || ''
+        companyName: data.company?.companyName || prev.companyName || '',
+        companyEmail: data.company?.email || prev.companyEmail || '',
+        existingAuditReport: prev.existingAuditReport !== undefined && prev.existingAuditReport !== '' ? prev.existingAuditReport : ncReportUrl,
+        existingAdditionalDocs: prev.existingAdditionalDocs?.length > 0 ? prev.existingAdditionalDocs : existingCorrectiveDocs,
       }));
 
       if (data.processData?.audit) {
@@ -385,9 +421,12 @@ export default function ApplicationProcess() {
 
   useEffect(() => { fetchApplication(); }, [fetchApplication]);
   useEffect(() => { fetchAdmins(); }, [fetchAdmins]);
-  const currentStep = Math.max(application?.processStep || 1, 2);
   const processData = application?.processData || {};
   const auditSubStep = processData?.audit?.subStep || 0;
+  // If audit session is still ongoing in substeps (subStep < 5 and shariaBoard not sent), main step tracking MUST stay on step 6
+  const isAuditSessionOngoing = (application?.processStep >= 6 && auditSubStep < 5 && !processData?.shariaBoardSentAt);
+  const effectiveProcessStep = isAuditSessionOngoing ? 6 : (application?.processStep || 1);
+  const currentStep = Math.max(effectiveProcessStep, 2);
 
   // Automatically set active step on mount/load
   useEffect(() => {
@@ -400,8 +439,8 @@ export default function ApplicationProcess() {
 
   const isStepCompleted = (stepId) => {
     if (stepId === 1) return true;
+    if (stepId === 6) return (auditSubStep >= 5 || !!processData?.shariaBoardSentAt) && currentStep >= 7;
     if (stepId < currentStep) return true;
-    if (stepId === 6 && currentStep >= 7) return true;
     if (stepId === 7 && processData?.shariaBoardSentAt) return true;
     if (stepId === 8 && processData?.certificationApprovedAt) return true;
     if (stepId === 9 && processData?.processingStartedAt) return true;
@@ -579,8 +618,9 @@ export default function ApplicationProcess() {
   const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
   const handleCreateLogsheet = async () => {
-    if (!logsheetData.companyName || !logsheetData.companyEmail || !logsheetData.auditReportFile) {
-      toast.error('Please fill all required fields');
+    const hasAuditReport = !!logsheetData.auditReportFile || !!logsheetData.existingAuditReport;
+    if (!logsheetData.companyName || !logsheetData.companyEmail || !hasAuditReport) {
+      toast.error('Please fill all required fields (Company name, email, and audit report are required)');
       return;
     }
     // Validate audit report size
@@ -606,10 +646,20 @@ export default function ApplicationProcess() {
     formData.append('applicationId', id);
     formData.append('companyName', logsheetData.companyName);
     formData.append('companyEmail', logsheetData.companyEmail);
-    formData.append('auditReport', logsheetData.auditReportFile);
+    if (logsheetData.auditReportFile) {
+      formData.append('auditReport', logsheetData.auditReportFile);
+    }
+    if (logsheetData.existingAuditReport) {
+      formData.append('existingAuditReport', logsheetData.existingAuditReport);
+    }
     if (logsheetData.labResultFile) {
       formData.append('labResult', logsheetData.labResultFile);
     }
+    const existingUrls = (logsheetData.existingAdditionalDocs || [])
+      .map(doc => (typeof doc === 'string' ? doc : doc.url))
+      .filter(Boolean);
+    formData.append('existingAdditionalDocuments', JSON.stringify(existingUrls));
+
     for (const doc of logsheetData.additionalDocFiles) {
       if (doc) formData.append('additionalDocuments', doc);
     }
@@ -1536,7 +1586,7 @@ export default function ApplicationProcess() {
           )}
           <p>Create a formal logsheet to be sent to the Shari'a Board for endorsement.</p>
           {(hasPrivilege('Audit Manager') || hasPrivilege('Auditor')) ? (
-            <button className="action-btn-primary" onClick={() => setShowLogsheetModal(true)} disabled={saving}>
+            <button className="action-btn-primary" onClick={handleOpenLogsheetModal} disabled={saving}>
               <FileText size={16} />
               {processData?.shariaLogsheetRejectReason ? 'Recreate Logsheet' : 'Create Logsheet'}
             </button>
@@ -1851,16 +1901,88 @@ export default function ApplicationProcess() {
               </div>
 
               <div>
-                <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '6px' }}>Audit Report (PDF/Doc)</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <input
-                    type="file"
-                    onChange={e => setLogsheetData({ ...logsheetData, auditReportFile: e.target.files[0] })}
-                    accept=".pdf,.doc,.docx"
-                    style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '8px' }}
-                  />
-                  {logsheetData.auditReportFile && <p className="text-xs text-green-600">Selected: {logsheetData.auditReportFile.name}</p>}
-                </div>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '6px' }}>
+                  Audit Report (PDF/Doc) <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                {logsheetData.existingAuditReport && !logsheetData.auditReportFile ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                      <FileText size={18} className="text-[#00853b] shrink-0" />
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {logsheetData.existingAuditReport.split('/').pop() || 'NC Report (Attached from Audit)'}
+                        </p>
+                        <a
+                          href={resolveUrl(logsheetData.existingAuditReport)}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ fontSize: '12px', color: '#2563eb', textDecoration: 'underline' }}
+                        >
+                          Preview Attached Report
+                        </a>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      title="Cancel and reupload another report"
+                      onClick={() => setLogsheetData(prev => ({ ...prev, existingAuditReport: '' }))}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#fee2e2', border: 'none', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', color: '#dc2626', fontWeight: 600, fontSize: '12px', flexShrink: 0, marginLeft: '8px' }}
+                    >
+                      <X size={14} /> Remove / Reupload
+                    </button>
+                  </div>
+                ) : logsheetData.auditReportFile ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                      <FileCheck size={18} className="text-green-600 shrink-0" />
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#166534', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {logsheetData.auditReportFile.name}
+                        </p>
+                        <p style={{ margin: 0, fontSize: '11px', color: '#15803d' }}>
+                          {(logsheetData.auditReportFile.size / 1024 / 1024).toFixed(2)} MB • Ready to upload
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      title="Cancel selected file"
+                      onClick={() => setLogsheetData(prev => ({ ...prev, auditReportFile: null }))}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#fee2e2', border: 'none', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', color: '#dc2626', fontWeight: 600, fontSize: '12px', flexShrink: 0, marginLeft: '8px' }}
+                    >
+                      <X size={14} /> Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <input
+                      type="file"
+                      onChange={e => {
+                        const file = e.target.files[0];
+                        if (file && file.size > MAX_FILE_SIZE_BYTES) {
+                          toast.error(`File exceeds ${MAX_FILE_SIZE_MB}MB limit`);
+                          e.target.value = '';
+                          return;
+                        }
+                        setLogsheetData(prev => ({ ...prev, auditReportFile: file }));
+                      }}
+                      accept=".pdf,.doc,.docx"
+                      style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '13px' }}
+                    />
+                    {(processData?.audit?.ncReport || processData?.audit?.ncReportFile) && (
+                      <button
+                        type="button"
+                        onClick={() => setLogsheetData(prev => ({
+                          ...prev,
+                          existingAuditReport: processData?.audit?.ncReport || processData?.audit?.ncReportFile || ''
+                        }))}
+                        style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                      >
+                        ↺ Restore NC report from audit session
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1879,10 +2001,55 @@ export default function ApplicationProcess() {
                 </div>
               </div>
 
-              {/* Additional Documents */}
+              {/* Additional Documents & Corrective Actions */}
               <div>
-                <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '6px' }}>Additional Documents <span style={{ fontWeight: 400, color: '#9ca3af' }}>— optional, each max 5MB</span></label>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '6px' }}>
+                  Additional Documents & Corrective Actions <span style={{ fontWeight: 400, color: '#9ca3af' }}>— optional, each max 5MB</span>
+                </label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {/* Client-uploaded corrective actions pre-filled */}
+                  {logsheetData.existingAdditionalDocs?.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '4px' }}>
+                      <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: '#475569' }}>
+                        Client Corrective Actions (Attached from Audit):
+                      </p>
+                      {logsheetData.existingAdditionalDocs.map((doc, idx) => (
+                        <div key={doc.id || idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                            <FileCheck size={16} className="text-green-600 shrink-0" />
+                            <div style={{ minWidth: 0 }}>
+                              <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: '#166534', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {doc.name || `Corrective Action Doc #${idx + 1}`}
+                              </p>
+                              <a
+                                href={resolveUrl(doc.url)}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ fontSize: '11px', color: '#15803d', textDecoration: 'underline' }}
+                              >
+                                Preview Document
+                              </a>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            title="Remove this attachment"
+                            onClick={() => {
+                              setLogsheetData(prev => ({
+                                ...prev,
+                                existingAdditionalDocs: prev.existingAdditionalDocs.filter((_, i) => i !== idx)
+                              }));
+                            }}
+                            style={{ background: '#fee2e2', border: 'none', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', color: '#dc2626', fontWeight: 700, fontSize: '12px', flexShrink: 0, marginLeft: '8px' }}
+                          >
+                            ✕ Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Admin uploaded additional files */}
                   {logsheetData.additionalDocFiles.map((doc, idx) => (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <input
@@ -1898,6 +2065,7 @@ export default function ApplicationProcess() {
                       />
                       <button
                         type="button"
+                        title="Remove document field"
                         onClick={() => {
                           const updated = logsheetData.additionalDocFiles.filter((_, i) => i !== idx);
                           setLogsheetData({ ...logsheetData, additionalDocFiles: updated });
