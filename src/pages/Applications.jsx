@@ -1584,12 +1584,7 @@ const Applications = () => {
                   disabled={isLoading}
                 >
                   <option value="">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="submitted">Submitted</option>
-                  <option value="accepted">Accepted</option>
-                  <option value="issued">Issued</option>
-                  <option value="rejected">Rejected</option>
-                  <option value="under_review">Under Review</option>
+                  {applications.map(c => <option value={c.status}>{c.status}</option>)}
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
               </div>
