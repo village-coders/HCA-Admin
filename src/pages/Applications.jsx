@@ -1584,7 +1584,9 @@ const Applications = () => {
                   disabled={isLoading}
                 >
                   <option value="">All Status</option>
-                  {applications.map(c => <option value={c.status}>{c.status}</option>)}
+                  {[...new Set(applications.map(c => c?.status))].map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
               </div>
