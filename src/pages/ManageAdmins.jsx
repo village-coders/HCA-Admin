@@ -47,6 +47,7 @@ const ManageAdmins = () => {
     "Certificate Officer",
     "Auditor",
     "Manage Companies",
+    "Refix Audit Date",
   ];
 
   
