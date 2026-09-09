@@ -2265,19 +2265,6 @@ export default function ApplicationProcess() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                  End Date <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 400 }}>(optional, for multi-day audit)</span>
-                </label>
-                <input
-                  type="date"
-                  className="form-input"
-                  min={refixDate}
-                  value={refixToDate}
-                  onChange={(e) => setRefixToDate(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
                   Time <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input
