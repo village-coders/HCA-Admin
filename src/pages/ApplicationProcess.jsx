@@ -114,7 +114,58 @@ export default function ApplicationProcess() {
 
   const hasPrivilege = (priv) => {
     if (user?.role === 'super admin') return true;
-    return user?.privileges?.includes(priv);
+    return user?.privileges?.some(p => p?.toLowerCase() === priv?.toLowerCase()) || user?.privileges?.includes(priv);
+  };
+
+  const [showRefixModal, setShowRefixModal] = useState(false);
+  const [refixDate, setRefixDate] = useState('');
+  const [refixToDate, setRefixToDate] = useState('');
+  const [refixTime, setRefixTime] = useState('');
+
+  const handleOpenRefixModal = () => {
+    const a = application?.processData?.audit;
+    if (a?.scheduledDate) {
+      const d = new Date(a.scheduledDate);
+      setRefixDate(!isNaN(d.getTime()) ? d.toISOString().split('T')[0] : '');
+    } else {
+      setRefixDate('');
+    }
+    if (a?.scheduledToDate) {
+      const td = new Date(a.scheduledToDate);
+      setRefixToDate(!isNaN(td.getTime()) ? td.toISOString().split('T')[0] : '');
+    } else {
+      setRefixToDate('');
+    }
+    setRefixTime(a?.scheduledTime || '');
+    setShowRefixModal(true);
+  };
+
+  const handleRefixSubmit = () => {
+    if (!refixDate || !refixTime) {
+      toast.error('Please specify both the date and time.');
+      return;
+    }
+    const finalToDate = refixToDate || refixDate;
+    const formattedFrom = new Date(refixDate).toLocaleDateString();
+    const formattedTo = new Date(finalToDate).toLocaleDateString();
+    const displayRange = formattedFrom !== formattedTo ? `${formattedFrom} to ${formattedTo}` : formattedFrom;
+
+    setConfirmModal({
+      open: true,
+      title: 'Confirm Refix Audit Date',
+      message: `Are you sure you want to refix the audit date to ${displayRange} at ${refixTime}? The client and all assigned auditors will automatically receive notification emails with the updated date.`,
+      onConfirm: () => {
+        setConfirmModal({ open: false });
+        setShowRefixModal(false);
+        const payload = JSON.stringify({
+          action: 'refix',
+          date: refixDate,
+          toDate: finalToDate,
+          time: refixTime
+        });
+        submitStep(6, 1, payload);
+      }
+    });
   };
 
   const [showLogsheetModal, setShowLogsheetModal] = useState(false);
@@ -1197,8 +1248,24 @@ export default function ApplicationProcess() {
                                       : ''} at {processData.audit.scheduledTime}
                                   </span>
                                 </div>
-                                <span style={{ fontSize: '12px', background: '#d1fae5', color: '#065f46', padding: '4px 10px', borderRadius: '12px', fontWeight: 600 }}>Finalized</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <span style={{ fontSize: '12px', background: '#d1fae5', color: '#065f46', padding: '4px 10px', borderRadius: '12px', fontWeight: 600 }}>Finalized</span>
+                                  {hasPrivilege('Refix Audit Date') && !processData?.audit?.auditedAt && (processData?.audit?.subStep || 0) < 3 && processData?.audit?.status !== 'Audited' && (
+                                    <button
+                                      type="button"
+                                      onClick={handleOpenRefixModal}
+                                      style={{ background: '#0284c7', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                    >
+                                      <Calendar size={14} /> Refix Audit Date
+                                    </button>
+                                  )}
+                                </div>
                               </div>
+                              {processData?.audit?.refixedAt && (
+                                <p style={{ fontSize: '12px', color: '#0284c7', margin: '-8px 0 0 0', fontWeight: 500 }}>
+                                  ℹ Refixed on {new Date(processData.audit.refixedAt).toLocaleDateString()} by {processData.audit.refixedBy || 'Admin'}
+                                </p>
+                              )}
                               <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>Date is confirmed. Please proceed to <strong>Assign Auditors</strong> (sub-step 2) to assign auditors to this session.</p>
                             </div>
                           )}
@@ -1206,6 +1273,34 @@ export default function ApplicationProcess() {
                           {/* Phase 4: Audit Scheduled */}
                           {processData?.audit?.status === 'Scheduled' && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '16px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                  <span style={{ fontSize: '12px', color: '#047857', fontWeight: 600, textTransform: 'uppercase', display: 'block' }}>Scheduled Audit Date ✓</span>
+                                  <span style={{ fontSize: '14px', fontWeight: 700, color: '#064e3b' }}>
+                                    {new Date(processData.audit.scheduledDate).toLocaleDateString()}
+                                    {processData.audit.scheduledToDate && processData.audit.scheduledDate !== processData.audit.scheduledToDate
+                                      ? ` to ${new Date(processData.audit.scheduledToDate).toLocaleDateString()}`
+                                      : ''} at {processData.audit.scheduledTime}
+                                  </span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <span style={{ fontSize: '12px', background: '#dcfce7', color: '#15803d', padding: '4px 10px', borderRadius: '12px', fontWeight: 600 }}>Scheduled</span>
+                                  {hasPrivilege('Refix Audit Date') && !processData?.audit?.auditedAt && (processData?.audit?.subStep || 0) < 3 && processData?.audit?.status !== 'Audited' && (
+                                    <button
+                                      type="button"
+                                      onClick={handleOpenRefixModal}
+                                      style={{ background: '#0284c7', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                    >
+                                      <Calendar size={14} /> Refix Audit Date
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              {processData?.audit?.refixedAt && (
+                                <p style={{ fontSize: '12px', color: '#0284c7', margin: '-8px 0 0 0', fontWeight: 500 }}>
+                                  ℹ Refixed on {new Date(processData.audit.refixedAt).toLocaleDateString()} by {processData.audit.refixedBy || 'Admin'}
+                                </p>
+                              )}
                               <p className="text-sm font-semibold text-slate-700">Audit session scheduled. Auditors have been assigned — proceed to mark the audit as completed.</p>
                             </div>
                           )}
@@ -1218,12 +1313,23 @@ export default function ApplicationProcess() {
                           )}
                           {(processData?.audit?.status === 'Date Concluded' || processData?.audit?.status === 'Scheduled' || processData?.audit?.scheduledDate) && (
                             <>
-                              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px 16px', borderRadius: '8px' }}>
-                                <span style={{ fontSize: '13px', color: '#047857', fontWeight: 600 }}>Scheduled Date: </span>
-                                <span style={{ fontSize: '13px', color: '#064e3b' }}>
-                                  {processData.audit.scheduledDate ? new Date(processData.audit.scheduledDate).toLocaleDateString() : 'N/A'}
-                                  {processData.audit.scheduledToDate && processData.audit.scheduledDate !== processData.audit.scheduledToDate ? ` to ${new Date(processData.audit.scheduledToDate).toLocaleDateString()}` : ''} at {processData.audit.scheduledTime || 'N/A'}
-                                </span>
+                              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px 16px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                  <span style={{ fontSize: '13px', color: '#047857', fontWeight: 600 }}>Scheduled Date: </span>
+                                  <span style={{ fontSize: '13px', color: '#064e3b' }}>
+                                    {processData.audit.scheduledDate ? new Date(processData.audit.scheduledDate).toLocaleDateString() : 'N/A'}
+                                    {processData.audit.scheduledToDate && processData.audit.scheduledDate !== processData.audit.scheduledToDate ? ` to ${new Date(processData.audit.scheduledToDate).toLocaleDateString()}` : ''} at {processData.audit.scheduledTime || 'N/A'}
+                                  </span>
+                                </div>
+                                {hasPrivilege('Refix Audit Date') && !processData?.audit?.auditedAt && (processData?.audit?.subStep || 0) < 3 && processData?.audit?.status !== 'Audited' && (
+                                  <button
+                                    type="button"
+                                    onClick={handleOpenRefixModal}
+                                    style={{ background: '#0284c7', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}
+                                  >
+                                    <Calendar size={13} /> Refix Date
+                                  </button>
+                                )}
                               </div>
                               <label style={{ fontWeight: 600, fontSize: '14px' }}>Auditors List * <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 400 }}>(at least 1 Lead Auditor required)</span></label>
                               {auditors.map((auditor, idx) => (
@@ -2102,6 +2208,110 @@ export default function ApplicationProcess() {
           </div>
         </div>
       )}
+      {/* Refix Audit Date Modal */}
+      {showRefixModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: 'white', borderRadius: '16px', padding: '28px', maxWidth: '480px', width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ background: '#e0f2fe', borderRadius: '10px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Calendar size={20} color="#0284c7" />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#0f172a' }}>Refix Audit Date</h3>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>Update the scheduled session date & time</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRefixModal(false)}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 14px', marginBottom: '20px' }}>
+              <span style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '2px' }}>Current Schedule:</span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                {processData?.audit?.scheduledDate ? new Date(processData.audit.scheduledDate).toLocaleDateString() : 'N/A'}
+                {processData?.audit?.scheduledToDate && processData.audit.scheduledDate !== processData.audit.scheduledToDate ? ` to ${new Date(processData.audit.scheduledToDate).toLocaleDateString()}` : ''} at {processData?.audit?.scheduledTime || 'N/A'}
+              </span>
+              {processData?.audit?.auditors && processData.audit.auditors.length > 0 && (
+                <span style={{ fontSize: '11px', color: '#0284c7', display: 'block', marginTop: '4px' }}>
+                  ℹ {processData.audit.auditors.length} auditor(s) currently assigned. They will automatically receive the updated schedule.
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '24px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+                  Start Date <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={refixDate}
+                  onChange={(e) => {
+                    setRefixDate(e.target.value);
+                    if (!refixToDate || refixToDate < e.target.value) {
+                      setRefixToDate(e.target.value);
+                    }
+                  }}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+                  End Date <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 400 }}>(optional, for multi-day audit)</span>
+                </label>
+                <input
+                  type="date"
+                  className="form-input"
+                  min={refixDate}
+                  value={refixToDate}
+                  onChange={(e) => setRefixToDate(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+                  Time <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="time"
+                  className="form-input"
+                  value={refixTime}
+                  onChange={(e) => setRefixTime(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setShowRefixModal(false)}
+                style={{ padding: '9px 18px', borderRadius: '8px', border: '1px solid #d1d5db', background: 'white', color: '#475569', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleRefixSubmit}
+                disabled={!refixDate || !refixTime || saving}
+                style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', background: '#0284c7', color: 'white', fontWeight: 700, cursor: (!refixDate || !refixTime || saving) ? 'not-allowed' : 'pointer', fontSize: '13px', opacity: (!refixDate || !refixTime || saving) ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                {saving ? <Loader2 className="spin" size={14} /> : <Calendar size={14} />}
+                Refix Date
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Confirm Action Modal */}
       {confirmModal.open && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
