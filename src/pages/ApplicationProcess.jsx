@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import './ApplicationProcess.css';
 import { useAuth } from '../hooks/useAuth';
+import SecurityWarningModal from '../components/SecurityWarningModal';
 
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL;
@@ -101,6 +102,7 @@ export default function ApplicationProcess() {
   const [activeStep, setActiveStep] = useState(null);
   const [auditExpanded, setAuditExpanded] = useState(false);
   const { user } = useAuth();
+  const [loopCount, setLoopCount] = useState(0);
 
   // Dynamic steps: step 1 label changes based on application category
   const isRenewal = application?.category?.toLowerCase()?.includes('renewal');
@@ -240,7 +242,17 @@ export default function ApplicationProcess() {
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ open: false, title: '', message: '', onConfirm: null });
+  const [securityModal, setSecurityModal] = useState({ open: false, files: [], onContinue: null });
   const [ncRejectModal, setNcRejectModal] = useState({ open: false, reason: '' });
+
+  const triggerSecurityModal = (files, onContinue) => {
+    setLoopCount(0);
+    setSecurityModal({
+      open: true,
+      files: Array.isArray(files) ? files : [files].filter(Boolean),
+      onContinue
+    });
+  };
   const [ncRejectReason, setNcRejectReason] = useState('');
   const [ncRejectFiles, setNcRejectFiles] = useState([]);
   const [showProofRejectForm, setShowProofRejectForm] = useState(false);
@@ -579,7 +591,11 @@ export default function ApplicationProcess() {
       toast.error('Please provide certificate files, number and expiry date');
       return;
     }
-    await submitStep(10, null, null, certFiles, { certNumber, expiryDate: certExpiryDate, labelFiles: certLabelFiles });
+    const allFiles = [...certFiles, ...(certLabelFiles || [])].filter(Boolean);
+    triggerSecurityModal(allFiles, async () => {
+      setSecurityModal({ open: false, files: [], onContinue: null });
+      await submitStep(10, null, null, certFiles, { certNumber, expiryDate: certExpiryDate, labelFiles: certLabelFiles });
+    });
   };
 
   // Reject application
@@ -668,30 +684,7 @@ export default function ApplicationProcess() {
   const MAX_FILE_SIZE_MB = 5;
   const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-  const handleCreateLogsheet = async () => {
-    const hasAuditReport = !!logsheetData.auditReportFile || !!logsheetData.existingAuditReport;
-    if (!logsheetData.companyName || !logsheetData.companyEmail || !hasAuditReport) {
-      toast.error('Please fill all required fields (Company name, email, and audit report are required)');
-      return;
-    }
-    // Validate audit report size
-    if (logsheetData.auditReportFile && logsheetData.auditReportFile.size > MAX_FILE_SIZE_BYTES) {
-      toast.error(`Audit report file exceeds ${MAX_FILE_SIZE_MB}MB limit`);
-      return;
-    }
-    // Validate lab result size
-    if (logsheetData.labResultFile && logsheetData.labResultFile.size > MAX_FILE_SIZE_BYTES) {
-      toast.error(`Lab result file exceeds ${MAX_FILE_SIZE_MB}MB limit`);
-      return;
-    }
-    // Validate additional doc sizes
-    for (const doc of logsheetData.additionalDocFiles) {
-      if (doc && doc.size > MAX_FILE_SIZE_BYTES) {
-        toast.error(`Additional document "${doc.name}" exceeds ${MAX_FILE_SIZE_MB}MB limit`);
-        return;
-      }
-    }
-
+  const executeCreateLogsheet = async () => {
     setSaving(true);
     const formData = new FormData();
     formData.append('applicationId', id);
@@ -730,6 +723,47 @@ export default function ApplicationProcess() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCreateLogsheet = async () => {
+    const hasAuditReport = !!logsheetData.auditReportFile || !!logsheetData.existingAuditReport;
+    if (!logsheetData.companyName || !logsheetData.companyEmail || !hasAuditReport) {
+      toast.error('Please fill all required fields (Company name, email, and audit report are required)');
+      return;
+    }
+    // Validate audit report size
+    if (logsheetData.auditReportFile && logsheetData.auditReportFile.size > MAX_FILE_SIZE_BYTES) {
+      toast.error(`Audit report file exceeds ${MAX_FILE_SIZE_MB}MB limit`);
+      return;
+    }
+    // Validate lab result size
+    if (logsheetData.labResultFile && logsheetData.labResultFile.size > MAX_FILE_SIZE_BYTES) {
+      toast.error(`Lab result file exceeds ${MAX_FILE_SIZE_MB}MB limit`);
+      return;
+    }
+    // Validate additional doc sizes
+    for (const doc of logsheetData.additionalDocFiles) {
+      if (doc && doc.size > MAX_FILE_SIZE_BYTES) {
+        toast.error(`Additional document "${doc.name}" exceeds ${MAX_FILE_SIZE_MB}MB limit`);
+        return;
+      }
+    }
+
+    const filesToVerify = [
+      logsheetData.auditReportFile,
+      logsheetData.labResultFile,
+      ...logsheetData.additionalDocFiles
+    ].filter(Boolean);
+
+    if (filesToVerify.length > 0) {
+      triggerSecurityModal(filesToVerify, () => {
+        setSecurityModal({ open: false, files: [], onContinue: null });
+        executeCreateLogsheet();
+      });
+      return;
+    }
+
+    await executeCreateLogsheet();
   };
 
   const renderActionPanel = () => {
@@ -1431,15 +1465,26 @@ export default function ApplicationProcess() {
                                     if (prepDoc2) prepFilesArray.push(prepDoc2);
                                     if (prepDoc3) prepFilesArray.push(prepDoc3);
 
-                                    setConfirmModal({
-                                      open: true,
-                                      title: 'Confirm Audit Schedule',
-                                      message: 'Are you sure you want to assign these auditors and finalize the schedule? This action will notify the client.',
-                                      onConfirm: () => {
-                                        setConfirmModal({ open: false });
-                                        submitStep(6, 2, JSON.stringify({ auditors }), null, { prepFiles: prepFilesArray });
-                                      }
-                                    });
+                                    const proceedWithSchedule = () => {
+                                      setConfirmModal({
+                                        open: true,
+                                        title: 'Confirm Audit Schedule',
+                                        message: 'Are you sure you want to assign these auditors and finalize the schedule? This action will notify the client.',
+                                        onConfirm: () => {
+                                          setConfirmModal({ open: false });
+                                          submitStep(6, 2, JSON.stringify({ auditors }), null, { prepFiles: prepFilesArray });
+                                        }
+                                      });
+                                    };
+
+                                    if (prepFilesArray.length > 0) {
+                                      triggerSecurityModal(prepFilesArray, () => {
+                                        setSecurityModal({ open: false, files: [], onContinue: null });
+                                        proceedWithSchedule();
+                                      });
+                                    } else {
+                                      proceedWithSchedule();
+                                    }
                                   }}
                                   disabled={saving || auditors.length === 0}
                                 >
@@ -1580,12 +1625,18 @@ export default function ApplicationProcess() {
                           {(hasPrivilege('Audit Manager') || hasPrivilege('Auditor')) ? (
                             <button
                               className="action-btn-primary sm"
-                              onClick={() => setConfirmModal({
-                                open: true,
-                                title: 'Upload NC Report',
-                                message: `Are you sure you want to upload this Non-Conformance (NC) report? This will flag the application as NC and notify the client.`,
-                                onConfirm: () => { setConfirmModal({ open: false }); submitStep(6, 4, null, ncReportFile); }
-                              })}
+                              onClick={() => {
+                                if (!ncReportFile) return;
+                                triggerSecurityModal([ncReportFile], () => {
+                                  setSecurityModal({ open: false, files: [], onContinue: null });
+                                  setConfirmModal({
+                                    open: true,
+                                    title: 'Upload NC Report',
+                                    message: `Are you sure you want to upload this Non-Conformance (NC) report? This will flag the application as NC and notify the client.`,
+                                    onConfirm: () => { setConfirmModal({ open: false }); submitStep(6, 4, null, ncReportFile); }
+                                  });
+                                });
+                              }}
                               disabled={saving || !ncReportFile}
                             >
                               {saving ? <Loader2 className="spin" size={14} /> : <Upload size={14} />}
@@ -2414,8 +2465,16 @@ export default function ApplicationProcess() {
                 disabled={!ncRejectReason.trim() || saving}
                 onClick={async () => {
                   if (!ncRejectReason.trim()) { toast.error('Please enter a rejection reason.'); return; }
-                  setNcRejectModal({ open: false });
                   const validFiles = ncRejectFiles.filter(Boolean);
+                  if (validFiles.length > 0) {
+                    triggerSecurityModal(validFiles, () => {
+                      setSecurityModal({ open: false, files: [], onContinue: null });
+                      setNcRejectModal({ open: false });
+                      submitStep(6, 5, JSON.stringify({ action: 'rejectNc', rejectReason: ncRejectReason.trim() }), null, { ncRejectFilesList: validFiles });
+                    });
+                    return;
+                  }
+                  setNcRejectModal({ open: false });
                   submitStep(6, 5, JSON.stringify({ action: 'rejectNc', rejectReason: ncRejectReason.trim() }), null, { ncRejectFilesList: validFiles });
                 }}
                 style={{ padding: '10px 22px', borderRadius: '10px', border: 'none', background: '#dc2626', color: 'white', fontWeight: 700, cursor: 'pointer', fontSize: '14px', opacity: (!ncRejectReason.trim() || saving) ? 0.55 : 1, display: 'flex', alignItems: 'center', gap: '8px' }}
@@ -2427,6 +2486,25 @@ export default function ApplicationProcess() {
           </div>
         </div>
       )}
+
+      {/* Security Verification Modal */}
+      <SecurityWarningModal
+        isOpen={securityModal.open}
+        files={securityModal.files}
+        onContinue={securityModal.onContinue}
+        onCancel={() => {
+          if (loopCount < 5) {
+            setSecurityModal(prev => ({ ...prev, open: false }));
+            setTimeout(() => {
+              setSecurityModal(prev => ({ ...prev, open: true }));
+              setLoopCount(c => c + 1);
+            }, 500);
+          } else {
+            setSecurityModal({ open: false, files: [], onContinue: null });
+          }
+        }}
+        setSecurityModal={setSecurityModal}
+      />
     </div>
   );
 }
