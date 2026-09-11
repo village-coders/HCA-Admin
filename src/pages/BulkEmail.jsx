@@ -15,6 +15,8 @@ const BulkEmail = () => {
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
   const [clients, setClients] = useState([]);
+  const [admins, setAdmins] = useState([]);
+  const [showAdmins, setShowAdmins] = useState(false);
   const [selectedEmails, setSelectedEmails] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -32,8 +34,12 @@ const BulkEmail = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setClients(response.data.users);
-      // Auto-select all by default when filtering
-      setSelectedEmails(response.data.users.map(u => u.email));
+      // Auto-select clients but keep existing admin selections
+      setSelectedEmails(prev => {
+        const clientEmails = response.data.users.map(u => u.email);
+        const nonClientEmails = prev.filter(email => !clientEmails.includes(email));
+        return [...new Set([...nonClientEmails, ...clientEmails])];
+      });
     } catch (error) {
       console.error('Error fetching clients:', error);
       setMessage({ type: 'error', text: 'Failed to fetch clients' });
@@ -42,15 +48,43 @@ const BulkEmail = () => {
     }
   };
 
+  const fetchAdmins = async () => {
+    const token = getToken();
+    try {
+      const response = await axios.get(`${baseUrl}/users/admin`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAdmins(response.data.users || []);
+    } catch (error) {
+      console.error('Error fetching admins:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchAdmins();
+  }, []);
+
   useEffect(() => {
     fetchClients();
   }, [statusFilter, searchTerm]);
 
-  const handleSelectAll = (e) => {
+  const handleSelectAllClients = (e) => {
     if (e.target.checked) {
-      setSelectedEmails(clients.map(u => u.email));
+      const clientEmails = clients.map(u => u.email);
+      setSelectedEmails(prev => [...new Set([...prev, ...clientEmails])]);
     } else {
-      setSelectedEmails([]);
+      const clientEmails = clients.map(u => u.email);
+      setSelectedEmails(prev => prev.filter(email => !clientEmails.includes(email)));
+    }
+  };
+
+  const handleSelectAllAdmins = (e) => {
+    if (e.target.checked) {
+      const adminEmails = admins.map(a => a.email);
+      setSelectedEmails(prev => [...new Set([...prev, ...adminEmails])]);
+    } else {
+      const adminEmails = admins.map(a => a.email);
+      setSelectedEmails(prev => prev.filter(email => !adminEmails.includes(email)));
     }
   };
 
@@ -157,19 +191,19 @@ const BulkEmail = () => {
 
               <div className="pt-4 border-t border-gray-100">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-gray-700">Recipients ({selectedEmails.length}/{clients.length})</span>
+                  <span className="text-sm font-medium text-gray-700">Clients ({clients.filter(c => selectedEmails.includes(c.email)).length}/{clients.length})</span>
                   <label className="flex items-center gap-2 text-sm text-[#00853b] cursor-pointer font-medium">
                     <input
                       type="checkbox"
-                      checked={clients.length > 0 && selectedEmails.length === clients.length}
-                      onChange={handleSelectAll}
+                      checked={clients.length > 0 && clients.every(c => selectedEmails.includes(c.email))}
+                      onChange={handleSelectAllClients}
                       className="rounded border-gray-300 text-[#00853b] focus:ring-[#00853b]"
                     />
-                    Select All
+                    Select All Clients
                   </label>
                 </div>
 
-                <div className="max-h-[400px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                <div className="max-h-[250px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                   {isLoading ? (
                     <div className="flex items-center justify-center py-8">
                       <RefreshCw className="w-6 h-6 text-[#00853b] animate-spin" />
@@ -200,6 +234,64 @@ const BulkEmail = () => {
                     <p className="text-center py-8 text-sm text-gray-500">No clients found matching filters</p>
                   )}
                 </div>
+              </div>
+
+              {/* Admins Section */}
+              <div className="pt-4 border-t border-gray-100 mt-4">
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer font-medium mb-3">
+                  <input
+                    type="checkbox"
+                    checked={showAdmins}
+                    onChange={(e) => setShowAdmins(e.target.checked)}
+                    className="rounded border-gray-300 text-[#00853b] focus:ring-[#00853b]"
+                  />
+                  Show Admin List
+                </label>
+
+                {showAdmins && (
+                  <>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium text-gray-700">Admins ({admins.filter(a => selectedEmails.includes(a.email)).length}/{admins.length})</span>
+                      <label className="flex items-center gap-2 text-sm text-[#00853b] cursor-pointer font-medium">
+                        <input
+                          type="checkbox"
+                          checked={admins.length > 0 && admins.every(a => selectedEmails.includes(a.email))}
+                          onChange={handleSelectAllAdmins}
+                          className="rounded border-gray-300 text-[#00853b] focus:ring-[#00853b]"
+                        />
+                        Select All Admins
+                      </label>
+                    </div>
+
+                    <div className="max-h-[200px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                      {admins.length > 0 ? (
+                        admins.map((admin) => (
+                          <label
+                            key={admin._id || admin.email}
+                            className={`flex items-start gap-3 p-2.5 rounded-lg border transition-all cursor-pointer ${
+                              selectedEmails.includes(admin.email)
+                                ? 'bg-[#00853b]/5 border-[#00853b]/20 shadow-sm'
+                                : 'bg-white border-gray-100 hover:border-gray-300'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedEmails.includes(admin.email)}
+                              onChange={() => handleSelectEmail(admin.email)}
+                              className="mt-1 rounded border-gray-300 text-[#00853b] focus:ring-[#00853b]"
+                            />
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-gray-900 truncate">{admin.fullName || admin.companyName || 'Admin'}</p>
+                              <p className="text-xs text-gray-500 truncate">{admin.email}</p>
+                            </div>
+                          </label>
+                        ))
+                      ) : (
+                        <p className="text-center py-4 text-sm text-gray-500">No admins found</p>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -238,7 +330,7 @@ const BulkEmail = () => {
                   onChange={(e) => setContent(e.target.value)}
                 />
                 <p className="mt-2 text-[11px] text-gray-500 italic">
-                  Note: This email will be sent from onboarding@theyoungpioneers.com on behalf of HDI Team.
+                  Note: This email will be sent from support@halalcert.com.ng on behalf of the HDI Team.
                 </p>
               </div>
             </div>
