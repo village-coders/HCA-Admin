@@ -1583,7 +1583,13 @@ const Applications = () => {
                   disabled={isLoading}
                 >
                   <option value="">All Status</option>
-                  {[...new Set(applications.map(c => c?.status))].map(status => (
+                  {[
+                    "Submitted", "Issued", "Renewal", "Rejected", "Accepted",
+                    "With Shari'a Board", "Successful", "Audit Session", "NC Closed",
+                    "Audit Report Submitted", "Audited", "Product Forms Received",
+                    "Invoice Sent", "Payment Received", "Shari'a Board Review",
+                    "Application Successful"
+                  ].map(status => (
                     <option key={status} value={status}>{status}</option>
                   ))}
                 </select>
