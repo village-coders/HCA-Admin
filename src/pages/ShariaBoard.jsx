@@ -21,7 +21,6 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-// import SecurityWarningModal from '../components/SecurityWarningModal';
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL;
 
@@ -60,7 +59,6 @@ const ShariaBoard = () => {
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
-  const [securityModal, setSecurityModal] = useState({ open: false, files: [], onContinue: null });
 
   const getToken = () => JSON.parse(localStorage.getItem('accessToken'));
 
@@ -130,18 +128,6 @@ const ShariaBoard = () => {
 
   const handleUploadSignature = async () => {
     if (!signatureFile && !user?.signatureImage) return; // Must have an existing image or a new one
-
-    // if (signatureFile) {
-    //   setSecurityModal({
-    //     open: true,
-    //     files: [signatureFile],
-    //     onContinue: () => {
-    //       setSecurityModal({ open: false, files: [], onContinue: null });
-    //       executeUploadSignature();
-    //     }
-    //   });
-    //   return;
-    // }
 
     executeUploadSignature();
   };
@@ -839,14 +825,6 @@ const ShariaBoard = () => {
           </div>
         </div>
       )}
-
-      {/* Security Verification Modal */}
-      {/* <SecurityWarningModal
-        isOpen={securityModal.open}
-        files={securityModal.files}
-        onContinue={securityModal.onContinue}
-        onCancel={() => setSecurityModal({ open: false, files: [], onContinue: null })}
-      /> */}
     </div>
   );
 };
