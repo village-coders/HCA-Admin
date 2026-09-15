@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import {
   Search, MessageSquare, RefreshCw, Send, Paperclip, XCircle,
   Download, File, Clock, CheckCircle, AlertCircle, Lock,
-  Filter, User, Building, Calendar, ChevronDown
+  Filter, User, Building, Calendar, ChevronDown, Eye, FileText,
+  ExternalLink, Image as ImageIcon, X
 } from "lucide-react";
 import { format, isValid } from "date-fns";
 import { useSocket } from "../contexts/SocketContext";
@@ -39,6 +40,7 @@ function AdminMessages() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [selectedImageModal, setSelectedImageModal] = useState(null);
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -218,6 +220,14 @@ function AdminMessages() {
     yesterday.setDate(yesterday.getDate() - 1);
     if (yesterday.toDateString() === date.toDateString()) return "Yesterday";
     return format(date, "MMM dd, yyyy");
+  };
+
+  const isImageAttachment = (att) => {
+    if (!att) return false;
+    if (att.fileType && typeof att.fileType === 'string' && att.fileType.startsWith("image/")) return true;
+    if (att.url && typeof att.url === 'string' && /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(att.url)) return true;
+    if (att.filename && typeof att.filename === 'string' && /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(att.filename)) return true;
+    return false;
   };
 
   const totalOpen = tickets.filter(t => t.status === "open").length;
@@ -429,14 +439,89 @@ function AdminMessages() {
                                   }`}>
                                     {msg.content && <p className="text-sm leading-relaxed">{msg.content}</p>}
                                     {msg.attachments?.length > 0 && (
-                                      <div className="mt-2 space-y-1.5">
-                                        {msg.attachments.map((att, ai) => (
-                                          <a key={ai} href={att.url} target="_blank" rel="noopener noreferrer" download
-                                            className={`flex items-center gap-2 text-xs rounded-lg px-3 py-2 ${isAdmin ? "bg-white/20 text-white" : "bg-gray-50 text-blue-600"}`}>
-                                            <Download className="w-3.5 h-3.5" /> {att.filename}
-                                            <span className="text-xs opacity-70">({(att.size / 1024).toFixed(0)}KB)</span>
-                                          </a>
-                                        ))}
+                                      <div className="mt-2.5 space-y-2">
+                                        {msg.attachments.map((att, ai) => {
+                                          const isImg = isImageAttachment(att);
+                                          if (isImg) {
+                                            return (
+                                              <div key={ai} className="group/att relative rounded-xl overflow-hidden border border-black/10 shadow-sm bg-black/5 max-w-sm">
+                                                <img
+                                                  src={att.url}
+                                                  alt={att.filename || "Attachment image"}
+                                                  className="w-full max-h-60 object-cover cursor-pointer transition-transform duration-200 group-hover/att:scale-[1.02]"
+                                                  onClick={() => setSelectedImageModal({ url: att.url, filename: att.filename })}
+                                                  loading="lazy"
+                                                />
+                                                <div className={`flex items-center justify-between p-2 text-xs backdrop-blur-sm ${isAdmin ? "bg-black/40 text-white" : "bg-white/90 text-gray-700 border-t border-gray-100"}`}>
+                                                  <div className="flex items-center gap-1.5 truncate mr-2">
+                                                    <ImageIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                                                    <span className="truncate font-medium">{att.filename}</span>
+                                                    {att.size ? <span className="opacity-70 text-[10px]">({(att.size / 1024).toFixed(0)} KB)</span> : null}
+                                                  </div>
+                                                  <div className="flex items-center gap-1">
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => setSelectedImageModal({ url: att.url, filename: att.filename })}
+                                                      className="p-1 hover:bg-white/20 rounded transition-colors"
+                                                      title="View Full Image"
+                                                    >
+                                                      <Eye className="w-3.5 h-3.5" />
+                                                    </button>
+                                                    <a
+                                                      href={att.url}
+                                                      download={att.filename}
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      className="p-1 hover:bg-white/20 rounded transition-colors"
+                                                      title="Download Image"
+                                                    >
+                                                      <Download className="w-3.5 h-3.5" />
+                                                    </a>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            );
+                                          }
+                                          return (
+                                            <div
+                                              key={ai}
+                                              className={`flex items-center justify-between gap-3 text-xs rounded-xl p-3 border transition-colors ${isAdmin ? "bg-white/15 border-white/20 text-white" : "bg-white border-gray-200 text-gray-800 shadow-sm hover:border-gray-300"}`}
+                                            >
+                                              <div className="flex items-center gap-2.5 min-w-0">
+                                                <div className={`p-2 rounded-lg ${isAdmin ? "bg-white/20 text-white" : "bg-green-50 text-[#00853b]"}`}>
+                                                  <FileText className="w-4 h-4" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                  <p className="font-semibold truncate max-w-[160px] sm:max-w-[220px]">{att.filename}</p>
+                                                  <p className={`text-[11px] ${isAdmin ? "text-white/70" : "text-gray-400"}`}>
+                                                    {att.size ? `${(att.size / 1024).toFixed(0)} KB` : "Document"}
+                                                  </p>
+                                                </div>
+                                              </div>
+                                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                <a
+                                                  href={att.url}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className={`p-1.5 rounded-lg transition-colors flex items-center gap-1 text-xs font-medium ${isAdmin ? "hover:bg-white/20 text-white" : "hover:bg-gray-100 text-blue-600"}`}
+                                                  title="Open document in new tab"
+                                                >
+                                                  <ExternalLink className="w-3.5 h-3.5" />
+                                                </a>
+                                                <a
+                                                  href={att.url}
+                                                  download={att.filename}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className={`p-1.5 rounded-lg transition-colors flex items-center gap-1 text-xs font-medium ${isAdmin ? "hover:bg-white/20 text-white" : "hover:bg-gray-100 text-gray-700"}`}
+                                                  title="Download document"
+                                                >
+                                                  <Download className="w-3.5 h-3.5" />
+                                                </a>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
                                       </div>
                                     )}
                                   </div>
@@ -504,6 +589,49 @@ function AdminMessages() {
             </div>
           </div>
         </div>
+
+        {/* Image Lightbox Modal */}
+        {selectedImageModal && (
+          <div
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setSelectedImageModal(null)}
+          >
+            <div
+              className="relative max-w-4xl max-h-[90vh] bg-gray-900 rounded-2xl overflow-hidden shadow-2xl flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-5 py-3 bg-gray-800 text-white border-b border-gray-700">
+                <span className="font-medium text-sm truncate max-w-md">{selectedImageModal.filename || "Image Preview"}</span>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={selectedImageModal.url}
+                    download={selectedImageModal.filename}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors"
+                    title="Download"
+                  >
+                    <Download className="w-4 h-4" />
+                  </a>
+                  <button
+                    onClick={() => setSelectedImageModal(null)}
+                    className="p-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors"
+                    title="Close"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-black/40">
+                <img
+                  src={selectedImageModal.url}
+                  alt={selectedImageModal.filename}
+                  className="max-h-[75vh] max-w-full object-contain rounded-lg"
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

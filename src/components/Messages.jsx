@@ -133,21 +133,44 @@ const Messages = ({ userId }) => {
                 {/* Attachments */}
                 {message.attachments?.length > 0 && (
                   <div className="mt-2 space-y-2">
-                    {message.attachments.map((attachment, idx) => (
-                      <a
-                        key={idx}
-                        href={attachment.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 p-2 bg-black/10 rounded-lg hover:bg-black/20 transition-colors"
-                      >
-                        {getFileIcon(attachment.fileType)}
-                        <span className="text-sm truncate">{attachment.filename}</span>
-                        <span className="text-xs opacity-75">
-                          ({(attachment.size / 1024).toFixed(1)}KB)
-                        </span>
-                      </a>
-                    ))}
+                    {message.attachments.map((attachment, idx) => {
+                      const isImg = (attachment.fileType && attachment.fileType.startsWith('image/')) ||
+                                    (attachment.url && /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(attachment.url)) ||
+                                    (attachment.filename && /\.(jpg|jpeg|png|gif|webp)$/i.test(attachment.filename));
+                      if (isImg) {
+                        return (
+                          <div key={idx} className="rounded-lg overflow-hidden border border-black/10 max-w-xs">
+                            <img
+                              src={attachment.url}
+                              alt={attachment.filename || "Attachment"}
+                              className="w-full max-h-48 object-cover cursor-pointer"
+                              onClick={() => window.open(attachment.url, '_blank')}
+                            />
+                            <div className="flex items-center justify-between p-1.5 bg-black/20 text-xs">
+                              <span className="truncate max-w-[150px]">{attachment.filename}</span>
+                              <a href={attachment.url} target="_blank" rel="noopener noreferrer" download={attachment.filename} className="underline ml-2">
+                                Download
+                              </a>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return (
+                        <a
+                          key={idx}
+                          href={attachment.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 p-2 bg-black/10 rounded-lg hover:bg-black/20 transition-colors"
+                        >
+                          {getFileIcon(attachment.fileType || '')}
+                          <span className="text-sm truncate">{attachment.filename}</span>
+                          <span className="text-xs opacity-75">
+                            ({(attachment.size / 1024).toFixed(1)}KB)
+                          </span>
+                        </a>
+                      );
+                    })}
                   </div>
                 )}
 
