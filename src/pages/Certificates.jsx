@@ -51,6 +51,7 @@ const Certificates = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedCertificate, setSelectedCertificate] = useState(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [isRemindingId, setIsRemindingId] = useState(null);
   const [companySuggestions, setCompanySuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -1284,7 +1285,6 @@ const Certificates = () => {
                         const expiryStatus = getExpiryStatus(cert.expiryDate, cert.status);
                         const StatusIcon = statusConfig.icon;
                         const companyName = getCompanyNameFromCert(cert) || cert?.companyName || 'N/A';
-                        const productName = cert.product?.name || getProductName(cert.productId);
 
                         return (
                           <tr key={certId} className="hover:bg-gray-50">
