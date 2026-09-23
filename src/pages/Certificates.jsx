@@ -51,8 +51,8 @@ const Certificates = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedCertificate, setSelectedCertificate] = useState(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
-  const [isRemindingId, setIsRemindingId] = useState(null);
   const [companySuggestions, setCompanySuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const { 
     certificates, 
@@ -78,8 +78,8 @@ const Certificates = () => {
 
   // Update company suggestions when companies or filter changes
   useEffect(() => {
-    if (filter.company && companies.length > 0) {
-      const searchTerm = filter.company.toLowerCase();
+    if (filter.company && filter.company.trim() && companies.length > 0) {
+      const searchTerm = filter.company.toLowerCase().trim();
       const suggestions = companies
         .filter(company => 
           company.companyName?.toLowerCase().includes(searchTerm) ||
@@ -102,31 +102,62 @@ const Certificates = () => {
 
   // Get company name from certificate
   const getCompanyNameFromCert = (cert) => {
-    // Try different possible fields for company name
-    if (cert.companyName) return cert.companyName;
-    if (cert.company?.name) return cert.company.name;
-    if (cert.company?.companyName) return cert.company.companyName;
-    
-    // If companyId exists, find company from companies array
-    if (cert.companyId && companies.length > 0) {
+    if (!cert) return '';
+    // Direct string property on cert
+    if (typeof cert.companyName === 'string' && cert.companyName.trim()) {
+      return cert.companyName.trim();
+    }
+    // Company object on cert
+    if (cert.company) {
+      if (typeof cert.company === 'string' && cert.company.trim()) return cert.company.trim();
+      if (cert.company.companyName) return String(cert.company.companyName).trim();
+      if (cert.company.name) return String(cert.company.name).trim();
+    }
+    // Populated companyId object
+    if (cert.companyId && typeof cert.companyId === 'object') {
+      if (cert.companyId.companyName) return String(cert.companyId.companyName).trim();
+      if (cert.companyId.name) return String(cert.companyId.name).trim();
+    }
+    // Branch information
+    if (cert.branchId && typeof cert.branchId === 'object') {
+      if (cert.branchId.companyName) return String(cert.branchId.companyName).trim();
+      if (cert.branchId.companyId?.companyName) return String(cert.branchId.companyId.companyName).trim();
+    }
+    // Application information
+    if (cert.applicationId && typeof cert.applicationId === 'object') {
+      if (cert.applicationId.companyName) return String(cert.applicationId.companyName).trim();
+      if (cert.applicationId.company?.companyName) return String(cert.applicationId.company.companyName).trim();
+    }
+    // Find in companies array by ID or registrationNo
+    const rawCompanyId = typeof cert.companyId === 'object'
+      ? (cert.companyId?._id || cert.companyId?.id || cert.companyId?.registrationNo)
+      : cert.companyId;
+
+    if (rawCompanyId && Array.isArray(companies) && companies.length > 0) {
+      const targetId = String(rawCompanyId).toLowerCase().trim();
       const company = companies.find(c => 
-        c._id === cert.companyId || 
-        c.id === cert.companyId || 
-        c.registrationNo === cert.companyId
+        (c._id && String(c._id).toLowerCase().trim() === targetId) || 
+        (c.id && String(c.id).toLowerCase().trim() === targetId) || 
+        (c.registrationNo && String(c.registrationNo).toLowerCase().trim() === targetId)
       );
-      return company?.companyName || company?.name || 'Unknown Company';
+      if (company?.companyName) return String(company.companyName).trim();
+      if (company?.name) return String(company.name).trim();
     }
     
-    return 'Unknown Company';
+    return '';
   };
 
-  // Get company ID from certificate
+  // Get company ID / Registration No from certificate
   const getCompanyIdFromCert = (cert) => {
-    if (cert.companyId) return cert.companyId;
-    if (cert.company?._id) return cert.company._id;
-    if (cert.company?.id) return cert.company.id;
-    if (cert.company?.registrationNo) return cert.company.registrationNo;
-    return null;
+    if (!cert) return '';
+    if (typeof cert.companyId === 'string') return cert.companyId.trim();
+    if (cert.companyId && typeof cert.companyId === 'object') {
+      return String(cert.companyId.registrationNo || cert.companyId._id || cert.companyId.id || '').trim();
+    }
+    if (cert.company?.registrationNo) return String(cert.company.registrationNo).trim();
+    if (cert.company?._id) return String(cert.company._id).trim();
+    if (cert.company?.id) return String(cert.company.id).trim();
+    return '';
   };
 
   // Pre-process certificates to only show the latest per branch AND hide if there's an active renewal
@@ -135,12 +166,12 @@ const Certificates = () => {
     const activeRenewals = applications.filter(app => 
       app.category === "Renewal Application" && 
       !["issued", "rejected", "expired"].includes(app.status?.toLowerCase())
-    ).map(app => app.branchId?._id || app.branchId || app.companyId);
+    ).map(app => String(app.branchId?._id || app.branchId || app.companyId));
 
     // 2. Group certificates by branch and keep the latest
     const latestCertsMap = new Map();
     certificates.forEach(cert => {
-      const key = cert.branchId?._id || cert.branchId || getCompanyIdFromCert(cert) || cert._id;
+      const key = String(cert.branchId?._id || cert.branchId || getCompanyIdFromCert(cert) || cert._id);
       
       // If this branch has an active renewal processing, hide all its old certificates completely
       if (activeRenewals.includes(key)) {
@@ -162,26 +193,27 @@ const Certificates = () => {
     return Array.from(latestCertsMap.values());
   })();
 
-  // Filter certificates with improved company search
+  // Filter certificates with case-insensitive lowercase comparison
   const filteredCertificates = displayCertificates.filter(cert => {
-    // Tab filter
+    // 1. Tab filter
     if (activeTab !== 'all') {
       let tabMatch = false;
+      const statusLower = String(cert.status || '').toLowerCase().trim();
       switch (activeTab) {
         case 'active':
-          tabMatch = cert.status === 'active' || cert.status === 'Active';
+          tabMatch = statusLower === 'active';
           break;
         case 'expiring_soon':
-          tabMatch = cert.status?.toLowerCase() === 'expiring soon';
+          tabMatch = statusLower === 'expiring soon';
           break;
         case 'expired':
-          tabMatch = cert.status === 'expired' || cert.status === 'Expired';
+          tabMatch = statusLower === 'expired';
           break;
         case 'renewal':
-          tabMatch = cert.status === 'pending_renewal' || cert.status === 'Renewal';
+          tabMatch = statusLower === 'pending_renewal' || statusLower === 'renewal';
           break;
         case 'revoked':
-          tabMatch = cert.status === 'revoked' || cert.status === 'Revoked';
+          tabMatch = statusLower === 'revoked';
           break;
         default:
           tabMatch = true;
@@ -190,53 +222,68 @@ const Certificates = () => {
       if (!tabMatch) return false;
     }
 
-    const searchTerm = filter.search.toLowerCase();
-    const companyTerm = filter.company.toLowerCase();
-    const companyName = getCompanyNameFromCert(cert).toLowerCase();
+    // 2. Company filter (lowercase .includes comparison)
+    if (filter.company && filter.company.trim()) {
+      const companyInputLower = filter.company.toLowerCase().trim();
+      const certCompanyNameLower = (getCompanyNameFromCert(cert) || cert.companyName || '').toLowerCase().trim();
+      const certCompanyIdLower = getCompanyIdFromCert(cert).toLowerCase().trim();
+      const branchNameLower = String(cert.branchId?.branchName || '').toLowerCase().trim();
 
-    // Search filter (searches multiple fields)
-    if (filter.search) {
+      const matchesCompany = 
+        certCompanyNameLower.includes(companyInputLower) || 
+        certCompanyIdLower.includes(companyInputLower) ||
+        branchNameLower.includes(companyInputLower);
+
+      if (!matchesCompany) return false;
+    }
+
+    // 3. General search filter (searches multiple fields, all in lowercase)
+    if (filter.search && filter.search.trim()) {
+      const searchInputLower = filter.search.toLowerCase().trim();
+      const certNumberLower = String(cert.certificateNumber || '').toLowerCase().trim();
+      const certCompanyNameLower = (getCompanyNameFromCert(cert) || cert.companyName || '').toLowerCase().trim();
+      const certCompanyIdLower = getCompanyIdFromCert(cert).toLowerCase().trim();
+      const productNameLower = String(cert.product?.name || getProductName(cert.productId) || '').toLowerCase().trim();
+      const standardLower = String(cert.standard || '').toLowerCase().trim();
+      const certTypeLower = String(cert.certificateType || '').toLowerCase().trim();
+      const branchNameLower = String(cert.branchId?.branchName || '').toLowerCase().trim();
+
       const matchesSearch = 
-        cert.certificateNumber?.toLowerCase().includes(searchTerm) ||
-        companyName.includes(searchTerm) ||
-        cert.product?.name?.toLowerCase().includes(searchTerm) ||
-        cert.standard?.toLowerCase().includes(searchTerm) ||
-        cert.certificateType?.toLowerCase().includes(searchTerm);
+        certNumberLower.includes(searchInputLower) ||
+        certCompanyNameLower.includes(searchInputLower) ||
+        certCompanyIdLower.includes(searchInputLower) ||
+        productNameLower.includes(searchInputLower) ||
+        standardLower.includes(searchInputLower) ||
+        certTypeLower.includes(searchInputLower) ||
+        branchNameLower.includes(searchInputLower);
       
       if (!matchesSearch) return false;
     }
 
-    // Company filter (improved search)
-    if (filter.company) {
-      // Check if company name matches
-      if (!companyName.includes(companyTerm)) {
-        // Also check company ID if available
-        const companyId = getCompanyIdFromCert(cert);
-        if (!companyId?.toLowerCase().includes(companyTerm)) {
-          return false;
-        }
-      }
-    }
-
-    // Date filters
+    // 4. Date filters
     const certDate = cert.issueDate ? new Date(cert.issueDate) : null;
-    if (certDate) {
+    if (certDate && !isNaN(certDate.getTime())) {
       certDate.setHours(0, 0, 0, 0); // Normalize time
     }
     
-    if (filter.dateFrom && certDate) {
+    if (filter.dateFrom && certDate && !isNaN(certDate.getTime())) {
       const fromDate = new Date(filter.dateFrom);
       fromDate.setHours(0, 0, 0, 0);
       if (certDate < fromDate) return false;
     }
-    if (filter.dateTo && certDate) {
+    if (filter.dateTo && certDate && !isNaN(certDate.getTime())) {
       const toDate = new Date(filter.dateTo);
       toDate.setHours(23, 59, 59, 999);
       if (certDate > toDate) return false;
     }
 
-    if (filter.status && cert.status?.toLowerCase() !== filter.status.toLowerCase()) {
-      return false;
+    // 5. Status dropdown filter
+    if (filter.status && filter.status.trim()) {
+      const filterStatusLower = filter.status.toLowerCase().trim();
+      const certStatusLower = String(cert.status || '').toLowerCase().trim();
+      if (certStatusLower !== filterStatusLower) {
+        return false;
+      }
     }
     
     return true;
@@ -630,8 +677,9 @@ const Certificates = () => {
 
   // Handle company suggestion click
   const handleCompanySuggestionClick = (companyName) => {
-    setFilter({ ...filter, company: companyName });
+    setFilter(prev => ({ ...prev, company: companyName }));
     setCompanySuggestions([]);
+    setShowSuggestions(false);
   };
 
   // View Modal Component
@@ -1083,17 +1131,25 @@ const Certificates = () => {
                   placeholder="Search by company name..."
                   className="pl-10 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b]"
                   value={filter.company}
-                  onChange={(e) => setFilter({ ...filter, company: e.target.value })}
+                  onChange={(e) => {
+                    setFilter({ ...filter, company: e.target.value });
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                   disabled={isLoading}
                 />
-                {companySuggestions.length > 0 && (
+                {showSuggestions && companySuggestions.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg">
                     {companySuggestions.map((company) => (
                       <button
                         key={company._id || company.id}
                         type="button"
                         className="w-full cursor-pointer text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700"
-                        onClick={() => handleCompanySuggestionClick(company.companyName || company.name)}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          handleCompanySuggestionClick(company.companyName || company.name);
+                        }}
                       >
                         <div className="font-medium">{company.companyName || company.name}</div>
                         {company.registrationNo && (
@@ -1168,6 +1224,7 @@ const Certificates = () => {
                 onClick={() => {
                   setFilter({ search: '', company: '', dateFrom: '', dateTo: '', status: '' });
                   setCompanySuggestions([]);
+                  setShowSuggestions(false);
                 }}
                 className="px-4 py-2 text-sm cursor-pointer font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200"
                 disabled={isLoading}
@@ -1226,8 +1283,7 @@ const Certificates = () => {
                         const statusConfig = getStatusConfig(cert.status);
                         const expiryStatus = getExpiryStatus(cert.expiryDate, cert.status);
                         const StatusIcon = statusConfig.icon;
-                        // const companyName = getCompanyNameFromCert(cert);
-                        const companyName = cert?.companyName;
+                        const companyName = getCompanyNameFromCert(cert) || cert?.companyName || 'N/A';
                         const productName = cert.product?.name || getProductName(cert.productId);
 
                         return (
