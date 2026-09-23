@@ -33,13 +33,7 @@ const BulkEmail = () => {
         params: { status: statusFilter, search: searchTerm },
         headers: { Authorization: `Bearer ${token}` }
       });
-      setClients(response.data.users);
-      // Auto-select clients but keep existing admin selections
-      setSelectedEmails(prev => {
-        const clientEmails = response.data.users.map(u => u.email);
-        const nonClientEmails = prev.filter(email => !clientEmails.includes(email));
-        return [...new Set([...nonClientEmails, ...clientEmails])];
-      });
+      setClients(response.data.users || []);
     } catch (error) {
       console.error('Error fetching clients:', error);
       setMessage({ type: 'error', text: 'Failed to fetch clients' });
@@ -192,15 +186,26 @@ const BulkEmail = () => {
               <div className="pt-4 border-t border-gray-100">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-gray-700">Clients ({clients.filter(c => selectedEmails.includes(c.email)).length}/{clients.length})</span>
-                  <label className="flex items-center gap-2 text-sm text-[#00853b] cursor-pointer font-medium">
-                    <input
-                      type="checkbox"
-                      checked={clients.length > 0 && clients.every(c => selectedEmails.includes(c.email))}
-                      onChange={handleSelectAllClients}
-                      className="rounded border-gray-300 text-[#00853b] focus:ring-[#00853b]"
-                    />
-                    Select All Clients
-                  </label>
+                  <div className="flex items-center gap-3">
+                    {selectedEmails.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedEmails([])}
+                        className="text-xs text-red-600 hover:text-red-700 underline font-medium cursor-pointer"
+                      >
+                        Clear All
+                      </button>
+                    )}
+                    <label className="flex items-center gap-2 text-sm text-[#00853b] cursor-pointer font-medium">
+                      <input
+                        type="checkbox"
+                        checked={clients.length > 0 && clients.every(c => selectedEmails.includes(c.email))}
+                        onChange={handleSelectAllClients}
+                        className="rounded border-gray-300 text-[#00853b] focus:ring-[#00853b]"
+                      />
+                      Select All Clients
+                    </label>
+                  </div>
                 </div>
 
                 <div className="max-h-[250px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
