@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Search, 
   Filter, 
@@ -15,7 +15,8 @@ import {
   Info,
   ExternalLink,
   Edit,
-  Trash2
+  Trash2,
+  X
 } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
 import { useAuth } from '../hooks/useAuth';
@@ -59,6 +60,19 @@ const Products = () => {
   const [productToDelete, setProductToDelete] = useState(null);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [companySuggestions, setCompanySuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const companySearchRef = useRef(null);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (companySearchRef.current && !companySearchRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const { 
     products, 
@@ -88,11 +102,20 @@ const Products = () => {
 
   // Handle company search suggestions
   useEffect(() => {
-    if (filter.company.trim()) {
-      const suggestions = companies.filter(c => 
-        (c.companyName?.toLowerCase().includes(filter.company.toLowerCase()) ||
-         c.name?.toLowerCase().includes(filter.company.toLowerCase()))
-      ).slice(0, 5);
+    if (filter.company && filter.company.trim()) {
+      const searchTerm = filter.company.toLowerCase().trim();
+      const suggestions = (companies || []).filter(c => 
+        c.companyName?.toLowerCase().includes(searchTerm) ||
+        c.fullName?.toLowerCase().includes(searchTerm) ||
+        c.name?.toLowerCase().includes(searchTerm) ||
+        c.registrationNo?.toLowerCase().includes(searchTerm) ||
+        c.email?.toLowerCase().includes(searchTerm)
+      ).map(c => ({
+        _id: c._id || c.id || c.registrationNo,
+        companyName: c.companyName || c.fullName || c.name,
+        registrationNo: c.registrationNo || '',
+        email: c.email || ''
+      })).slice(0, 8);
       setCompanySuggestions(suggestions);
     } else {
       setCompanySuggestions([]);
@@ -102,6 +125,7 @@ const Products = () => {
   const handleCompanySuggestionClick = (companyName) => {
     setFilter({ ...filter, company: companyName });
     setCompanySuggestions([]);
+    setShowSuggestions(false);
   };
 
   // Filter products
@@ -123,16 +147,35 @@ const Products = () => {
     }
 
     // Custom filter — company
-    // Products store company info on createdBy (populated), or companyName/company fields
-    if (filter.company) {
-      const searchTerm = filter.company.toLowerCase();
-      const matchCreatedByCompanyName = product.createdBy?.companyName?.toLowerCase().includes(searchTerm);
+    if (filter.company && filter.company.trim()) {
+      const searchTerm = filter.company.toLowerCase().trim();
+      const matchCreatedByCompanyName = (product.createdBy?.companyName || product.createdBy?.fullName)?.toLowerCase().includes(searchTerm);
       const matchTopLevelCompanyName = product.companyName?.toLowerCase().includes(searchTerm);
       const matchCompanyObjName = typeof product.company === 'object'
-        ? product.company?.companyName?.toLowerCase().includes(searchTerm)
-        : product.company?.toLowerCase().includes(searchTerm);
+        ? (product.company?.companyName || product.company?.fullName)?.toLowerCase().includes(searchTerm)
+        : false;
 
-      if (!matchCreatedByCompanyName && !matchTopLevelCompanyName && !matchCompanyObjName) {
+      const rawCompId = product.companyId || (typeof product.company === 'string' ? product.company : product.createdBy?._id);
+      const targetId = rawCompId ? String(rawCompId).toLowerCase().trim() : '';
+      const matchedComp = targetId && Array.isArray(companies)
+        ? companies.find(c => 
+            (c._id && String(c._id).toLowerCase().trim() === targetId) ||
+            (c.id && String(c.id).toLowerCase().trim() === targetId) ||
+            (c.registrationNo && String(c.registrationNo).toLowerCase().trim() === targetId)
+          )
+        : null;
+
+      const compName = matchedComp?.companyName ? matchedComp.companyName.toLowerCase() : '';
+      const compFullName = matchedComp?.fullName ? matchedComp.fullName.toLowerCase() : '';
+      const compRegNo = matchedComp?.registrationNo ? matchedComp.registrationNo.toLowerCase() : '';
+      const compEmail = matchedComp?.email ? matchedComp.email.toLowerCase() : '';
+
+      const matchesCompany = matchCreatedByCompanyName || matchTopLevelCompanyName || matchCompanyObjName ||
+        compName.includes(searchTerm) || compFullName.includes(searchTerm) ||
+        compRegNo.includes(searchTerm) || compEmail.includes(searchTerm) ||
+        (product.companyId && String(product.companyId).toLowerCase().includes(searchTerm));
+
+      if (!matchesCompany) {
         return false;
       }
     }
@@ -808,33 +851,85 @@ const Products = () => {
               </div>
             </div>
             
-            <div className="relative">
+            <div className="relative" ref={companySearchRef}>
               <label className="block text-sm font-medium text-gray-700 mb-2">Company</label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+                <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Search company..."
-                  className="pl-10 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b]"
+                  placeholder="Search by company name or reg no..."
+                  className="pl-10 pr-9 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b] transition-colors"
                   value={filter.company}
-                  onChange={(e) => setFilter({ ...filter, company: e.target.value })}
+                  onChange={(e) => {
+                    setFilter({ ...filter, company: e.target.value });
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => {
+                    if (filter.company || companySuggestions.length > 0) {
+                      setShowSuggestions(true);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setShowSuggestions(false);
+                    }
+                  }}
                   disabled={isLoading}
+                  autoComplete="off"
                 />
-                {companySuggestions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {companySuggestions.map((company) => (
-                      <button
-                        key={company._id || company.id}
-                        type="button"
-                        className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 border-b last:border-0 border-gray-100"
-                        onClick={() => handleCompanySuggestionClick(company.companyName || company.name)}
-                      >
-                        <div className="font-medium">{company.companyName || company.name}</div>
-                        {company.registrationNo && (
-                          <div className="text-xs text-gray-500">Reg: {company.registrationNo}</div>
-                        )}
-                      </button>
-                    ))}
+                {filter.company && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilter({ ...filter, company: '' });
+                      setCompanySuggestions([]);
+                      setShowSuggestions(false);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 p-0.5 rounded cursor-pointer transition-colors"
+                    title="Clear company search"
+                    tabIndex={-1}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+                {showSuggestions && filter.company.trim().length > 0 && (
+                  <div className="absolute z-30 w-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-y-auto divide-y divide-gray-100 animate-in fade-in duration-150">
+                    {companySuggestions.length > 0 ? (
+                      companySuggestions.map((company) => (
+                        <button
+                          key={company._id || company.companyName}
+                          type="button"
+                          className="w-full cursor-pointer text-left px-3.5 py-2.5 hover:bg-emerald-50/70 transition-colors flex items-center justify-between group"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleCompanySuggestionClick(company.companyName);
+                          }}
+                        >
+                          <div className="flex items-center space-x-2.5 min-w-0 pr-2">
+                            <div className="w-7 h-7 rounded-lg bg-gray-100 group-hover:bg-[#00853b]/10 flex items-center justify-center shrink-0 transition-colors">
+                              <Building className="w-3.5 h-3.5 text-gray-500 group-hover:text-[#00853b] transition-colors" />
+                            </div>
+                            <div className="truncate">
+                              <div className="font-medium text-gray-900 text-sm group-hover:text-[#00853b] transition-colors truncate">
+                                {company.companyName}
+                              </div>
+                              {company.email && (
+                                <div className="text-xs text-gray-500 truncate">{company.email}</div>
+                              )}
+                            </div>
+                          </div>
+                          {company.registrationNo && (
+                            <span className="shrink-0 text-xs font-mono font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200 group-hover:border-emerald-200 group-hover:bg-emerald-50 group-hover:text-emerald-800 transition-colors">
+                              {company.registrationNo}
+                            </span>
+                          )}
+                        </button>
+                      ))
+                    ) : filter.company.trim().length >= 2 ? (
+                      <div className="px-4 py-3 text-xs text-gray-500 text-center">
+                        No companies found matching &ldquo;{filter.company}&rdquo;
+                      </div>
+                    ) : null}
                   </div>
                 )}
               </div>

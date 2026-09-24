@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Search, 
   Download, 
@@ -21,7 +21,8 @@ import {
   Mail,
   Phone,
   Globe,
-  Tag
+  Tag,
+  X
 } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
 import { useAuth } from '../hooks/useAuth';
@@ -54,6 +55,25 @@ const Certificates = () => {
   const [isRemindingId, setIsRemindingId] = useState(null);
   const [companySuggestions, setCompanySuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const companySearchRef = useRef(null);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (companySearchRef.current && !companySearchRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Reset pagination when filters or tab change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, activeTab]);
 
   const { 
     certificates, 
@@ -77,22 +97,61 @@ const Certificates = () => {
     return () => controller.abort()
   }, []);
 
-  // Update company suggestions when companies or filter changes
+  // Update company suggestions: search both the companies store and names found directly on certificates
   useEffect(() => {
-    if (filter.company && filter.company.trim() && companies.length > 0) {
+    if (filter.company && filter.company.trim()) {
       const searchTerm = filter.company.toLowerCase().trim();
-      const suggestions = companies
-        .filter(company => 
-          company.companyName?.toLowerCase().includes(searchTerm) ||
-          company.name?.toLowerCase().includes(searchTerm) ||
-          company.registrationNo?.toLowerCase().includes(searchTerm)
-        )
-        .slice(0, 5); // Limit to 5 suggestions
-      setCompanySuggestions(suggestions);
+
+      // 1. Collect matches from the companies store
+      const storeMatches = (companies || []).filter(company => {
+        const name = (company.companyName || company.fullName || company.name || '').toLowerCase();
+        const regNo = (company.registrationNo || '').toLowerCase();
+        const email = (company.email || '').toLowerCase();
+        return name.includes(searchTerm) || regNo.includes(searchTerm) || email.includes(searchTerm);
+      }).map(c => ({
+        _id: c._id || c.id || c.registrationNo,
+        companyName: c.companyName || c.fullName || c.name,
+        registrationNo: c.registrationNo || '',
+        email: c.email || ''
+      }));
+
+      // 2. Collect unique company names found directly on certificate objects
+      const knownNames = new Set(storeMatches.map(c => c.companyName?.toLowerCase().trim()).filter(Boolean));
+      const extraMatches = [];
+
+      (certificates || []).forEach(cert => {
+        const resolvedName = getCompanyNameFromCert(cert);
+        const candidateNames = [
+          resolvedName,
+          typeof cert.companyName === 'string' ? cert.companyName : '',
+          cert.company?.companyName || '',
+          cert.company?.fullName || '',
+          cert.company?.name || '',
+          cert.companyId?.companyName || '',
+          cert.companyId?.fullName || '',
+          cert.branchId?.companyName || '',
+        ];
+
+        for (const raw of candidateNames) {
+          const name = String(raw || '').trim();
+          if (name && name.toLowerCase().includes(searchTerm) && !knownNames.has(name.toLowerCase())) {
+            knownNames.add(name.toLowerCase());
+            extraMatches.push({
+              _id: `cert-${name}`,
+              companyName: name,
+              registrationNo: getCompanyIdFromCert(cert) || '',
+              email: ''
+            });
+            break;
+          }
+        }
+      });
+
+      setCompanySuggestions([...storeMatches, ...extraMatches].slice(0, 8));
     } else {
       setCompanySuggestions([]);
     }
-  }, [filter.company, companies]);
+  }, [filter.company, companies, certificates]);
 
   // Handle refresh
   const handleRefresh = async () => {
@@ -110,29 +169,44 @@ const Certificates = () => {
     }
     // Company object on cert
     if (cert.company) {
-      if (typeof cert.company === 'string' && cert.company.trim()) return cert.company.trim();
-      if (cert.company.companyName) return String(cert.company.companyName).trim();
-      if (cert.company.name) return String(cert.company.name).trim();
+      if (typeof cert.company === 'string' && cert.company.trim()) {
+        // If not a 24-character hexadecimal MongoDB ObjectId, treat as company name
+        if (!/^[0-9a-fA-F]{24}$/.test(cert.company.trim())) {
+          return cert.company.trim();
+        }
+      } else if (typeof cert.company === 'object') {
+        if (cert.company.companyName) return String(cert.company.companyName).trim();
+        if (cert.company.fullName) return String(cert.company.fullName).trim();
+        if (cert.company.name) return String(cert.company.name).trim();
+      }
     }
     // Populated companyId object
     if (cert.companyId && typeof cert.companyId === 'object') {
       if (cert.companyId.companyName) return String(cert.companyId.companyName).trim();
+      if (cert.companyId.fullName) return String(cert.companyId.fullName).trim();
       if (cert.companyId.name) return String(cert.companyId.name).trim();
     }
     // Branch information
     if (cert.branchId && typeof cert.branchId === 'object') {
       if (cert.branchId.companyName) return String(cert.branchId.companyName).trim();
       if (cert.branchId.companyId?.companyName) return String(cert.branchId.companyId.companyName).trim();
+      if (cert.branchId.companyId?.fullName) return String(cert.branchId.companyId.fullName).trim();
     }
     // Application information
-    if (cert.applicationId && typeof cert.applicationId === 'object') {
-      if (cert.applicationId.companyName) return String(cert.applicationId.companyName).trim();
-      if (cert.applicationId.company?.companyName) return String(cert.applicationId.company.companyName).trim();
+    if (cert.applicationId) {
+      const app = typeof cert.applicationId === 'object'
+        ? cert.applicationId
+        : (applications || []).find(a => (a._id || a.id) === cert.applicationId);
+      if (app) {
+        if (app.companyName) return String(app.companyName).trim();
+        if (app.company?.companyName) return String(app.company.companyName).trim();
+        if (app.company?.fullName) return String(app.company.fullName).trim();
+      }
     }
-    // Find in companies array by ID or registrationNo
+    // Find in companies array by ID, registrationNo, or company ObjectId
     const rawCompanyId = typeof cert.companyId === 'object'
       ? (cert.companyId?._id || cert.companyId?.id || cert.companyId?.registrationNo)
-      : cert.companyId;
+      : (cert.companyId || (typeof cert.company === 'string' && /^[0-9a-fA-F]{24}$/.test(cert.company) ? cert.company : null));
 
     if (rawCompanyId && Array.isArray(companies) && companies.length > 0) {
       const targetId = String(rawCompanyId).toLowerCase().trim();
@@ -142,6 +216,7 @@ const Certificates = () => {
         (c.registrationNo && String(c.registrationNo).toLowerCase().trim() === targetId)
       );
       if (company?.companyName) return String(company.companyName).trim();
+      if (company?.fullName) return String(company.fullName).trim();
       if (company?.name) return String(company.name).trim();
     }
     
@@ -159,6 +234,13 @@ const Certificates = () => {
     if (cert.company?._id) return String(cert.company._id).trim();
     if (cert.company?.id) return String(cert.company.id).trim();
     return '';
+  };
+
+  // Get product name by ID — defined here so it is available inside filteredCertificates
+  const getProductName = (productId) => {
+    if (!productId) return '';
+    const product = products.find(p => p.id === productId || p._id === productId);
+    return product?.name || '';
   };
 
   // Pre-process certificates to only show the latest per branch AND hide if there's an active renewal
@@ -223,15 +305,35 @@ const Certificates = () => {
       if (!tabMatch) return false;
     }
 
-    // 2. Company filter (lowercase .includes comparison)
+    // 2. Company filter (case-insensitive substring match across all company identifiers)
     if (filter.company && filter.company.trim()) {
       const companyInputLower = filter.company.toLowerCase().trim();
       const certCompanyNameLower = (getCompanyNameFromCert(cert) || cert.companyName || '').toLowerCase().trim();
       const certCompanyIdLower = getCompanyIdFromCert(cert).toLowerCase().trim();
       const branchNameLower = String(cert.branchId?.branchName || '').toLowerCase().trim();
 
+      // Also check against resolved company object from companies store
+      const rawCompanyId = typeof cert.companyId === 'object'
+        ? (cert.companyId?._id || cert.companyId?.id || cert.companyId?.registrationNo)
+        : cert.companyId;
+      const targetId = rawCompanyId ? String(rawCompanyId).toLowerCase().trim() : '';
+      const matchedComp = targetId && Array.isArray(companies)
+        ? companies.find(c => 
+            (c._id && String(c._id).toLowerCase().trim() === targetId) ||
+            (c.id && String(c.id).toLowerCase().trim() === targetId) ||
+            (c.registrationNo && String(c.registrationNo).toLowerCase().trim() === targetId)
+          )
+        : null;
+
+      const compEmail = matchedComp?.email ? String(matchedComp.email).toLowerCase() : '';
+      const compFullName = matchedComp?.fullName ? String(matchedComp.fullName).toLowerCase() : '';
+      const compRegNo = matchedComp?.registrationNo ? String(matchedComp.registrationNo).toLowerCase() : '';
+
       const matchesCompany = 
         certCompanyNameLower.includes(companyInputLower) || 
+        compFullName.includes(companyInputLower) ||
+        compRegNo.includes(companyInputLower) ||
+        compEmail.includes(companyInputLower) ||
         certCompanyIdLower.includes(companyInputLower) ||
         branchNameLower.includes(companyInputLower);
 
@@ -244,7 +346,8 @@ const Certificates = () => {
       const certNumberLower = String(cert.certificateNumber || '').toLowerCase().trim();
       const certCompanyNameLower = (getCompanyNameFromCert(cert) || cert.companyName || '').toLowerCase().trim();
       const certCompanyIdLower = getCompanyIdFromCert(cert).toLowerCase().trim();
-      const productNameLower = String(cert.product?.name || getProductName(cert.productId) || '').toLowerCase().trim();
+      const productNames = Array.isArray(cert.product) ? cert.product.join(' ') : String(cert.product || '');
+      const productNameLower = (productNames || cert.product?.name || getProductName(cert.productId) || '').toLowerCase().trim();
       const standardLower = String(cert.standard || '').toLowerCase().trim();
       const certTypeLower = String(cert.certificateType || '').toLowerCase().trim();
       const branchNameLower = String(cert.branchId?.branchName || '').toLowerCase().trim();
@@ -289,6 +392,12 @@ const Certificates = () => {
     
     return true;
   });
+
+  const totalPages = Math.ceil(filteredCertificates.length / itemsPerPage) || 1;
+  const paginatedCertificates = filteredCertificates.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   // Format date
   const formatDate = (dateString) => {
@@ -663,12 +772,7 @@ const Certificates = () => {
   //          'Unknown Company';
   // };
 
-  // Get product name by ID
-  const getProductName = (productId) => {
-    if (!productId) return 'Unknown Product';
-    const product = products.find(p => p.id === productId || p._id === productId);
-    return product?.name || 'Unknown Product';
-  };
+  // getProductName is defined earlier (before displayCertificates) so it is available during render
 
   // Get application by ID
   const getApplication = (applicationId) => {
@@ -1123,41 +1227,85 @@ const Certificates = () => {
               </div>
             </div>
             
-            <div className="relative">
+            <div className="relative" ref={companySearchRef}>
               <label className="block text-sm font-medium text-gray-700 mb-2">Company</label>
               <div className="relative">
                 <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Search by company name..."
-                  className="pl-10 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b]"
+                  placeholder="Search by company name or reg no..."
+                  className="pl-10 pr-9 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b] transition-colors"
                   value={filter.company}
                   onChange={(e) => {
                     setFilter({ ...filter, company: e.target.value });
                     setShowSuggestions(true);
                   }}
-                  onFocus={() => setShowSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  onFocus={() => {
+                    if (filter.company || companySuggestions.length > 0) {
+                      setShowSuggestions(true);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setShowSuggestions(false);
+                    }
+                  }}
                   disabled={isLoading}
+                  autoComplete="off"
                 />
-                {showSuggestions && companySuggestions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg">
-                    {companySuggestions.map((company) => (
-                      <button
-                        key={company._id || company.id}
-                        type="button"
-                        className="w-full cursor-pointer text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          handleCompanySuggestionClick(company.companyName || company.name);
-                        }}
-                      >
-                        <div className="font-medium">{company.companyName || company.name}</div>
-                        {company.registrationNo && (
-                          <div className="text-xs text-gray-500">Reg: {company.registrationNo}</div>
-                        )}
-                      </button>
-                    ))}
+                {filter.company && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilter({ ...filter, company: '' });
+                      setCompanySuggestions([]);
+                      setShowSuggestions(false);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 p-0.5 rounded cursor-pointer transition-colors"
+                    title="Clear company search"
+                    tabIndex={-1}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+                {showSuggestions && filter.company.trim().length > 0 && (
+                  <div className="absolute z-30 w-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-y-auto divide-y divide-gray-100 animate-in fade-in duration-150">
+                    {companySuggestions.length > 0 ? (
+                      companySuggestions.map((company) => (
+                        <button
+                          key={company._id || company.companyName}
+                          type="button"
+                          className="w-full cursor-pointer text-left px-3.5 py-2.5 hover:bg-emerald-50/70 transition-colors flex items-center justify-between group"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleCompanySuggestionClick(company.companyName);
+                          }}
+                        >
+                          <div className="flex items-center space-x-2.5 min-w-0 pr-2">
+                            <div className="w-7 h-7 rounded-lg bg-gray-100 group-hover:bg-[#00853b]/10 flex items-center justify-center shrink-0 transition-colors">
+                              <Building className="w-3.5 h-3.5 text-gray-500 group-hover:text-[#00853b] transition-colors" />
+                            </div>
+                            <div className="truncate">
+                              <div className="font-medium text-gray-900 text-sm group-hover:text-[#00853b] transition-colors truncate">
+                                {company.companyName}
+                              </div>
+                              {company.email && (
+                                <div className="text-xs text-gray-500 truncate">{company.email}</div>
+                              )}
+                            </div>
+                          </div>
+                          {company.registrationNo && (
+                            <span className="shrink-0 text-xs font-mono font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200 group-hover:border-emerald-200 group-hover:bg-emerald-50 group-hover:text-emerald-800 transition-colors">
+                              {company.registrationNo}
+                            </span>
+                          )}
+                        </button>
+                      ))
+                    ) : filter.company.trim().length >= 2 ? (
+                      <div className="px-4 py-3 text-xs text-gray-500 text-center">
+                        No companies found matching &ldquo;{filter.company}&rdquo;
+                      </div>
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -1278,8 +1426,8 @@ const Certificates = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {filteredCertificates.length > 0 ? (
-                      filteredCertificates.map((cert) => {
+                    {paginatedCertificates.length > 0 ? (
+                      paginatedCertificates.map((cert) => {
                         const certId = cert.id || cert._id;
                         const statusConfig = getStatusConfig(cert.status);
                         const expiryStatus = getExpiryStatus(cert.expiryDate, cert.status);
@@ -1387,24 +1535,33 @@ const Certificates = () => {
                 </table>
               </div>
               
-              {/* Table Footer */}
+              {/* Table Footer / Pagination */}
               {filteredCertificates.length > 0 && (
-                <div className="px-6 py-4 border-t border-gray-200">
+                <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="text-sm text-gray-600">
-                      Showing <span className="font-medium">{filteredCertificates.length}</span> of{' '}
-                      <span className="font-medium">{certificates.length}</span> certificates
+                    <div className="text-sm text-gray-600 font-medium">
+                      Showing <span className="font-semibold text-gray-900">{Math.min(filteredCertificates.length, (currentPage - 1) * itemsPerPage + 1)}-{Math.min(filteredCertificates.length, currentPage * itemsPerPage)}</span> of{' '}
+                      <span className="font-semibold text-gray-900">{filteredCertificates.length}</span> certificates
                     </div>
-                    <div className="flex items-center space-x-2">
+                    {totalPages > 1 && (
                       <div className="flex items-center space-x-2">
-                        <button className="px-3 py-1.5 text-sm cursor-pointer font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200">
+                        <button
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                          className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-white bg-gray-100 border border-gray-200 shadow-sm rounded-lg transition-colors duration-200 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                        >
                           Previous
                         </button>
-                        <button className="px-3 py-1.5 text-sm cursor-pointer font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200">
+                        <span className="text-sm text-gray-600 px-2 font-medium">Page {currentPage} of {totalPages}</span>
+                        <button
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          disabled={currentPage === totalPages}
+                          className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-white bg-gray-100 border border-gray-200 shadow-sm rounded-lg transition-colors duration-200 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                        >
                           Next
                         </button>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               )}
