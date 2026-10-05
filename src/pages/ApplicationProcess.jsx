@@ -236,6 +236,7 @@ export default function ApplicationProcess() {
   const [certExpiryDate, setCertExpiryDate] = useState('');
   const [certFiles, setCertFiles] = useState([]);
   const [certLabelFiles, setCertLabelFiles] = useState([]);
+  const [isReuploadingCert, setIsReuploadingCert] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejecting, setRejecting] = useState(false);
@@ -260,13 +261,14 @@ export default function ApplicationProcess() {
   };
   const [appInvoice, setAppInvoice] = useState(null);
   const [appProducts, setAppProducts] = useState([]);
+  const [appCertificate, setAppCertificate] = useState(null);
 
   const getToken = () => JSON.parse(localStorage.getItem('accessToken'));
 
   const fetchApplication = useCallback(async () => {
     try {
       setLoading(true);
-      const [appRes, invRes, prodRes] = await Promise.all([
+      const [appRes, invRes, prodRes, certRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/applications/${id}`, {
           headers: { Authorization: `Bearer ${getToken()}` }
         }),
@@ -275,7 +277,10 @@ export default function ApplicationProcess() {
         }),
         axios.get(`${API_BASE_URL}/products/admin-all?applicationId=${id}`, {
           headers: { Authorization: `Bearer ${getToken()}` }
-        })
+        }),
+        axios.get(`${API_BASE_URL}/certificates?applicationId=${id}`, {
+          headers: { Authorization: `Bearer ${getToken()}` }
+        }).catch(() => ({ data: [] }))
       ]);
       const { data } = appRes;
       setApplication(data);
@@ -287,8 +292,23 @@ export default function ApplicationProcess() {
       const currentProducts = productsData.filter(p => p.applicationId?._id === id || p.applicationId === id);
       setAppProducts(currentProducts);
 
-      if (data.applicationNumber) {
+      const certs = Array.isArray(certRes?.data) ? certRes.data : [];
+      const currentCert = certs.find(c => c.applicationId?._id === id || c.applicationId === id) || data.certificate || null;
+      setAppCertificate(currentCert);
+
+      if (data.processData?.certificateNumber) {
+        setCertNumber(data.processData.certificateNumber);
+      } else if (data.applicationNumber) {
         setCertNumber(data.applicationNumber);
+      }
+
+      if (data.processData?.certificateExpiryDate) {
+        try {
+          const d = new Date(data.processData.certificateExpiryDate);
+          setCertExpiryDate(!isNaN(d.getTime()) ? d.toISOString().split('T')[0] : data.processData.certificateExpiryDate);
+        } catch {
+          setCertExpiryDate(data.processData.certificateExpiryDate);
+        }
       }
 
       // Pre-fill logsheet data
@@ -510,10 +530,12 @@ export default function ApplicationProcess() {
     if (activeStep?.id === step.id) {
       setActiveStep(null);
       setAuditExpanded(false);
+      setIsReuploadingCert(false);
     } else {
       setActiveStep(step);
       if (step.id === 6) setAuditExpanded(true);
       else setAuditExpanded(false);
+      setIsReuploadingCert(false);
     }
   };
 
@@ -555,6 +577,8 @@ export default function ApplicationProcess() {
       let formattedLabel = '';
       if (stepId === 6 && subStep === 5 && extraData && extraData.includes('rejectNc')) {
         formattedLabel = 'NC Corrections Rejected';
+      } else if (stepId === 10 && application?.status === 'Issued') {
+        formattedLabel = 'Certificate Updated';
       } else {
         const stepLabel = (stepId === 6 && subStep)
           ? AUDIT_SUB_STEPS.find(s => s.id === parseInt(subStep))?.label
@@ -566,20 +590,77 @@ export default function ApplicationProcess() {
       toast.success(`${formattedLabel} Successfully!`);
       setActiveStep(null);
       setAuditExpanded(false);
+      return true;
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update step');
+      return false;
     } finally {
       setSaving(false);
     }
   };
 
-  // Improved: manual certificate issuance
+  const certStatus = appCertificate?.status || application?.certificate?.status || application?.processData?.certificateStatus || '';
+  const isCertInactive = certStatus?.toLowerCase() === 'inactive';
+
+  const handleStartReuploadCert = async () => {
+    if (isCertInactive) {
+      toast.error('This certificate is Inactive and cannot be reuploaded.');
+      return;
+    }
+    let num = application?.processData?.certificateNumber || application?.applicationNumber || '';
+    let exp = '';
+    if (application?.processData?.certificateExpiryDate) {
+      try {
+        const d = new Date(application.processData.certificateExpiryDate);
+        exp = !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : application.processData.certificateExpiryDate;
+      } catch {
+        exp = application.processData.certificateExpiryDate;
+      }
+    }
+
+    if (!exp || !num) {
+      try {
+        const { data: certs } = await axios.get(`${API_BASE_URL}/certificates?applicationId=${id}`, {
+          headers: { Authorization: `Bearer ${getToken()}` }
+        });
+        const cert = certs.find(c => c.applicationId?._id === id || c.applicationId === id);
+        if (cert) {
+          if (!num && cert.certificateNumber) num = cert.certificateNumber;
+          if (!exp && cert.expiryDate) {
+            const d = new Date(cert.expiryDate);
+            exp = !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : '';
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load certificate fallback details:', err);
+      }
+    }
+
+    setCertNumber(num);
+    setCertExpiryDate(exp);
+    setCertFiles([]);
+    setCertLabelFiles([]);
+    setIsReuploadingCert(true);
+  };
+
+  // Improved: manual certificate issuance / reupload
   const handleIssueCertificate = async () => {
-    if (certFiles.length === 0 || !certExpiryDate || !certNumber) {
+    if (isCertInactive) {
+      toast.error('This certificate is Inactive and cannot be reuploaded.');
+      return;
+    }
+    const hasFiles = certFiles.length > 0 || (application?.processData?.certificateFiles && application?.processData?.certificateFiles.length > 0);
+    if (!hasFiles || !certExpiryDate || !certNumber) {
       toast.error('Please provide certificate files, number and expiry date');
       return;
     }
-    await submitStep(10, null, null, certFiles, { certNumber, expiryDate: certExpiryDate, labelFiles: certLabelFiles });
+    const success = await submitStep(10, null, null, certFiles.length > 0 ? certFiles : null, { certNumber, expiryDate: certExpiryDate, labelFiles: certLabelFiles });
+    if (success) {
+      setCertFiles([]);
+      setCertLabelFiles([]);
+      setIsReuploadingCert(false);
+      fetchApplication();
+    }
   };
 
   // Reject application
@@ -1762,7 +1843,7 @@ export default function ApplicationProcess() {
     }
 
     if (step.id === 10) {
-      if (application?.status === 'Issued') {
+      if (application?.status === 'Issued' && !isReuploadingCert) {
         return (
           <CompletedPanel label="Certificate Issued" timestamp={processData?.issuedAt}>
             <div style={{ marginTop: '16px', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
@@ -1788,14 +1869,70 @@ export default function ApplicationProcess() {
                   Download Label Order {idx + 1}
                 </button>
               ))}
+              {isCertInactive ? (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#991b1b', fontSize: '13px', fontWeight: 500 }}>
+                  <AlertCircle size={16} />
+                  Certificate is Inactive (Reupload Disabled)
+                </div>
+              ) : (
+                hasPrivilege('Certificate Officer') && (
+                  <button
+                    type="button"
+                    className="action-btn-secondary"
+                    onClick={handleStartReuploadCert}
+                    style={{
+                      width: 'auto',
+                      padding: '10px 24px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      background: '#ecfdf5',
+                      color: '#065f46',
+                      borderColor: '#a7f3d0',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Upload size={18} />
+                    Reupload Certificate
+                  </button>
+                )
+              )}
             </div>
           </CompletedPanel>
         );
       }
+
+      if (isCertInactive) {
+        return (
+          <div className="action-panel">
+            <h2>Certificate Inactive</h2>
+            <div className="mb-6 bg-red-50 p-4 rounded-xl border border-red-100 flex gap-3 text-left">
+              <XCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-800">Reupload Disabled</p>
+                <p className="text-xs text-red-700 mt-1">This certificate has an Inactive status and cannot be reuploaded or updated.</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="action-btn-secondary"
+              onClick={() => setIsReuploadingCert(false)}
+              style={{ width: 'auto', padding: '10px 24px' }}
+            >
+              Back
+            </button>
+          </div>
+        );
+      }
       return (
         <div className="action-panel">
-          <h2>Issue Certificate</h2>
-          <p>Please enter the certificate details and upload the final document. This will complete the certification process.</p>
+          <h2>{application?.status === 'Issued' ? 'Reupload / Update Certificate' : 'Issue Certificate'}</h2>
+          <p>
+            {application?.status === 'Issued'
+              ? 'Update the certificate details or upload a new certificate document to replace the old certificate.'
+              : 'Please enter the certificate details and upload the final document. This will complete the certification process.'}
+          </p>
 
           <div className="details-grid" style={{ marginTop: '20px', gap: '20px' }}>
             <div className="details-card" style={{ padding: '20px' }}>
@@ -1837,12 +1974,40 @@ export default function ApplicationProcess() {
                 <p style={{ fontSize: '13px', margin: '8px 0' }}>
                   {certFiles.length > 0
                     ? `${certFiles.length} file(s) selected`
-                    : 'Click to select certificate file(s)'}
+                    : (application?.status === 'Issued' && application.processData?.certificateFiles?.length > 0
+                        ? `${application.processData.certificateFiles.length} current certificate file(s). Click to choose new file(s)`
+                        : 'Click to select certificate file(s)')}
                 </p>
-                {certFiles.length > 0 && (
-                  <div style={{ fontSize: '11px', color: '#1e40af', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '5px' }}>
-                    {certFiles.map((f, i) => <span key={i} className="bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{f.name}</span>)}
+                {certFiles.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ fontSize: '11px', color: '#1e40af', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '5px' }}>
+                      {certFiles.map((f, i) => <span key={i} className="bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{f.name}</span>)}
+                    </div>
+                    {application?.status === 'Issued' && application.processData?.certificateFiles?.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCertFiles([]);
+                          const input = document.getElementById('cert-upload');
+                          if (input) input.value = '';
+                        }}
+                        style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '11px', textDecoration: 'underline', cursor: 'pointer' }}
+                      >
+                        Clear selection & keep existing file(s)
+                      </button>
+                    )}
                   </div>
+                ) : (
+                  application?.status === 'Issued' && application.processData?.certificateFiles?.length > 0 && (
+                    <div style={{ fontSize: '11px', color: '#15803d', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '5px' }}>
+                      {application.processData.certificateFiles.map((f, i) => (
+                        <span key={i} style={{ background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>
+                          Current: {typeof f === 'string' ? f.split('/').pop() : `File ${i + 1}`}
+                        </span>
+                      ))}
+                    </div>
+                  )
                 )}
                 <span style={{ fontSize: '11px', color: '#6b7280' }}>PDF, PNG, JPG files supported (Can select multiple)</span>
               </div>
@@ -1876,12 +2041,40 @@ export default function ApplicationProcess() {
                 <p style={{ fontSize: '13px', margin: '8px 0' }}>
                   {certLabelFiles.length > 0
                     ? `${certLabelFiles.length} label file(s) selected`
-                    : 'Click to select label file(s)'}
+                    : (application?.status === 'Issued' && application.processData?.labelFiles?.length > 0
+                        ? `${application.processData.labelFiles.length} current label file(s). Click to choose new file(s)`
+                        : 'Click to select label file(s)')}
                 </p>
-                {certLabelFiles.length > 0 && (
-                  <div style={{ fontSize: '11px', color: '#1e40af', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '5px' }}>
-                    {certLabelFiles.map((f, i) => <span key={i} className="bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{f.name}</span>)}
+                {certLabelFiles.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ fontSize: '11px', color: '#1e40af', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '5px' }}>
+                      {certLabelFiles.map((f, i) => <span key={i} className="bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{f.name}</span>)}
+                    </div>
+                    {application?.status === 'Issued' && application.processData?.labelFiles?.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCertLabelFiles([]);
+                          const input = document.getElementById('label-upload');
+                          if (input) input.value = '';
+                        }}
+                        style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '11px', textDecoration: 'underline', cursor: 'pointer' }}
+                      >
+                        Clear selection & keep existing label(s)
+                      </button>
+                    )}
                   </div>
+                ) : (
+                  application?.status === 'Issued' && application.processData?.labelFiles?.length > 0 && (
+                    <div style={{ fontSize: '11px', color: '#15803d', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '5px' }}>
+                      {application.processData.labelFiles.map((f, i) => (
+                        <span key={i} style={{ background: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>
+                          Current: {typeof f === 'string' ? f.split('/').pop() : `Label ${i + 1}`}
+                        </span>
+                      ))}
+                    </div>
+                  )
                 )}
                 <span style={{ fontSize: '11px', color: '#6b7280' }}>PDF, PNG, JPG files supported (Select multiple if needed)</span>
               </div>
@@ -1906,22 +2099,35 @@ export default function ApplicationProcess() {
           </div>
 
           {hasPrivilege('Certificate Officer') ? (
-            <button
-              className="action-btn-primary success"
-              onClick={handleIssueCertificate}
-              disabled={saving || !certFiles || !certExpiryDate || !certNumber}
-              style={{ marginTop: '24px', width: '100%', maxWidth: '300px', marginInline: 'auto' }}
-            >
-              {saving ? <Loader2 className="spin" size={16} /> : <Award size={16} />}
-              {saving ? 'Issuing Certificate...' : 'Complete Issue Certificate'}
-            </button>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '24px' }}>
+              {application?.status === 'Issued' && (
+                <button
+                  type="button"
+                  className="action-btn-secondary"
+                  onClick={() => setIsReuploadingCert(false)}
+                  style={{ width: 'auto', padding: '10px 24px' }}
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                className="action-btn-primary success"
+                onClick={handleIssueCertificate}
+                disabled={saving || (!certFiles.length && (!application?.processData?.certificateFiles || application?.processData?.certificateFiles.length === 0)) || !certExpiryDate || !certNumber}
+                style={{ width: 'auto', minWidth: '220px' }}
+              >
+                {saving ? <Loader2 className="spin" size={16} /> : <Award size={16} />}
+                {saving
+                  ? (application?.status === 'Issued' ? 'Updating Certificate...' : 'Issuing Certificate...')
+                  : (application?.status === 'Issued' ? 'Update Certificate' : 'Complete Issue Certificate')}
+              </button>
+            </div>
           ) : (
             <div style={{ marginTop: '24px' }}>
               <NoPermissionView privilege="Certificate Officer" />
             </div>
           )}
         </div>
-
       );
     }
 
