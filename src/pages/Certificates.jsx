@@ -464,6 +464,9 @@ const Certificates = () => {
 
   // Get expiry status
   const getExpiryStatus = (expiryDate, status) => {
+    if (status?.toLowerCase() === 'pending_renewal' || status?.toLowerCase() === 'renewal') {
+      return { text: 'Renewal in Progress', color: 'text-yellow-700', bg: 'bg-yellow-50' };
+    }
     if (status?.toLowerCase() === 'expired' || status?.toLowerCase() === 'revoked') {
       return { text: 'Expired', color: 'text-red-600', bg: 'bg-red-50' };
     }

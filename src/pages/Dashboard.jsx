@@ -178,7 +178,7 @@ const Dashboard = () => {
       const certificateStats = certificates.reduce((acc, cert) => {
         const status = cert.status?.toLowerCase();
         if (status === 'issued' || status === 'active') acc.active++;
-        else if (status === 'pending' || status === 'under_review' || status === 'review') acc.pending++;
+        else if (status === 'pending' || status === 'under_review' || status === 'review' || status === 'renewal' || status === 'pending_renewal') acc.pending++;
         else if (status === 'expired') acc.expired++;
         return acc;
       }, { active: 0, pending: 0, expired: 0 });
