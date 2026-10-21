@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Receipt, 
   Search, 
@@ -56,6 +56,12 @@ const Invoices = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, statusFilter, dateFrom, dateTo]);
+
+  const sortedCompanies = useMemo(() => {
+    return [...companies].sort((a, b) => 
+      (a.companyName || '').localeCompare(b.companyName || '', undefined, { sensitivity: 'base' })
+    );
+  }, [companies]);
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isProofModalOpen, setIsProofModalOpen] = useState(false);
@@ -628,7 +634,7 @@ const Invoices = () => {
                     onChange={(e) => setSelectedClient(e.target.value)}
                   >
                     <option value="" disabled>-- Select a Client Company --</option>
-                    {companies.map(c => (
+                    {sortedCompanies.map(c => (
                       <option key={c._id} value={c._id}>{c.companyName} ({c.email})</option>
                     ))}
                   </select>
@@ -659,11 +665,13 @@ const Invoices = () => {
                       onChange={(e) => setSelectedBranch(e.target.value)}
                     >
                       <option value="">-- Select Manufacturing Facility --</option>
-                      {clientBranches.map(branch => (
-                        <option key={branch._id} value={branch._id}>
-                          {branch.branchName} ({branch.city ? `${branch.city}, ` : ''}{branch.state || branch.address})
-                        </option>
-                      ))}
+                      {[...clientBranches]
+                        .sort((a, b) => (a.branchName || '').localeCompare(b.branchName || '', undefined, { sensitivity: 'base' }))
+                        .map(branch => (
+                          <option key={branch._id} value={branch._id}>
+                            {branch.branchName} ({branch.city ? `${branch.city}, ` : ''}{branch.state || branch.address})
+                          </option>
+                        ))}
                     </select>
                   )}
                 </div>
