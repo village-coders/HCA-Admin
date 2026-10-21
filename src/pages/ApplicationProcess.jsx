@@ -247,6 +247,7 @@ export default function ApplicationProcess() {
   const [showProofRejectForm, setShowProofRejectForm] = useState(false);
   const [proofRejectReason, setProofRejectReason] = useState('');
   const [rejectingProof, setRejectingProof] = useState(false);
+  const [remindingInvoice, setRemindingInvoice] = useState(false);
 
   const resolveUrl = (path) => {
     if (!path) return '';
@@ -734,6 +735,22 @@ export default function ApplicationProcess() {
     }
   };
 
+  const handleSendInvoiceReminder = async (invoiceId) => {
+    if (!invoiceId) return;
+    setRemindingInvoice(true);
+    try {
+      const res = await axios.post(`${API_BASE_URL}/invoices/${invoiceId}/remind`, {}, {
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
+      toast.success(res.data.message || 'Payment reminder sent to client');
+      fetchApplication();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send reminder');
+    } finally {
+      setRemindingInvoice(false);
+    }
+  };
+
   const handleRejectProduct = async (productId) => {
     try {
       await axios.put(`${API_BASE_URL}/products/reject/${productId}`, {}, {
@@ -971,6 +988,46 @@ export default function ApplicationProcess() {
                   </p>
                 </div>
               )}
+              {appInvoice && !processData?.paymentConfirmedAt && (
+                <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                  {appInvoice.reminderSentAt && (
+                    <p style={{ margin: 0, fontSize: '12px', color: '#b45309', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Bell size={14} /> Last reminder sent: {new Date(appInvoice.reminderSentAt).toLocaleString()}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmModal({
+                        open: true,
+                        title: 'Send Invoice Payment Reminder',
+                        message: `This will send an email reminder to ${application?.company?.companyName || 'the client'} requesting payment for invoice ${appInvoice.invoiceNumber}. Proceed?`,
+                        onConfirm: () => {
+                          setConfirmModal({ open: false, title: '', message: '', onConfirm: null });
+                          handleSendInvoiceReminder(appInvoice._id);
+                        }
+                      });
+                    }}
+                    disabled={remindingInvoice || saving}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: '#f0fdf4',
+                      color: '#166534',
+                      border: '1px solid #bbf7d0',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    {remindingInvoice ? <Loader2 className="spin" size={14} /> : <Bell size={14} />}
+                    {remindingInvoice ? 'Sending Reminder...' : 'Remind Client to Pay'}
+                  </button>
+                </div>
+              )}
             </CompletedPanel>
           )}
 
@@ -1137,6 +1194,53 @@ export default function ApplicationProcess() {
                     <p style={{ marginTop: '10px', fontSize: '12px', color: '#b45309' }}>
                       Proof has been rejected. Awaiting re-upload from applicant before payment can be confirmed.
                     </p>
+                  )}
+                  {appInvoice && (
+                    <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                      <div>
+                        <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#374151' }}>Client Payment Reminder</p>
+                        {appInvoice.reminderSentAt ? (
+                          <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#b45309', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Bell size={13} /> Last reminder sent: {new Date(appInvoice.reminderSentAt).toLocaleString()}
+                          </p>
+                        ) : (
+                          <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#6b7280' }}>
+                            No reminder email sent yet.
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setConfirmModal({
+                            open: true,
+                            title: 'Send Invoice Payment Reminder',
+                            message: `This will send an email reminder to ${application?.company?.companyName || 'the client'} requesting payment for invoice ${appInvoice.invoiceNumber}. Proceed?`,
+                            onConfirm: () => {
+                              setConfirmModal({ open: false, title: '', message: '', onConfirm: null });
+                              handleSendInvoiceReminder(appInvoice._id);
+                            }
+                          });
+                        }}
+                        disabled={remindingInvoice || saving}
+                        style={{
+                          padding: '9px 16px',
+                          backgroundColor: '#f0fdf4',
+                          color: '#166534',
+                          border: '1px solid #bbf7d0',
+                          borderRadius: '8px',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        {remindingInvoice ? <Loader2 className="spin" size={14} /> : <Bell size={14} />}
+                        {remindingInvoice ? 'Sending Reminder...' : 'Remind Client to Pay'}
+                      </button>
+                    </div>
                   )}
                 </>
               )}

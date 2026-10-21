@@ -975,6 +975,26 @@ const AllProvider = ({ children }) => {
     }
   };
 
+  const sendInvoiceReminder = async (id) => {
+    const token = getToken();
+    if (!token) return { success: false };
+    setIsLoading(true);
+    try {
+      const res = await axios.post(`${baseUrl}/invoices/${id}/remind`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setInvoices(prev => prev.map(inv => inv._id === id ? (res.data.invoice || { ...inv, reminderSentAt: res.data.reminderSentAt, reminderCount: res.data.reminderCount }) : inv));
+      toast.success(res.data.message || "Payment reminder sent successfully!");
+      return { success: true, data: res.data };
+    } catch (error) {
+      console.error("Failed to send payment reminder:", error);
+      toast.error(error.response?.data?.message || "Failed to send payment reminder");
+      return { success: false, error };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // 🕵️ Audit Management
   const fetchAudits = async () => {
     const token = getToken();
@@ -1197,6 +1217,7 @@ const AllProvider = ({ children }) => {
     approvePayment,
     rejectProofOfPayment,
     resendInvoice,
+    sendInvoiceReminder,
 
     // Audits
     audits,

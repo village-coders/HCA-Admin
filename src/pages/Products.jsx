@@ -905,11 +905,11 @@ const Products = () => {
                             handleCompanySuggestionClick(company.companyName);
                           }}
                         >
-                          <div className="flex items-center space-x-2.5 min-w-0 pr-2">
+                          <div className="flex items-center space-x-2.5 min-w-0 w-full">
                             <div className="w-7 h-7 rounded-lg bg-gray-100 group-hover:bg-[#00853b]/10 flex items-center justify-center shrink-0 transition-colors">
                               <Building className="w-3.5 h-3.5 text-gray-500 group-hover:text-[#00853b] transition-colors" />
                             </div>
-                            <div className="truncate">
+                            <div className="min-w-0 flex-1">
                               <div className="font-medium text-gray-900 text-sm group-hover:text-[#00853b] transition-colors truncate">
                                 {company.companyName}
                               </div>
@@ -918,11 +918,6 @@ const Products = () => {
                               )}
                             </div>
                           </div>
-                          {company.registrationNo && (
-                            <span className="shrink-0 text-xs font-mono font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200 group-hover:border-emerald-200 group-hover:bg-emerald-50 group-hover:text-emerald-800 transition-colors">
-                              {company.registrationNo}
-                            </span>
-                          )}
                         </button>
                       ))
                     ) : filter.company.trim().length >= 2 ? (

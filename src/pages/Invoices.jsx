@@ -15,13 +15,15 @@ import {
   FilePlus,
   Upload,
   AlertTriangle,
-  XCircle
+  XCircle,
+  Bell
 } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'sonner';
 import TableActions from '../components/TableActions';
 import { Lock } from 'lucide-react';
+import axios from 'axios';
 
 const Invoices = () => {
   const { user } = useAuth();
@@ -40,6 +42,7 @@ const Invoices = () => {
     approvePayment,
     rejectProofOfPayment,
     resendInvoice,
+    sendInvoiceReminder,
     baseUrl
   } = useAll();
 
@@ -67,14 +70,58 @@ const Invoices = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [isApprovingId, setIsApprovingId] = useState(null);
+  const [isRemindingId, setIsRemindingId] = useState(null);
   const [isRejectingProofMode, setIsRejectingProofMode] = useState(false);
   const [proofRejectReason, setProofRejectReason] = useState('');
   const [isRejectingProof, setIsRejectingProof] = useState(false);
+
+  const [selectedBranch, setSelectedBranch] = useState('');
+  const [clientBranches, setClientBranches] = useState([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
 
   useEffect(() => {
     fetchInvoices();
     if (companies.length === 0) fetchCompanies();
   }, []);
+
+  useEffect(() => {
+    if (!selectedClient) {
+      setClientBranches([]);
+      setSelectedBranch('');
+      return;
+    }
+
+    let isMounted = true;
+    const fetchBranches = async () => {
+      setLoadingBranches(true);
+      try {
+        const token = JSON.parse(localStorage.getItem('accessToken'));
+        const res = await axios.get(`${baseUrl}/branches/company/${selectedClient}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const branches = res.data?.branches || (Array.isArray(res.data) ? res.data : []);
+        if (isMounted) {
+          setClientBranches(branches);
+          if (branches.length === 1) {
+            setSelectedBranch(branches[0]._id);
+          } else {
+            setSelectedBranch('');
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching client branches:', err);
+        if (isMounted) {
+          setClientBranches([]);
+          setSelectedBranch('');
+        }
+      } finally {
+        if (isMounted) setLoadingBranches(false);
+      }
+    };
+
+    fetchBranches();
+    return () => { isMounted = false; };
+  }, [selectedClient, baseUrl]);
 
   const handleRefresh = async () => {
     await fetchInvoices();
@@ -131,6 +178,8 @@ const Invoices = () => {
     setInvoiceFile(null);
     setIssueDescription('');
     setSelectedClient('');
+    setSelectedBranch('');
+    setClientBranches([]);
     setIsCreateModalOpen(true);
   };
 
@@ -165,10 +214,15 @@ const Invoices = () => {
       toast.error('Please select a client');
       return;
     }
+    if (clientBranches.length > 0 && !selectedBranch) {
+      toast.error('Please select a manufacturing facility');
+      return;
+    }
 
     setIsSubmitting(true);
     const result = await createInvoice({
       userId: selectedClient,
+      branchId: selectedBranch || undefined,
       invoiceFile: invoiceFile,
       description: issueDescription
     });
@@ -179,6 +233,8 @@ const Invoices = () => {
       setInvoiceFile(null);
       setIssueDescription('');
       setSelectedClient('');
+      setSelectedBranch('');
+      setClientBranches([]);
     }
   };
 
@@ -209,6 +265,16 @@ const Invoices = () => {
     setIsSubmitting(false);
     if (result.success) {
       setIsResendModalOpen(false);
+    }
+  };
+
+  const handleSendReminder = async (invoice) => {
+    if (!invoice?._id) return;
+    setIsRemindingId(invoice._id);
+    try {
+      await sendInvoiceReminder(invoice._id);
+    } finally {
+      setIsRemindingId(null);
     }
   };
 
@@ -409,6 +475,12 @@ const Invoices = () => {
                             Proof Rejected: {invoice.proofRejectionReason}
                           </p>
                         )}
+                        {invoice.reminderSentAt && invoice.status !== 'Paid' && (
+                          <p className="text-xs text-blue-600 font-medium mt-1 flex items-center gap-1">
+                            <Bell className="w-3 h-3 flex-shrink-0" />
+                            Reminder sent: {new Date(invoice.reminderSentAt).toLocaleDateString()}
+                          </p>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -463,6 +535,12 @@ const Invoices = () => {
                             label: 'Re-issue / Resend Invoice',
                             icon: Send,
                             onClick: () => handleOpenResendModal(invoice)
+                          },
+                          (invoice.status !== 'Paid' && invoice.status !== 'Cancelled') && {
+                            label: isRemindingId === invoice._id ? 'Sending Reminder...' : 'Send Payment Reminder',
+                            icon: Bell,
+                            onClick: () => handleSendReminder(invoice),
+                            disabled: isRemindingId === invoice._id
                           },
                           {
                             label: 'Copy Invoice #',
@@ -554,6 +632,40 @@ const Invoices = () => {
                       <option key={c._id} value={c._id}>{c.companyName} ({c.email})</option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                    Manufacturing Facility {clientBranches.length > 0 && <span className="text-red-500">*</span>}
+                  </label>
+                  {!selectedClient ? (
+                    <div className="w-full px-3 py-2.5 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-400">
+                      Select a client company first to choose facility
+                    </div>
+                  ) : loadingBranches ? (
+                    <div className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-500 flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4 animate-spin text-green-600" />
+                      Loading facilities...
+                    </div>
+                  ) : clientBranches.length === 0 ? (
+                    <div className="w-full px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+                      No manufacturing facilities registered for this client.
+                    </div>
+                  ) : (
+                    <select
+                      required={clientBranches.length > 0}
+                      className="w-full pl-3 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all text-sm"
+                      value={selectedBranch}
+                      onChange={(e) => setSelectedBranch(e.target.value)}
+                    >
+                      <option value="">-- Select Manufacturing Facility --</option>
+                      {clientBranches.map(branch => (
+                        <option key={branch._id} value={branch._id}>
+                          {branch.branchName} ({branch.city ? `${branch.city}, ` : ''}{branch.state || branch.address})
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 <div>
