@@ -76,7 +76,7 @@ const AuthProvider = ({ children }) => {
   };
 
   // 🔑 Sign in
-  const signin = async (formData, navigate) => {
+  const signin = async (formData, navigate, redirectTo = null) => {
     setSigningIn(true);
     try {
       const res = await axios.post(`${baseUrl}/auth/admin-login`, formData);
@@ -90,7 +90,15 @@ const AuthProvider = ({ children }) => {
           // localStorage.setItem("user", JSON.stringify(user));
           localStorage.setItem("accessToken", JSON.stringify(accessToken));
           toast.success(message);
-          navigate("/dashboard");
+
+          const storedRedirect = sessionStorage.getItem("admin_redirect");
+          sessionStorage.removeItem("admin_redirect");
+
+          const target = (redirectTo && redirectTo !== "/")
+            ? redirectTo
+            : (storedRedirect && storedRedirect !== "/" ? storedRedirect : "/dashboard");
+
+          navigate(target, { replace: true });
         }
       }
     } catch (error) {

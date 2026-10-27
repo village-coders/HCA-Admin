@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { useAuth } from "../hooks/useAuth";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams, Link } from "react-router-dom";
 import logo from '../assets/hdiLogo1.png'
 import { PulseLoader } from "react-spinners";
 
@@ -10,16 +10,34 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const { signin, signingIn } = useAuth()
-  const navigate = useNavigate()
+  const { signin, signingIn, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  const queryRedirect = searchParams.get("redirect");
+  const stateRedirect = location.state?.from?.pathname
+    ? `${location.state.from.pathname}${location.state.from.search || ""}${location.state.from.hash || ""}`
+    : null;
+  const storedRedirect = sessionStorage.getItem("admin_redirect");
+
+  const targetRedirect = queryRedirect || stateRedirect || storedRedirect || "/dashboard";
+
+  useEffect(() => {
+    if (isAuthenticated && isAuthenticated()) {
+      sessionStorage.removeItem("admin_redirect");
+      const destination = targetRedirect && targetRedirect !== "/" ? targetRedirect : "/dashboard";
+      navigate(destination, { replace: true });
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const formData = { email: email.toLowerCase(), password }
+    const formData = { email: email.toLowerCase(), password };
 
     try {
-      await signin(formData, navigate)
+      await signin(formData, navigate, targetRedirect);
     } catch (error) {
       console.log(error);
     }
