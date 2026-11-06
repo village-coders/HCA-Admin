@@ -237,6 +237,7 @@ export default function ApplicationProcess() {
   const [certFiles, setCertFiles] = useState([]);
   const [certLabelFiles, setCertLabelFiles] = useState([]);
   const [isReuploadingCert, setIsReuploadingCert] = useState(false);
+  const [isReuploadingInvoice, setIsReuploadingInvoice] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejecting, setRejecting] = useState(false);
@@ -532,11 +533,13 @@ export default function ApplicationProcess() {
       setActiveStep(null);
       setAuditExpanded(false);
       setIsReuploadingCert(false);
+      setIsReuploadingInvoice(false);
     } else {
       setActiveStep(step);
       if (step.id === 6) setAuditExpanded(true);
       else setAuditExpanded(false);
       setIsReuploadingCert(false);
+      setIsReuploadingInvoice(false);
     }
   };
 
@@ -580,6 +583,8 @@ export default function ApplicationProcess() {
         formattedLabel = 'NC Corrections Rejected';
       } else if (stepId === 10 && application?.status === 'Issued') {
         formattedLabel = 'Certificate Updated';
+      } else if (stepId === 4 && (application?.processData?.invoiceFile || application?.processData?.invoiceSentAt)) {
+        formattedLabel = 'Invoice Reuploaded';
       } else {
         const stepLabel = (stepId === 6 && subStep)
           ? AUDIT_SUB_STEPS.find(s => s.id === parseInt(subStep))?.label
@@ -591,6 +596,11 @@ export default function ApplicationProcess() {
       toast.success(`${formattedLabel} Successfully!`);
       setActiveStep(null);
       setAuditExpanded(false);
+      if (stepId === 4) {
+        setIsReuploadingInvoice(false);
+        setInvoiceFile(null);
+        await fetchApplication();
+      }
       return true;
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update step');
@@ -970,14 +980,50 @@ export default function ApplicationProcess() {
     if (step.id === 4) {
       const isRejected = appInvoice?.status === 'Cancelled';
       const hasUploadedProof = !!appInvoice?.proofOfPayment;
+      const canManageInvoice = hasPrivilege('Accountant');
 
       return (
         <div className="action-panel">
           {isComplete && processData?.invoiceFile && (
-            <CompletedPanel label="Invoice Sent" timestamp={processData?.invoiceSentAt}>
-              <a href={resolveUrl(processData.invoiceFile)} target="_blank" rel="noreferrer" className="file-link">
-                <FileText size={16} /> View Invoice
-              </a>
+            <CompletedPanel label="Invoice Sent" timestamp={processData?.invoiceUpdatedAt || processData?.invoiceSentAt}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+                <a href={resolveUrl(processData.invoiceFile)} target="_blank" rel="noreferrer" className="file-link">
+                  <FileText size={16} /> View Current Invoice
+                </a>
+
+                {canManageInvoice && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsReuploadingInvoice(prev => !prev);
+                      setInvoiceFile(null);
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: isReuploadingInvoice ? '#f3f4f6' : '#ecfdf5',
+                      color: isReuploadingInvoice ? '#374151' : '#065f46',
+                      border: isReuploadingInvoice ? '1px solid #d1d5db' : '1px solid #a7f3d0',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <Upload size={14} />
+                    {isReuploadingInvoice ? 'Cancel Reupload' : 'Reupload Invoice'}
+                  </button>
+                )}
+              </div>
+
+              {processData?.invoiceUpdatedAt && processData?.invoiceSentAt && (
+                <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#6b7280' }}>
+                  Originally sent: {new Date(processData.invoiceSentAt).toLocaleString()}
+                </p>
+              )}
+
               {isRejected && (
                 <div style={{ marginTop: '15px', padding: '15px', backgroundColor: '#fee2e2', borderRadius: '8px' }}>
                   <h4 style={{ color: '#991b1b', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
@@ -988,7 +1034,8 @@ export default function ApplicationProcess() {
                   </p>
                 </div>
               )}
-              {appInvoice && !processData?.paymentConfirmedAt && (
+
+              {appInvoice && !processData?.paymentConfirmedAt && !isRejected && (
                 <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                   {appInvoice.reminderSentAt && (
                     <p style={{ margin: 0, fontSize: '12px', color: '#b45309', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1031,14 +1078,52 @@ export default function ApplicationProcess() {
             </CompletedPanel>
           )}
 
-          {(!isComplete || isRejected) && (
+          {(!isComplete || isRejected || isReuploadingInvoice) && (
             <div style={{ marginTop: isComplete ? '20px' : '0' }}>
-              <h2>{isRejected ? 'Re-issue Invoice' : 'Upload Invoice'}</h2>
-              <p>Upload the {isRejected ? 'new ' : ''}invoice document to send to the applicant.</p>
+              <h2>{isRejected ? 'Re-issue Invoice' : isReuploadingInvoice ? 'Reupload / Replace Invoice' : 'Upload Invoice'}</h2>
+              <p>
+                {isRejected
+                  ? 'The applicant has rejected the previous invoice. Upload the corrected invoice document to send to the applicant.'
+                  : isReuploadingInvoice
+                  ? 'Upload an updated invoice document to replace the current invoice and notify the applicant.'
+                  : 'Upload the invoice document to send to the applicant.'}
+              </p>
+
+              {isReuploadingInvoice && processData?.paymentConfirmedAt && (
+                <div style={{ marginBottom: '14px', padding: '12px 14px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', color: '#1e40af', fontSize: '13px' }}>
+                  <AlertCircle size={15} style={{ verticalAlign: 'middle', marginRight: '6px', display: 'inline' }} />
+                  Payment has already been confirmed for this application. Reuploading will update the invoice document on file.
+                </div>
+              )}
+
               <div className="upload-area" onClick={() => document.getElementById('invoice-upload').click()}>
                 <Upload size={32} color="#9ca3af" />
                 <p>{invoiceFile ? invoiceFile.name : 'Click to select invoice file'}</p>
                 <span>PDF, DOC, DOCX up to 10MB</span>
+                {invoiceFile && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setInvoiceFile(null);
+                      const input = document.getElementById('invoice-upload');
+                      if (input) input.value = '';
+                    }}
+                    style={{
+                      marginTop: '8px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#dc2626',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <X size={12} /> Remove file
+                  </button>
+                )}
               </div>
               <input type="file" id="invoice-upload" hidden accept=".pdf,.doc,.docx" onChange={e => {
                 const file = e.target.files[0];
@@ -1049,11 +1134,58 @@ export default function ApplicationProcess() {
                 }
                 setInvoiceFile(file);
               }} />
-              {hasPrivilege('Accountant') ? (
-                <button className="action-btn-primary" onClick={() => submitStep(4, null, null, invoiceFile)} disabled={saving || !invoiceFile}>
-                  {saving ? <Loader2 className="spin" size={16} /> : <Upload size={16} />}
-                  {saving ? 'Uploading...' : (isRejected ? 'Upload & Re-issue Invoice' : 'Upload & Send Invoice')}
-                </button>
+
+              {canManageInvoice ? (
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '16px' }}>
+                  <button
+                    className="action-btn-primary"
+                    onClick={async () => {
+                      if (!invoiceFile) {
+                        toast.error('Please select an invoice file to upload.');
+                        return;
+                      }
+
+                      if (isReuploadingInvoice) {
+                        setConfirmModal({
+                          open: true,
+                          title: 'Reupload Invoice',
+                          message: 'Are you sure you want to reupload this invoice? This will replace the previous invoice document and notify the applicant.',
+                          onConfirm: async () => {
+                            setConfirmModal({ open: false, title: '', message: '', onConfirm: null });
+                            await submitStep(4, null, null, invoiceFile);
+                          }
+                        });
+                        return;
+                      }
+
+                      await submitStep(4, null, null, invoiceFile);
+                    }}
+                    disabled={saving || !invoiceFile}
+                  >
+                    {saving ? <Loader2 className="spin" size={16} /> : <Upload size={16} />}
+                    {saving
+                      ? 'Uploading...'
+                      : (isRejected
+                          ? 'Upload & Re-issue Invoice'
+                          : isReuploadingInvoice
+                          ? 'Reupload & Send Invoice'
+                          : 'Upload & Send Invoice')}
+                  </button>
+
+                  {isReuploadingInvoice && (
+                    <button
+                      type="button"
+                      className="action-btn-secondary"
+                      onClick={() => {
+                        setIsReuploadingInvoice(false);
+                        setInvoiceFile(null);
+                      }}
+                      style={{ width: 'auto', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               ) : (
                 <NoPermissionView privilege="Accountant" />
               )}
