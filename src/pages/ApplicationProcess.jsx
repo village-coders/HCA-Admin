@@ -1196,10 +1196,57 @@ export default function ApplicationProcess() {
     }
 
     if (step.id === 5) {
-      if (isComplete) return <CompletedPanel label="Payment Received" timestamp={processData?.paymentConfirmedAt} />;
+      const proofUrl = appInvoice?.proofOfPayment || processData?.proofOfPayment;
+      const hasProof = !!proofUrl;
+
+      if (isComplete) {
+        return (
+          <CompletedPanel label="Payment Received" timestamp={processData?.paymentConfirmedAt}>
+            {hasProof ? (
+              <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileCheck size={18} color="#16a34a" />
+                  <span style={{ fontWeight: 600, color: '#166534', fontSize: '14px' }}>
+                    Proof of Payment (Approved)
+                  </span>
+                </div>
+                <p style={{ fontSize: '13px', color: '#4b5563', margin: 0 }}>
+                  The applicant uploaded a proof of payment document for this application.
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+                  <a
+                    href={resolveUrl(proofUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="file-link"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 16px',
+                      backgroundColor: '#eff6ff',
+                      color: '#1d4ed8',
+                      border: '1px solid #bfdbfe',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      textDecoration: 'none'
+                    }}
+                  >
+                    <Download size={15} /> View Uploaded Document
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <div style={{ marginTop: '12px', padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', color: '#64748b', fontSize: '13px' }}>
+                Payment has been confirmed. No proof of payment document was uploaded.
+              </div>
+            )}
+          </CompletedPanel>
+        );
+      }
 
       const proofRejected = appInvoice?.status === 'Proof Rejected';
-      const hasProof = !!appInvoice?.proofOfPayment;
 
       return (
         <div className="action-panel">
@@ -1229,7 +1276,7 @@ export default function ApplicationProcess() {
               </div>
               <p style={{ fontSize: '13px', color: '#1d4ed8', margin: 0 }}>The applicant has uploaded a proof of payment document for your review.</p>
               <a
-                href={resolveUrl(appInvoice.proofOfPayment)}
+                href={resolveUrl(proofUrl)}
                 target="_blank"
                 rel="noreferrer"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 14px', background: '#2563eb', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: 500, textDecoration: 'none', width: 'fit-content', marginTop: '4px' }}
