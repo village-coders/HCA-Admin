@@ -38,6 +38,7 @@ import {
   X
 } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
+import { PRODUCT_CATEGORIES } from '../constants/productCategories';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'sonner';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -704,21 +705,40 @@ const Applications = () => {
 
     const [isAcknowledging, setIsAcknowledging] = useState(false);
     const [selectedProductIds, setSelectedProductIds] = useState([]);
+    const [productCategoriesMap, setProductCategoriesMap] = useState({});
 
     const handleAcknowledgeSelectedProducts = async () => {
       if (selectedProductIds.length === 0) {
         toast.info("Please select at least one product to acknowledge.");
         return;
       }
+
+      // Ensure every selected product has a category chosen
+      const unassigned = selectedProductIds.filter(id => {
+        const prod = selectedAppProducts.find(p => (p._id || p.id) === id);
+        return !(productCategoriesMap[id] || prod?.category);
+      });
+
+      if (unassigned.length > 0) {
+        toast.error("Please pick a category for each selected product before acknowledging.");
+        return;
+      }
+
       setIsAcknowledging(true);
       try {
-        const approvePromises = selectedProductIds.map(id => approveProduct(id));
+        const approvePromises = selectedProductIds.map(id => {
+          const prod = selectedAppProducts.find(p => (p._id || p.id) === id);
+          const cat = productCategoriesMap[id] || prod?.category || '';
+          return approveProduct(id, cat);
+        });
         await Promise.all(approvePromises);
-        toast.success(`${selectedProductIds.length} products acknowledged successfully!`);
+        toast.success(`${selectedProductIds.length} product(s) acknowledged successfully!`);
         // Update local state to show them as acknowledged
         setSelectedAppProducts(prev => prev.map(p => {
-          if (selectedProductIds.includes(p._id || p.id)) {
-            return { ...p, status: 'acknowledged' };
+          const pid = p._id || p.id;
+          if (selectedProductIds.includes(pid)) {
+            const cat = productCategoriesMap[pid] || p.category || '';
+            return { ...p, status: 'acknowledged', category: cat };
           }
           return p;
         }));
@@ -1128,16 +1148,41 @@ const Applications = () => {
                         )}
                       </h3>
                       {selectedAppProducts.some(p => p.status === 'requested' || p.status === 'Requested' || p.status === 'pending' || p.status === 'Pending') && hasPrivilege('Application Officer') && (
-                        <button
-                          onClick={handleAcknowledgeSelectedProducts}
-                          disabled={isAcknowledging || selectedProductIds.length === 0}
-                          className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${selectedProductIds.length > 0
-                            ? 'bg-green-600 text-white hover:bg-green-700'
-                            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                            }`}
-                        >
-                          {isAcknowledging ? 'Acknowledging...' : `Acknowledge Selected (${selectedProductIds.length})`}
-                        </button>
+                        <div className="flex items-center space-x-2">
+                          {selectedProductIds.length > 0 && (
+                            <div className="flex items-center space-x-2 mr-2">
+                              <span className="text-xs text-gray-500 font-medium hidden sm:inline">Set Category:</span>
+                              <select
+                                className="text-xs rounded-md border border-gray-300 py-1.5 px-2 bg-white"
+                                onChange={(e) => {
+                                  const cat = e.target.value;
+                                  if (!cat) return;
+                                  const updated = { ...productCategoriesMap };
+                                  selectedProductIds.forEach(id => {
+                                    updated[id] = cat;
+                                  });
+                                  setProductCategoriesMap(updated);
+                                }}
+                                defaultValue=""
+                              >
+                                <option value="" disabled>-- Apply category to selected --</option>
+                                {PRODUCT_CATEGORIES.map(cat => (
+                                  <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                          <button
+                            onClick={handleAcknowledgeSelectedProducts}
+                            disabled={isAcknowledging || selectedProductIds.length === 0}
+                            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${selectedProductIds.length > 0
+                              ? 'bg-green-600 text-white hover:bg-green-700'
+                              : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                              }`}
+                          >
+                            {isAcknowledging ? 'Acknowledging...' : `Acknowledge Selected (${selectedProductIds.length})`}
+                          </button>
+                        </div>
                       )}
                     </div>
                     {selectedAppProducts.length > 0 ? (
@@ -1194,7 +1239,34 @@ const Applications = () => {
                                     )}
                                   </td>
                                   <td className="px-4 py-3 font-medium text-gray-900">{product.name}</td>
-                                  <td className="px-4 py-3 text-gray-500">{product.category || product.productCategory || '—'}</td>
+                                  <td className="px-4 py-3 text-gray-500">
+                                    {isPending ? (
+                                      <select
+                                        className="text-xs rounded-lg border border-gray-300 py-1.5 px-2.5 focus:ring-1 focus:ring-green-500 focus:border-green-500 bg-white"
+                                        value={productCategoriesMap[product._id || product.id] || product.category || ''}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          setProductCategoriesMap(prev => ({
+                                            ...prev,
+                                            [product._id || product.id]: val
+                                          }));
+                                        }}
+                                      >
+                                        <option value="">-- Select Category --</option>
+                                        {PRODUCT_CATEGORIES.map(cat => (
+                                          <option key={cat} value={cat}>{cat}</option>
+                                        ))}
+                                      </select>
+                                    ) : (
+                                      product.category ? (
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                          {product.category}
+                                        </span>
+                                      ) : (
+                                        <span className="text-gray-400 italic text-xs">Uncategorized</span>
+                                      )
+                                    )}
+                                  </td>
                                   <td className="px-4 py-3">
                                     <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${product.status === 'acknowledged' ? 'bg-green-100 text-green-700' :
                                       product.status === 'rejected' ? 'bg-red-100 text-red-700' :

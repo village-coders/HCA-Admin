@@ -401,7 +401,7 @@ const AllProvider = ({ children }) => {
       });
 
       setProducts((prev) =>
-        prev.map((p) => (p.id === id ? res.data.product : p))
+        prev.map((p) => ((p._id === id || p.id === id) ? (res.data.product || { ...p, ...productData }) : p))
       );
       toast.success("Product updated successfully!");
       return { success: true };
@@ -413,8 +413,8 @@ const AllProvider = ({ children }) => {
     }
   };
 
-  // 🔄 Approve product
-  const approveProduct = async (id) => {
+  // 🔄 Approve / Acknowledge product
+  const approveProduct = async (id, category = "") => {
     const token = getToken();
     if (!token) return { success: false };
 
@@ -422,7 +422,7 @@ const AllProvider = ({ children }) => {
     try {
       const res = await axios.put(
         `${baseUrl}/products/approve/${id}`,
-        {},
+        category ? { category } : {},
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -432,10 +432,16 @@ const AllProvider = ({ children }) => {
       );
 
       setProducts((prev) =>
-        prev.map((p) => (p._id === id || p.id === id ? res.data.product ?? { ...p, status: 'acknowledged' } : p))
+        prev.map((p) => {
+          if (p._id === id || p.id === id) {
+            const updated = res.data.products || res.data.product;
+            return updated ? updated : { ...p, status: 'acknowledged', ...(category ? { category } : {}) };
+          }
+          return p;
+        })
       );
-      toast.success(res.data.message);
-      return { success: true };
+      toast.success(res.data.message || "Product acknowledged successfully!");
+      return { success: true, product: res.data.products || res.data.product };
     } catch(err) {
       toast.error(err.response?.data?.message || "Failed to approve product");
       return { success: false };

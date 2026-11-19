@@ -16,12 +16,14 @@ import {
   ExternalLink,
   Edit,
   Trash2,
-  X
+  X,
+  Tag
 } from 'lucide-react';
 import { useAll } from '../hooks/useAll';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'sonner';
 import TableActions from '../components/TableActions';
+import { PRODUCT_CATEGORIES } from '../constants/productCategories';
 
 const Products = () => {
   const { user } = useAuth();
@@ -33,6 +35,7 @@ const Products = () => {
   const [filter, setFilter] = useState({
     name: '',
     company: '',
+    category: '',
     dateFrom: '',
     dateTo: '',
     status: '',
@@ -63,6 +66,17 @@ const Products = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const companySearchRef = useRef(null);
 
+  // Acknowledge Modal & Category selection states
+  const [acknowledgeModalOpen, setAcknowledgeModalOpen] = useState(false);
+  const [productToAcknowledge, setProductToAcknowledge] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [isSubmittingAcknowledge, setIsSubmittingAcknowledge] = useState(false);
+
+  // Category inline editing in View Details Modal
+  const [isEditingCategory, setIsEditingCategory] = useState(false);
+  const [editCategoryVal, setEditCategoryVal] = useState('');
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
+
   // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -83,6 +97,7 @@ const Products = () => {
     rejectProduct,
     deleteProduct,
     getProductById,
+    updateProduct,
     companies
   } = useAll();
 
@@ -189,6 +204,9 @@ const Products = () => {
     if (filter.status && product.status?.toLowerCase() !== filter.status.toLowerCase()) {
       return false;
     }
+    if (filter.category && product.category !== filter.category) {
+      return false;
+    }
     return true;
   });
 
@@ -225,27 +243,83 @@ const Products = () => {
     }
   };
 
-  // Handle Approve Product
-  const handleApproveProduct = async (productId, reason = "") => {
-    setIsApprovingId(productId);
+  // Open Acknowledge Modal for a single product or array of product IDs
+  const openAcknowledgeModal = (target) => {
+    setProductToAcknowledge(target);
+    if (Array.isArray(target)) {
+      setSelectedCategory('');
+    } else {
+      setSelectedCategory(target?.category || '');
+    }
+    setAcknowledgeModalOpen(true);
+  };
+
+  // Confirm Acknowledge with category
+  const handleConfirmAcknowledge = async () => {
+    if (!productToAcknowledge) return;
+    if (!selectedCategory) {
+      toast.error("Please pick a product category to acknowledge");
+      return;
+    }
+
+    setIsSubmittingAcknowledge(true);
     try {
-      await approveProduct(productId, reason);
-      toast.success("Product acknowledged successfully!");
-      
-      // Update local state if modal is open
-      if (selectedProduct && selectedProduct.id === productId) {
-        setSelectedProduct(prev => ({
-          ...prev,
-          status: 'acknowledged'
-        }));
+      if (Array.isArray(productToAcknowledge)) {
+        const promises = productToAcknowledge.map(id => approveProduct(id, selectedCategory));
+        await Promise.all(promises);
+        toast.success(`${productToAcknowledge.length} products acknowledged successfully!`);
+        setSelectedProducts([]);
+      } else {
+        const productId = productToAcknowledge._id || productToAcknowledge.id;
+        await approveProduct(productId, selectedCategory);
+        toast.success("Product acknowledged successfully!");
+        
+        if (selectedProduct && (selectedProduct.id === productId || selectedProduct._id === productId)) {
+          setSelectedProduct(prev => ({
+            ...prev,
+            status: 'acknowledged',
+            category: selectedCategory
+          }));
+        }
       }
-      
+      setAcknowledgeModalOpen(false);
+      setProductToAcknowledge(null);
+      setSelectedCategory('');
       fetchProducts();
     } catch (error) {
-      toast.error("Failed to approve product");
-      console.log(error)
+      toast.error("Failed to acknowledge product");
+      console.error(error);
     } finally {
-      setIsApprovingId(null);
+      setIsSubmittingAcknowledge(false);
+    }
+  };
+
+  // Direct Approve Product handler (opens category picker)
+  const handleApproveProduct = (productId) => {
+    const product = products.find(p => p.id === productId || p._id === productId) || selectedProduct || { _id: productId, name: 'Product' };
+    openAcknowledgeModal(product);
+  };
+
+  // Update Category on existing product
+  const handleSaveCategory = async () => {
+    if (!selectedProduct || !editCategoryVal) {
+      toast.error("Please select a category");
+      return;
+    }
+    setIsSavingCategory(true);
+    const pId = selectedProduct._id || selectedProduct.id;
+    try {
+      const res = await updateProduct(pId, { category: editCategoryVal });
+      if (res?.success) {
+        setSelectedProduct(prev => ({ ...prev, category: editCategoryVal }));
+        setIsEditingCategory(false);
+        fetchProducts();
+      }
+    } catch (error) {
+      toast.error("Failed to update product category");
+      console.error(error);
+    } finally {
+      setIsSavingCategory(false);
     }
   };
 
@@ -362,7 +436,7 @@ const Products = () => {
   };
 
   // Handle bulk approve
-  const handleBulkApprove = async () => {
+  const handleBulkApprove = () => {
     if (selectedProducts.length === 0) {
       toast.warning("No products selected");
       return;
@@ -379,18 +453,7 @@ const Products = () => {
       return;
     }
 
-    if (window.confirm(`Are you sure you want to approve ${pendingProducts.length} selected products?`)) {
-      try {
-        const approvePromises = pendingProducts.map(id => approveProduct(id));
-        await Promise.all(approvePromises);
-        setSelectedProducts([]);
-        toast.success(`${pendingProducts.length} products approved successfully!`);
-        fetchProducts();
-      } catch (error) {
-        toast.error("Failed to approve some products");
-        console.log(error);
-      }
-    }
+    openAcknowledgeModal(pendingProducts);
   };
 
   // Calculate tab counts
@@ -515,6 +578,61 @@ const Products = () => {
                       <p className="font-medium text-gray-900">
                         {selectedProduct?._id?.slice(-8) || 'N/A'}
                       </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Category</p>
+                      {isEditingCategory ? (
+                        <div className="flex items-center gap-2">
+                          <select
+                            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b] bg-white flex-1"
+                            value={editCategoryVal}
+                            onChange={(e) => setEditCategoryVal(e.target.value)}
+                          >
+                            <option value="">-- Select Category --</option>
+                            {PRODUCT_CATEGORIES.map((cat) => (
+                              <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={handleSaveCategory}
+                            disabled={isSavingCategory}
+                            className="px-3 py-1.5 bg-[#00853b] text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+                          >
+                            {isSavingCategory ? 'Saving...' : 'Save'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingCategory(false)}
+                            className="px-2 py-1.5 text-gray-500 hover:text-gray-700 text-xs font-medium rounded-lg"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          {selectedProduct.category ? (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              <Tag className="w-3 h-3 mr-1 text-emerald-600" />
+                              {selectedProduct.category}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 italic text-sm">Uncategorized</span>
+                          )}
+                          {hasPrivilege('Application Officer') && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditCategoryVal(selectedProduct.category || '');
+                                setIsEditingCategory(true);
+                              }}
+                              className="text-xs text-blue-600 hover:text-blue-800 font-medium ml-2 underline"
+                            >
+                              {selectedProduct.category ? 'Change' : 'Assign Category'}
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -708,14 +826,15 @@ const Products = () => {
               <div className="flex items-center space-x-3">
                 {hasPrivilege('Application Officer') && (
                   <>
-                    <button
-                      onClick={() => handleApproveProduct(productId)}
-                      disabled={isApprovingId === productId}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 flex items-center disabled:opacity-50"
-                    >
-                      {isApprovingId === productId ? <CheckCircle className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                      {isApprovingId === productId ? 'Approving...' : 'Approve Product'}
-                    </button>
+                    {selectedProduct?.status?.toLowerCase() === 'requested' && (
+                      <button
+                        onClick={() => handleApproveProduct(productId)}
+                        className="px-4 py-2 bg-[#00853b] text-white rounded-lg hover:bg-emerald-700 font-medium transition-colors duration-200 flex items-center shadow-sm"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Acknowledge Product
+                      </button>
+                    )}
                     <button
                       onClick={() => handleRejectProduct(productId)}
                       disabled={isRejectingId === productId}
@@ -835,7 +954,7 @@ const Products = () => {
         </div>
         
         <div className={`${isFilterOpen ? 'block' : 'hidden lg:block'}`}>
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Product Name</label>
               <div className="relative">
@@ -929,6 +1048,26 @@ const Products = () => {
                 )}
               </div>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+              <div className="relative">
+                <select
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b] appearance-none"
+                  value={filter.category}
+                  onChange={(e) => setFilter({ ...filter, category: e.target.value })}
+                  disabled={isLoading}
+                >
+                  <option value="">All Categories</option>
+                  {PRODUCT_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                </div>
+              </div>
+            </div>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Date From</label>
@@ -988,7 +1127,7 @@ const Products = () => {
             </div>
             <div className="flex gap-2">
               <button 
-                onClick={() => setFilter({ name: '', company: '', dateFrom: '', dateTo: '', status: '' })}
+                onClick={() => setFilter({ name: '', company: '', category: '', dateFrom: '', dateTo: '', status: '' })}
                 className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200"
                 disabled={isLoading}
               >
@@ -1040,6 +1179,7 @@ const Products = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
@@ -1069,6 +1209,16 @@ const Products = () => {
                           </div>
                         </td>
                         <td className="p-4">
+                          {product.category ? (
+                            <span className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              <Tag className="w-3 h-3 mr-1 text-emerald-600" />
+                              {product.category}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 italic text-xs">Uncategorized</span>
+                          )}
+                        </td>
+                        <td className="p-4">
                           <div className="text-sm font-medium text-gray-900">
                             {product?.createdBy?.companyName || 'Unknown Company'}
                           </div>
@@ -1088,6 +1238,11 @@ const Products = () => {
                         <td className="p-4 text-left">
                           <TableActions 
                             actions={[
+                              hasPrivilege('Application Officer') && (product.status?.toLowerCase() === 'requested') ? {
+                                label: 'Acknowledge Product',
+                                icon: CheckCircle,
+                                onClick: () => handleApproveProduct(productId)
+                              } : null,
                               {
                                 label: 'View Details',
                                 icon: Eye,
@@ -1109,7 +1264,7 @@ const Products = () => {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="7" className="p-8 text-center text-gray-500">
+                    <td colSpan="6" className="p-8 text-center text-gray-500">
                       <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                       <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
                       <p className="text-gray-600 mb-4">Try adjusting your search or filter criteria</p>
@@ -1215,6 +1370,101 @@ const Products = () => {
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center disabled:opacity-50"
               >
                 {isDeletingId !== null ? 'Deleting...' : 'Delete Product'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Acknowledge Product Modal */}
+      {acknowledgeModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50 px-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <CheckCircle className="w-5 h-5 text-[#00853b]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Acknowledge Product</h3>
+                  <p className="text-xs text-gray-500">
+                    {Array.isArray(productToAcknowledge)
+                      ? `Assign category to ${productToAcknowledge.length} selected product(s)`
+                      : 'Pick a category to acknowledge this product'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setAcknowledgeModalOpen(false);
+                  setProductToAcknowledge(null);
+                  setSelectedCategory('');
+                }}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {!Array.isArray(productToAcknowledge) && productToAcknowledge?.name && (
+                <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                  <span className="text-xs text-gray-500 block mb-0.5">Product Name</span>
+                  <span className="font-semibold text-gray-900 text-sm">{productToAcknowledge.name}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Select Product Category <span className="text-red-500">*</span>
+                </label>
+                <select
+                  className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm focus:border-[#00853b] focus:ring-1 focus:ring-[#00853b] bg-white transition-colors"
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  autoFocus
+                >
+                  <option value="">-- Choose Category --</option>
+                  {PRODUCT_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1.5">
+                  This category will be assigned to the product upon acknowledgement.
+                </p>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-end space-x-3 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setAcknowledgeModalOpen(false);
+                  setProductToAcknowledge(null);
+                  setSelectedCategory('');
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                disabled={isSubmittingAcknowledge}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAcknowledge}
+                disabled={isSubmittingAcknowledge || !selectedCategory}
+                className="px-5 py-2 text-sm font-medium text-white bg-[#00853b] rounded-lg hover:bg-emerald-700 transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              >
+                {isSubmittingAcknowledge ? (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2 animate-spin" />
+                    Acknowledging...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Confirm & Acknowledge
+                  </>
+                )}
               </button>
             </div>
           </div>
