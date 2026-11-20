@@ -127,7 +127,7 @@ const BulkEmail = () => {
     <div className="p-4 lg:p-8 pt-20 lg:pt-8">
       <div className="mb-6">
         <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Bulk Email</h1>
-        <p className="text-gray-600 mt-1">Send custom emails to filtered clients based on certificate status</p>
+        <p className="text-gray-600 mt-1">Send custom emails to filtered clients based on certificate or payment status</p>
       </div>
 
       {message.text && (
@@ -153,7 +153,7 @@ const BulkEmail = () => {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Certificate Status</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Client Status</label>
                 <div className="relative">
                   <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <select
@@ -162,9 +162,14 @@ const BulkEmail = () => {
                     onChange={(e) => setStatusFilter(e.target.value)}
                   >
                     <option value="">All Clients</option>
-                    <option value="Active">Active Certificate</option>
-                    <option value="Expiring Soon">Expiring Soon</option>
-                    <option value="Expired">Expired Certificate</option>
+                    <optgroup label="Certificate Status">
+                      <option value="Active">Active Certificate</option>
+                      <option value="Expiring Soon">Expiring Soon</option>
+                      <option value="Expired">Expired Certificate</option>
+                    </optgroup>
+                    <optgroup label="Invoice & Payment">
+                      <option value="AwaitingProofOfPayment">Invoice Sent (No Proof of Payment)</option>
+                    </optgroup>
                   </select>
                 </div>
               </div>
