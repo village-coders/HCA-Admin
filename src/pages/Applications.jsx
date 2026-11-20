@@ -1292,79 +1292,96 @@ const Applications = () => {
               {activeDetailTab === 'facilities' && (
                 <div className="space-y-6">
                   {/* Manufacturing Facility */}
-                  {selectedApplication.manufacturingFacility && (
+                  {(() => {
+                    const rawMfg = selectedApplication.manufacturingFacility || {};
+                    const branch = typeof selectedApplication.branchId === 'object' ? selectedApplication.branchId : null;
+                    const mfg = {
+                      companyName: rawMfg.companyName || branch?.branchName || '',
+                      address: rawMfg.address || branch?.address || '',
+                      localGovtArea: rawMfg.localGovtArea || branch?.lga || '',
+                      city: rawMfg.city || branch?.city || '',
+                      state: rawMfg.state || branch?.state || '',
+                      country: rawMfg.country || branch?.country || '',
+                      plantContact: rawMfg.plantContact || branch?.contactName || '',
+                      positionTitle: rawMfg.positionTitle || branch?.positionTitle || '',
+                      telephoneNo: rawMfg.telephoneNo || branch?.contactNumber || '',
+                      emailAddress: rawMfg.emailAddress || selectedApplication.company?.email || '',
+                      governmentPlantCode: rawMfg.governmentPlantCode || branch?.governmentPlantCode || ''
+                    };
+                    const hasMfg = Object.values(mfg).some(v => typeof v === 'string' ? v.trim() !== '' : Boolean(v));
+                    return (
                     <div className="bg-gray-50 rounded-lg p-5">
                       <div className="flex items-center mb-4">
                         <Factory className="w-5 h-5 text-gray-500 mr-2" />
                         <h3 className="text-lg font-semibold text-gray-900">Manufacturing Facility</h3>
                       </div>
 
-                      {Object.keys(selectedApplication.manufacturingFacility).some(key => selectedApplication.manufacturingFacility[key]) ? (
+                      {hasMfg ? (
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <p className="text-sm text-gray-600">Company/Plant Name</p>
                             <p className="font-medium text-gray-900">
-                              {selectedApplication.manufacturingFacility?.companyName || 'N/A'}
+                              {mfg.companyName || 'N/A'}
                             </p>
                           </div>
                           <div className="col-span-2">
                             <p className="text-sm text-gray-600">Address</p>
                             <p className="font-medium text-gray-900">
-                              {selectedApplication.manufacturingFacility.address || 'N/A'}
+                              {mfg.address || 'N/A'}
                             </p>
                           </div>
                           <div>
                             <p className="text-sm text-gray-600">Local Govt. Area</p>
                             <p className="font-medium text-gray-900">
-                              {selectedApplication.manufacturingFacility.localGovtArea || 'N/A'}
+                              {mfg.localGovtArea || 'N/A'}
                             </p>
                           </div>
                           <div>
                             <p className="text-sm text-gray-600">City</p>
                             <p className="font-medium text-gray-900">
-                              {selectedApplication.manufacturingFacility.city || 'N/A'}
+                              {mfg.city || 'N/A'}
                             </p>
                           </div>
                           <div>
                             <p className="text-sm text-gray-600">State</p>
                             <p className="font-medium text-gray-900">
-                              {selectedApplication.manufacturingFacility.state || 'N/A'}
+                              {mfg.state || 'N/A'}
                             </p>
                           </div>
                           <div>
                             <p className="text-sm text-gray-600">Country</p>
                             <p className="font-medium text-gray-900">
-                              {selectedApplication.manufacturingFacility.country || 'N/A'}
+                              {mfg.country || 'N/A'}
                             </p>
                           </div>
                           <div>
                             <p className="text-sm text-gray-600">Plant Contact</p>
                             <p className="font-medium text-gray-900">
-                              {selectedApplication.manufacturingFacility.plantContact || 'N/A'}
+                              {mfg.plantContact || 'N/A'}
                             </p>
                           </div>
                           <div>
                             <p className="text-sm text-gray-600">Position/Title</p>
                             <p className="font-medium text-gray-900">
-                              {selectedApplication.manufacturingFacility.positionTitle || 'N/A'}
+                              {mfg.positionTitle || 'N/A'}
                             </p>
                           </div>
                           <div>
                             <p className="text-sm text-gray-600">Telephone No.</p>
                             <p className="font-medium text-gray-900">
-                              {selectedApplication.manufacturingFacility.telephoneNo || 'N/A'}
+                              {mfg.telephoneNo || 'N/A'}
                             </p>
                           </div>
                           <div>
                             <p className="text-sm text-gray-600">Email Address</p>
                             <p className="font-medium text-gray-900">
-                              {selectedApplication.manufacturingFacility.emailAddress || 'N/A'}
+                              {mfg.emailAddress || 'N/A'}
                             </p>
                           </div>
                           <div>
                             <p className="text-sm text-gray-600">Government Plant Code</p>
                             <p className="font-medium text-gray-900">
-                              {selectedApplication.manufacturingFacility.governmentPlantCode || 'N/A'}
+                              {mfg.governmentPlantCode || 'N/A'}
                             </p>
                           </div>
                         </div>
@@ -1372,7 +1389,8 @@ const Applications = () => {
                         <p className="text-gray-500 italic">Same as company address</p>
                       )}
                     </div>
-                  )}
+                    );
+                  })()}
 
                   {/* Additional Facilities */}
                   {selectedApplication.additionalFacilities && selectedApplication.additionalFacilities.length > 0 && (
