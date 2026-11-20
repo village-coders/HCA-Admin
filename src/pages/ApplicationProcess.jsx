@@ -773,7 +773,7 @@ export default function ApplicationProcess() {
     }
   };
 
-  const MAX_FILE_SIZE_MB = 5;
+  const MAX_FILE_SIZE_MB = 20;
   const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
   const executeCreateLogsheet = async () => {
@@ -1099,7 +1099,7 @@ export default function ApplicationProcess() {
               <div className="upload-area" onClick={() => document.getElementById('invoice-upload').click()}>
                 <Upload size={32} color="#9ca3af" />
                 <p>{invoiceFile ? invoiceFile.name : 'Click to select invoice file'}</p>
-                <span>PDF, DOC, DOCX up to 10MB</span>
+                <span>PDF, DOC, DOCX up to 20MB</span>
                 {invoiceFile && (
                   <button
                     type="button"
@@ -1127,8 +1127,8 @@ export default function ApplicationProcess() {
               </div>
               <input type="file" id="invoice-upload" hidden accept=".pdf,.doc,.docx" onChange={e => {
                 const file = e.target.files[0];
-                if (file && file.size > 10 * 1024 * 1024) {
-                  toast.error(`File "${file.name}" exceeds the 10MB size limit.`);
+                if (file && file.size > 20 * 1024 * 1024) {
+                  toast.error(`File "${file.name}" exceeds the 20MB size limit.`);
                   e.target.value = "";
                   return;
                 }
@@ -1749,8 +1749,8 @@ export default function ApplicationProcess() {
                                     <label style={{ fontSize: '12px', color: '#64748b' }}>Document 1 (Required) *</label>
                                     <input type="file" onChange={(e) => {
                                       const file = e.target.files[0];
-                                      if (file && file.size > 5 * 1024 * 1024) {
-                                        toast.error(`File "${file.name}" exceeds the 5MB size limit.`);
+                                      if (file && file.size > 20 * 1024 * 1024) {
+                                        toast.error(`File "${file.name}" exceeds the 20MB size limit.`);
                                         e.target.value = "";
                                         return;
                                       }
@@ -1761,8 +1761,8 @@ export default function ApplicationProcess() {
                                     <label style={{ fontSize: '12px', color: '#64748b' }}>Document 2 (Optional)</label>
                                     <input type="file" onChange={(e) => {
                                       const file = e.target.files[0];
-                                      if (file && file.size > 5 * 1024 * 1024) {
-                                        toast.error(`File "${file.name}" exceeds the 5MB size limit.`);
+                                      if (file && file.size > 20 * 1024 * 1024) {
+                                        toast.error(`File "${file.name}" exceeds the 20MB size limit.`);
                                         e.target.value = "";
                                         return;
                                       }
@@ -1773,8 +1773,8 @@ export default function ApplicationProcess() {
                                     <label style={{ fontSize: '12px', color: '#64748b' }}>Document 3 (Optional)</label>
                                     <input type="file" onChange={(e) => {
                                       const file = e.target.files[0];
-                                      if (file && file.size > 5 * 1024 * 1024) {
-                                        toast.error(`File "${file.name}" exceeds the 5MB size limit.`);
+                                      if (file && file.size > 20 * 1024 * 1024) {
+                                        toast.error(`File "${file.name}" exceeds the 20MB size limit.`);
                                         e.target.value = "";
                                         return;
                                       }
@@ -1941,8 +1941,8 @@ export default function ApplicationProcess() {
                             accept=".pdf,.doc,.docx"
                             onChange={e => {
                               const file = e.target.files[0];
-                              if (file && file.size > 5 * 1024 * 1024) {
-                                toast.error(`File "${file.name}" exceeds the 5MB size limit.`);
+                              if (file && file.size > 20 * 1024 * 1024) {
+                                toast.error(`File "${file.name}" exceeds the 20MB size limit.`);
                                 e.target.value = "";
                                 return;
                               }
@@ -2303,9 +2303,9 @@ export default function ApplicationProcess() {
                 onChange={e => {
                   if (e.target.files) {
                     const files = Array.from(e.target.files);
-                    const oversized = files.find(f => f.size > 5 * 1024 * 1024);
+                    const oversized = files.find(f => f.size > 20 * 1024 * 1024);
                     if (oversized) {
-                      toast.error(`File "${oversized.name}" exceeds the 5MB size limit.`);
+                      toast.error(`File "${oversized.name}" exceeds the 20MB size limit.`);
                       e.target.value = "";
                       return;
                     }
@@ -2369,9 +2369,9 @@ export default function ApplicationProcess() {
                 accept=".pdf,.png,.jpg,.jpeg"
                 onChange={e => {
                   const files = Array.from(e.target.files);
-                  const oversized = files.find(f => f.size > 5 * 1024 * 1024);
+                  const oversized = files.find(f => f.size > 20 * 1024 * 1024);
                   if (oversized) {
-                    toast.error(`File "${oversized.name}" exceeds the 5MB size limit.`);
+                    toast.error(`File "${oversized.name}" exceeds the 20MB size limit.`);
                     e.target.value = "";
                     return;
                   }
@@ -2592,13 +2592,13 @@ export default function ApplicationProcess() {
               </div>
 
               <div>
-                <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '6px' }}>Lab Results (Optional, Any format) <span style={{ fontWeight: 400, color: '#9ca3af' }}>— max 5MB</span></label>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '6px' }}>Lab Results (Optional, Any format) <span style={{ fontWeight: 400, color: '#9ca3af' }}>— max 20MB</span></label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <input
                     type="file"
                     onChange={e => {
                       const file = e.target.files[0];
-                      if (file && file.size > 5 * 1024 * 1024) { toast.error('File exceeds 5MB limit'); e.target.value = ''; return; }
+                      if (file && file.size > 20 * 1024 * 1024) { toast.error('File exceeds 20MB limit'); e.target.value = ''; return; }
                       setLogsheetData({ ...logsheetData, labResultFile: file });
                     }}
                     style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '8px' }}
@@ -2610,7 +2610,7 @@ export default function ApplicationProcess() {
               {/* Additional Documents & Corrective Actions */}
               <div>
                 <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '6px' }}>
-                  Additional Documents & Corrective Actions <span style={{ fontWeight: 400, color: '#9ca3af' }}>— optional, each max 5MB</span>
+                  Additional Documents & Corrective Actions <span style={{ fontWeight: 400, color: '#9ca3af' }}>— optional, each max 20MB</span>
                 </label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {/* Client-uploaded corrective actions pre-filled */}
@@ -2662,7 +2662,7 @@ export default function ApplicationProcess() {
                         type="file"
                         onChange={e => {
                           const file = e.target.files[0];
-                          if (file && file.size > 5 * 1024 * 1024) { toast.error(`File "${file.name}" exceeds 5MB limit`); e.target.value = ''; return; }
+                          if (file && file.size > 20 * 1024 * 1024) { toast.error(`File "${file.name}" exceeds 20MB limit`); e.target.value = ''; return; }
                           const updated = [...logsheetData.additionalDocFiles];
                           updated[idx] = file;
                           setLogsheetData({ ...logsheetData, additionalDocFiles: updated });

@@ -51,11 +51,11 @@ const Messages = ({ userId }) => {
 
   const handleFileSelect = (e) => {
     const selectedFiles = Array.from(e.target.files);
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const maxSize = 20 * 1024 * 1024; // 20MB
     
     const validFiles = selectedFiles.filter(file => {
       if (file.size > maxSize) {
-        toast.error(`File ${file.name} exceeds 10MB limit`);
+        toast.error(`File ${file.name} exceeds 20MB limit`);
         return false;
       }
       return true;
